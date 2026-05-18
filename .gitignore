@@ -12,6 +12,10 @@ build/
 .env
 .env*.local
 
+# Supabase local state
+supabase/.branches/
+supabase/.temp/
+
 # testing
 coverage/
 playwright-report/
