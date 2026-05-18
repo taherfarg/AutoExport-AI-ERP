@@ -8,6 +8,9 @@
     "start": "next start",
     "lint": "eslint app next.config.ts tailwind.config.ts postcss.config.mjs"
   },
+  "overrides": {
+    "postcss": "^8.5.14"
+  },
   "dependencies": {
     "@hookform/resolvers": "^5.2.2",
     "@supabase/ssr": "^0.10.3",
