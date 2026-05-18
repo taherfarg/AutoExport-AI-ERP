@@ -24,7 +24,7 @@ create table public.companies (
 );
 
 create table public.profiles (
-  id uuid primary key default gen_random_uuid(),
+  id uuid primary key references auth.users(id) on delete cascade,
   auth_user_id uuid not null unique references auth.users(id) on delete cascade,
   full_name text not null,
   email text not null,
@@ -33,7 +33,8 @@ create table public.profiles (
   preferred_language text not null default 'en',
   status public.member_status not null default 'active',
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  constraint profiles_id_matches_auth_user check (id = auth_user_id)
 );
 
 create table public.branches (
@@ -264,8 +265,9 @@ security definer
 set search_path = pg_catalog, public
 as $$
 begin
-  insert into public.profiles (auth_user_id, full_name, email)
+  insert into public.profiles (id, auth_user_id, full_name, email)
   values (
+    new.id,
     new.id,
     coalesce(new.raw_user_meta_data ->> 'full_name', split_part(new.email, '@', 1)),
     new.email
