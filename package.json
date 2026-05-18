@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint app components features lib tests next.config.ts tailwind.config.ts postcss.config.mjs vitest.config.ts",
+    "lint": "eslint app components features lib tests next.config.ts proxy.ts tailwind.config.ts postcss.config.mjs vitest.config.ts playwright.config.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test"

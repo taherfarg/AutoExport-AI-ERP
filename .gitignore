@@ -20,6 +20,7 @@ supabase/.temp/
 coverage/
 playwright-report/
 test-results/
+tsconfig.tsbuildinfo
 
 # debug logs
 npm-debug.log*
