@@ -7,7 +7,6 @@ import {
   CardContent,
   CardDescription,
   CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -26,7 +25,7 @@ export function AuthForm({ title, description, action, submitLabel }: AuthFormPr
   return (
     <Card className="w-full max-w-md">
       <CardHeader>
-        <CardTitle>{title}</CardTitle>
+        <h1 className="text-2xl font-semibold leading-none tracking-tight">{title}</h1>
         <CardDescription>{description}</CardDescription>
       </CardHeader>
       <CardContent>
