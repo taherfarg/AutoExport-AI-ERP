@@ -12,15 +12,15 @@
 
 ## Tasks
 
-- [ ] Create Supabase migrations for vehicle enums, tables, indexes, triggers, grants, RLS policies, and seed data.
-- [ ] Add SQL tests for tenant isolation, RLS coverage, unique VIN/stock number constraints, and cost calculations.
-- [ ] Add TypeScript pricing/business logic and unit tests.
-- [ ] Add Zod vehicle validation and server-side vehicle actions.
-- [ ] Add vehicle queries and permission-aware formatting helpers.
-- [ ] Build `/vehicles` inventory list with KPIs, filters, table, and add form.
-- [ ] Build `/vehicles/[vehicleId]` detail page with cost cards, specs, timeline, and metadata sections.
-- [ ] Update dashboard and docs for Phase 2A.
-- [ ] Run full verification and commit.
+- [x] Create Supabase migrations for vehicle enums, tables, indexes, triggers, grants, RLS policies, and seed data.
+- [x] Add SQL tests for tenant isolation, RLS coverage, unique VIN/stock number constraints, and cost calculations.
+- [x] Add TypeScript pricing/business logic and unit tests.
+- [x] Add Zod vehicle validation and server-side vehicle actions.
+- [x] Add vehicle queries and permission-aware formatting helpers.
+- [x] Build `/vehicles` inventory list with KPIs, filters, table, and add form.
+- [x] Build `/vehicles/[vehicleId]` detail page with cost cards, specs, timeline, and metadata sections.
+- [x] Update dashboard and docs for Phase 2A.
+- [x] Run full verification and commit.
 
 ## Verification Commands
 
@@ -33,4 +33,3 @@ npx supabase db reset
 npx supabase test db
 npm run test:e2e
 ```
-

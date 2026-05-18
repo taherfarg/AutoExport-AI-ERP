@@ -1,4 +1,4 @@
-import { requireUser } from "@/lib/auth/require-user";
+import { getCurrentWorkspace } from "@/lib/auth/current-workspace";
 import { createClient } from "@/lib/supabase/server";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -9,14 +9,6 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-type MembershipRow = {
-  company_id: string;
-};
-
-type ProfileMembershipRow = {
-  company_memberships: MembershipRow[];
-};
-
 type PackageRow = {
   name: string;
   package_key: string;
@@ -25,26 +17,8 @@ type PackageRow = {
   max_vehicles: number | null;
 };
 
-async function getCurrentCompanyId() {
-  const user = await requireUser();
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("company_memberships(company_id)")
-    .eq("auth_user_id", user.id)
-    .single();
-
-  const profile = data as unknown as ProfileMembershipRow | null;
-
-  if (error || !profile?.company_memberships?.[0]?.company_id) {
-    throw new Error("Current company was not found.");
-  }
-
-  return profile.company_memberships[0].company_id;
-}
-
 export default async function SubscriptionsPage() {
-  const companyId = await getCurrentCompanyId();
+  const { companyId } = await getCurrentWorkspace();
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("subscriptions")

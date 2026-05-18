@@ -1,6 +1,5 @@
 import { getCompanyUsers } from "@/features/users/queries";
-import { requireUser } from "@/lib/auth/require-user";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentWorkspace } from "@/lib/auth/current-workspace";
 import { Badge } from "@/components/ui/badge";
 import {
   Card,
@@ -10,40 +9,14 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 
-type MembershipRow = {
-  company_id: string;
-};
-
-type ProfileMembershipRow = {
-  company_memberships: MembershipRow[];
-};
-
 type CompanyUserRow = {
   id: string;
   status: string;
   profiles: { full_name: string; email: string } | { full_name: string; email: string }[] | null;
 };
 
-async function getCurrentCompanyId() {
-  const user = await requireUser();
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("company_memberships(company_id)")
-    .eq("auth_user_id", user.id)
-    .single();
-
-  const profile = data as unknown as ProfileMembershipRow | null;
-
-  if (error || !profile?.company_memberships?.[0]?.company_id) {
-    throw new Error("Current company was not found.");
-  }
-
-  return profile.company_memberships[0].company_id;
-}
-
 export default async function UsersPage() {
-  const companyId = await getCurrentCompanyId();
+  const { companyId } = await getCurrentWorkspace();
   const users = (await getCompanyUsers(companyId)) as unknown as CompanyUserRow[];
 
   return (

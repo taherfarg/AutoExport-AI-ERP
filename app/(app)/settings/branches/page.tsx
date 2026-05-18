@@ -1,7 +1,6 @@
 import { createBranch } from "@/features/branches/actions";
 import { getBranches } from "@/features/branches/queries";
-import { requireUser } from "@/lib/auth/require-user";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentWorkspace } from "@/lib/auth/current-workspace";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -13,34 +12,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 
-type MembershipRow = {
-  company_id: string;
-};
-
-type ProfileMembershipRow = {
-  company_memberships: MembershipRow[];
-};
-
-async function getCurrentCompanyId() {
-  const user = await requireUser();
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("profiles")
-    .select("company_memberships(company_id)")
-    .eq("auth_user_id", user.id)
-    .single();
-
-  const profile = data as unknown as ProfileMembershipRow | null;
-
-  if (error || !profile?.company_memberships?.[0]?.company_id) {
-    throw new Error("Current company was not found.");
-  }
-
-  return profile.company_memberships[0].company_id;
-}
-
 export default async function BranchesPage() {
-  const companyId = await getCurrentCompanyId();
+  const { companyId } = await getCurrentWorkspace();
   const branches = await getBranches(companyId);
 
   async function createBranchFromForm(formData: FormData) {

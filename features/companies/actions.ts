@@ -1,6 +1,5 @@
 "use server";
 
-import { redirect } from "next/navigation";
 import { requireUser } from "@/lib/auth/require-user";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import { createCompanySchema } from "@/lib/validations/company";
@@ -120,5 +119,5 @@ export async function createCompany(formData: FormData) {
     created_by: profile.id,
   });
 
-  redirect("/dashboard");
+  return { success: true };
 }
