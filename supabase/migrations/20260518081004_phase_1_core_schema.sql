@@ -55,7 +55,8 @@ create table public.branches (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   deleted_at timestamptz,
-  unique (company_id, code)
+  unique (company_id, code),
+  unique (id, company_id)
 );
 
 create table public.company_memberships (
@@ -73,12 +74,13 @@ create table public.company_memberships (
 create table public.branch_memberships (
   id uuid primary key default gen_random_uuid(),
   company_id uuid not null references public.companies(id) on delete cascade,
-  branch_id uuid not null references public.branches(id) on delete cascade,
+  branch_id uuid not null,
   profile_id uuid not null references public.profiles(id) on delete cascade,
   status public.member_status not null default 'active',
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  unique (branch_id, profile_id)
+  unique (branch_id, profile_id),
+  foreign key (branch_id, company_id) references public.branches(id, company_id) on delete cascade
 );
 
 create table public.modules (
@@ -155,26 +157,34 @@ create table public.roles (
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   deleted_at timestamptz,
-  unique (company_id, role_key)
+  unique (id, company_id),
+  constraint roles_scope_check check (scope in ('company', 'global')),
+  constraint roles_scope_company_check check (
+    (scope = 'company' and company_id is not null)
+    or (scope = 'global' and company_id is null)
+  )
 );
 
 create table public.role_permissions (
   id uuid primary key default gen_random_uuid(),
-  company_id uuid references public.companies(id) on delete cascade,
-  role_id uuid not null references public.roles(id) on delete cascade,
+  company_id uuid not null references public.companies(id) on delete cascade,
+  role_id uuid not null,
   permission_id uuid not null references public.permissions(id) on delete cascade,
   created_at timestamptz not null default now(),
-  unique (role_id, permission_id)
+  unique (role_id, permission_id),
+  foreign key (role_id, company_id) references public.roles(id, company_id) on delete cascade
 );
 
 create table public.user_roles (
   id uuid primary key default gen_random_uuid(),
   company_id uuid not null references public.companies(id) on delete cascade,
-  branch_id uuid references public.branches(id) on delete cascade,
+  branch_id uuid,
   profile_id uuid not null references public.profiles(id) on delete cascade,
-  role_id uuid not null references public.roles(id) on delete cascade,
+  role_id uuid not null,
   created_at timestamptz not null default now(),
-  deleted_at timestamptz
+  deleted_at timestamptz,
+  foreign key (branch_id, company_id) references public.branches(id, company_id) on delete cascade,
+  foreign key (role_id, company_id) references public.roles(id, company_id) on delete cascade
 );
 
 create table public.company_settings (
@@ -191,29 +201,31 @@ create table public.company_settings (
 create table public.branch_settings (
   id uuid primary key default gen_random_uuid(),
   company_id uuid not null references public.companies(id) on delete cascade,
-  branch_id uuid not null unique references public.branches(id) on delete cascade,
+  branch_id uuid not null unique,
   settings jsonb not null default '{}'::jsonb,
   created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
+  updated_at timestamptz not null default now(),
+  foreign key (branch_id, company_id) references public.branches(id, company_id) on delete cascade
 );
 
 create table public.notifications (
   id uuid primary key default gen_random_uuid(),
   company_id uuid not null references public.companies(id) on delete cascade,
-  branch_id uuid references public.branches(id) on delete cascade,
+  branch_id uuid,
   profile_id uuid references public.profiles(id) on delete cascade,
   title text not null,
   body text not null,
   notification_type text not null,
   read_at timestamptz,
   created_at timestamptz not null default now(),
-  deleted_at timestamptz
+  deleted_at timestamptz,
+  foreign key (branch_id, company_id) references public.branches(id, company_id) on delete cascade
 );
 
 create table public.audit_logs (
   id uuid primary key default gen_random_uuid(),
   company_id uuid references public.companies(id) on delete cascade,
-  branch_id uuid references public.branches(id) on delete set null,
+  branch_id uuid,
   actor_profile_id uuid references public.profiles(id) on delete set null,
   action text not null,
   entity_type text not null,
@@ -223,7 +235,9 @@ create table public.audit_logs (
   new_values jsonb,
   ip_address inet,
   user_agent text,
-  created_at timestamptz not null default now()
+  created_at timestamptz not null default now(),
+  constraint audit_logs_branch_company_check check (branch_id is null or company_id is not null),
+  foreign key (branch_id, company_id) references public.branches(id, company_id) on delete set null
 );
 
 create or replace function public.set_updated_at()
@@ -251,7 +265,7 @@ create or replace function app_private.handle_new_auth_user()
 returns trigger
 language plpgsql
 security definer
-set search_path = public
+set search_path = pg_catalog, public
 as $$
 begin
   insert into public.profiles (auth_user_id, full_name, email)
@@ -270,6 +284,9 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function app_private.handle_new_auth_user();
 
+revoke all on schema app_private from public, anon, authenticated;
+revoke execute on function app_private.handle_new_auth_user() from public, anon, authenticated;
+
 create index companies_status_idx on public.companies(status);
 create index branches_company_id_idx on public.branches(company_id);
 create index branches_company_status_idx on public.branches(company_id, status);
@@ -278,7 +295,16 @@ create index company_memberships_company_profile_idx on public.company_membershi
 create index company_memberships_profile_status_idx on public.company_memberships(profile_id, status);
 create index branch_memberships_company_branch_profile_idx on public.branch_memberships(company_id, branch_id, profile_id);
 create index subscriptions_company_id_idx on public.subscriptions(company_id);
+create index subscriptions_package_id_idx on public.subscriptions(package_id);
 create index roles_company_id_idx on public.roles(company_id);
+create unique index roles_company_role_key_unique on public.roles(company_id, role_key) where company_id is not null;
+create unique index roles_global_role_key_unique on public.roles(role_key) where company_id is null;
+create index role_permissions_company_id_idx on public.role_permissions(company_id);
 create index user_roles_company_profile_idx on public.user_roles(company_id, profile_id) where deleted_at is null;
+create index user_roles_role_id_idx on public.user_roles(role_id);
+create index branch_settings_company_id_idx on public.branch_settings(company_id);
+create index notifications_company_id_idx on public.notifications(company_id);
 create index notifications_profile_unread_idx on public.notifications(profile_id, read_at) where deleted_at is null;
 create index audit_logs_company_created_idx on public.audit_logs(company_id, created_at desc);
+create index audit_logs_branch_id_idx on public.audit_logs(branch_id);
+create index audit_logs_actor_profile_id_idx on public.audit_logs(actor_profile_id);
