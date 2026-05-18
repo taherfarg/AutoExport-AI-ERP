@@ -146,7 +146,7 @@ create table public.permissions (
 
 create table public.roles (
   id uuid primary key default gen_random_uuid(),
-  company_id uuid references public.companies(id) on delete cascade,
+  company_id uuid not null references public.companies(id) on delete cascade,
   name text not null,
   role_key text not null,
   description text not null,
@@ -158,11 +158,7 @@ create table public.roles (
   updated_at timestamptz not null default now(),
   deleted_at timestamptz,
   unique (id, company_id),
-  constraint roles_scope_check check (scope in ('company', 'global')),
-  constraint roles_scope_company_check check (
-    (scope = 'company' and company_id is not null)
-    or (scope = 'global' and company_id is null)
-  )
+  constraint roles_scope_check check (scope = 'company')
 );
 
 create table public.role_permissions (
@@ -237,7 +233,7 @@ create table public.audit_logs (
   user_agent text,
   created_at timestamptz not null default now(),
   constraint audit_logs_branch_company_check check (branch_id is null or company_id is not null),
-  foreign key (branch_id, company_id) references public.branches(id, company_id) on delete set null
+  foreign key (branch_id, company_id) references public.branches(id, company_id) on delete set null (branch_id)
 );
 
 create or replace function public.set_updated_at()
@@ -297,8 +293,7 @@ create index branch_memberships_company_branch_profile_idx on public.branch_memb
 create index subscriptions_company_id_idx on public.subscriptions(company_id);
 create index subscriptions_package_id_idx on public.subscriptions(package_id);
 create index roles_company_id_idx on public.roles(company_id);
-create unique index roles_company_role_key_unique on public.roles(company_id, role_key) where company_id is not null;
-create unique index roles_global_role_key_unique on public.roles(role_key) where company_id is null;
+create unique index roles_company_role_key_unique on public.roles(company_id, role_key);
 create index role_permissions_company_id_idx on public.role_permissions(company_id);
 create index user_roles_company_profile_idx on public.user_roles(company_id, profile_id) where deleted_at is null;
 create index user_roles_role_id_idx on public.user_roles(role_id);
