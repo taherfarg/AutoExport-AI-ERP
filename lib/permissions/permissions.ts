@@ -1,0 +1,26 @@
+export const PERMISSIONS = {
+  VIEW_VEHICLES: "view_vehicles",
+  CREATE_VEHICLE: "create_vehicle",
+  UPDATE_VEHICLE: "update_vehicle",
+  DELETE_VEHICLE: "delete_vehicle",
+  VIEW_VEHICLE_COST: "view_vehicle_cost",
+  VIEW_VEHICLE_PROFIT: "view_vehicle_profit",
+  CREATE_QUOTATION: "create_quotation",
+  APPROVE_DISCOUNT: "approve_discount",
+  RESERVE_VEHICLE: "reserve_vehicle",
+  CREATE_INVOICE: "create_invoice",
+  RECORD_PAYMENT: "record_payment",
+  MANAGE_EXPORTS: "manage_exports",
+  UPLOAD_DOCUMENTS: "upload_documents",
+  VERIFY_DOCUMENTS: "verify_documents",
+  MANAGE_MARKETING: "manage_marketing",
+  VIEW_REPORTS: "view_reports",
+  VIEW_FINANCE: "view_finance",
+  MANAGE_USERS: "manage_users",
+  MANAGE_SUBSCRIPTIONS: "manage_subscriptions",
+  MANAGE_COMPANY_SETTINGS: "manage_company_settings",
+  VIEW_AUDIT_LOGS: "view_audit_logs",
+  USE_AI_ASSISTANT: "use_ai_assistant",
+} as const;
+
+export type PermissionKey = (typeof PERMISSIONS)[keyof typeof PERMISSIONS];

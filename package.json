@@ -6,7 +6,9 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint app next.config.ts tailwind.config.ts postcss.config.mjs"
+    "lint": "eslint app components features lib tests next.config.ts tailwind.config.ts postcss.config.mjs vitest.config.ts",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "overrides": {
     "postcss": "^8.5.14"
