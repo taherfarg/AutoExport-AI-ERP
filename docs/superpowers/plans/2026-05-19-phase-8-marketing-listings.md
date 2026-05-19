@@ -16,12 +16,12 @@
 - Create: `supabase/migrations/<timestamp>_phase_8_marketing_listings.sql`
 - Create: `supabase/tests/phase_8_marketing_listings.sql`
 
-- [ ] Create marketing enums.
-- [ ] Create `listing_channels`, `marketing_listings`, `social_posts`, `campaigns`, `content_calendar`, and `lead_sources`.
-- [ ] Add indexes, grants, RLS, soft deletes, and updated_at triggers.
-- [ ] Add trigger to sync vehicle listing/social status after listing and social post changes.
-- [ ] Seed default listing channels and lead sources for existing companies.
-- [ ] Add pgTAP tests for RLS, tenant isolation, seeded channels, and vehicle status sync.
+- [x] Create marketing enums.
+- [x] Create `listing_channels`, `marketing_listings`, `social_posts`, `campaigns`, `content_calendar`, and `lead_sources`.
+- [x] Add indexes, grants, RLS, soft deletes, and updated_at triggers.
+- [x] Add trigger to sync vehicle listing/social status after listing and social post changes.
+- [x] Seed default listing channels and lead sources for existing companies.
+- [x] Add pgTAP tests for RLS, tenant isolation, seeded channels, and vehicle status sync.
 
 ### Task 2: Domain Helpers
 
@@ -32,10 +32,10 @@
 - Create: `components/marketing/marketing-status-badge.tsx`
 - Create: `tests/unit/marketing.test.ts`
 
-- [ ] Write failing tests for campaign metrics, listing draft generation, formatting, and validation.
-- [ ] Implement deterministic listing/social draft helpers.
-- [ ] Add Zod schemas for listings, social posts, campaigns, content calendar, and lead sources.
-- [ ] Add marketing status badge component.
+- [x] Write failing tests for campaign metrics, listing draft generation, formatting, and validation.
+- [x] Implement deterministic listing/social draft helpers.
+- [x] Add Zod schemas for listings, social posts, campaigns, content calendar, and lead sources.
+- [x] Add marketing status badge component.
 
 ### Task 3: Queries And Actions
 
@@ -43,23 +43,23 @@
 - Create: `features/marketing/queries.ts`
 - Create: `features/marketing/actions.ts`
 
-- [ ] Add marketing permission helper.
-- [ ] Query listings, channels, social posts, campaigns, content calendar, lead sources, and vehicle options.
-- [ ] Add actions to create listing, create social post, create campaign, create calendar entry, and upsert lead source metrics.
-- [ ] Add server-side permission checks and audit logs.
-- [ ] Revalidate `/marketing/listings` after mutations.
+- [x] Add marketing permission helper.
+- [x] Query listings, channels, social posts, campaigns, content calendar, lead sources, and vehicle options.
+- [x] Add actions to create listing, create social post, create campaign, create calendar entry, and upsert lead source metrics.
+- [x] Add server-side permission checks and audit logs.
+- [x] Revalidate `/marketing/listings` after mutations.
 
 ### Task 4: UI Route
 
 **Files:**
 - Create: `app/(app)/marketing/listings/page.tsx`
 
-- [ ] Build marketing KPI cards.
-- [ ] Build listing table and create listing form.
-- [ ] Build social draft form and recent post list.
-- [ ] Build campaign form and campaign cards.
-- [ ] Build content calendar and lead source performance panels.
-- [ ] Keep forms permission-aware.
+- [x] Build marketing KPI cards.
+- [x] Build listing table and create listing form.
+- [x] Build social draft form and recent post list.
+- [x] Build campaign form and campaign cards.
+- [x] Build content calendar and lead source performance panels.
+- [x] Keep forms permission-aware.
 
 ### Task 5: Verification And Docs
 
@@ -68,13 +68,13 @@
 - Modify: `README.md`
 - Create: `docs/phase-8-marketing-listings.md`
 
-- [ ] Extend E2E to create a listing, social post, campaign, and lead source metric.
-- [ ] Document Phase 8 behavior, security notes, and integration placeholders.
-- [ ] Run `npm run lint`.
-- [ ] Run `npm run test`.
-- [ ] Run `npx tsc --noEmit`.
-- [ ] Run `npm run build`.
-- [ ] Run `npx supabase db reset`.
-- [ ] Run `npx supabase test db`.
-- [ ] Run `npm run test:e2e`.
+- [x] Extend E2E to create a listing, social post, campaign, and lead source metric.
+- [x] Document Phase 8 behavior, security notes, and integration placeholders.
+- [x] Run `npm run lint`.
+- [x] Run `npm run test`.
+- [x] Run `npx tsc --noEmit`.
+- [x] Run `npm run build`.
+- [x] Run `npx supabase db reset`.
+- [x] Run `npx supabase test db`.
+- [x] Run `npm run test:e2e`.
 - [ ] Commit implementation.

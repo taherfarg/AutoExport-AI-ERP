@@ -16,6 +16,9 @@ test("new workspace can add a branch, vehicle, and lead", async ({ page }) => {
   const messageBody = `Customer asked for export-ready Hilux stock ${id}.`;
   const documentTitle = `Central archive title ${id}`;
   const signatureTitle = `Reservation signature ${id}`;
+  const marketingListingTitle = `Marketing listing ${id}`;
+  const campaignName = `Hilux campaign ${id}`;
+  const calendarTitle = `Publish spotlight ${id}`;
   const pdfBuffer = Buffer.from("%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\ntrailer\n<< /Root 1 0 R >>\n%%EOF");
   const pngBuffer = Buffer.from(
     "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
@@ -194,4 +197,28 @@ test("new workspace can add a branch, vehicle, and lead", async ({ page }) => {
   });
   await page.getByRole("button", { name: "Mark signed" }).click();
   await expect(page.getByText(/^SDOC-/)).toBeVisible();
+
+  await page.goto("/marketing/listings");
+  await expect(page.getByRole("heading", { name: "Marketing & Listings" })).toBeVisible();
+  await page.locator("#listingTitle").fill(marketingListingTitle);
+  await page.getByRole("button", { name: "Create listing" }).click();
+  await expect(page.getByText(marketingListingTitle)).toBeVisible();
+
+  await page.locator("#caption").fill(`Instagram launch caption ${id}`);
+  await page.getByRole("button", { name: "Create social draft" }).click();
+  await expect(page.getByText(`Instagram launch caption ${id}`)).toBeVisible();
+
+  await page.locator("#campaignName").fill(campaignName);
+  await page.getByRole("button", { name: "Create campaign" }).click();
+  await expect(page.getByText(campaignName)).toBeVisible();
+
+  await page.locator("#calendarTitle").fill(calendarTitle);
+  await page.getByRole("button", { name: "Add calendar item" }).click();
+  await expect(page.getByText(calendarTitle)).toBeVisible();
+
+  await page.locator("#sourceKey").fill(`instagram_${id}`);
+  await page.locator("#sourceName").fill(`Instagram ${id}`);
+  await page.locator("#monthlyLeads").fill("24");
+  await page.getByRole("button", { name: "Save source metrics" }).click();
+  await expect(page.getByText(`Instagram ${id}`)).toBeVisible();
 });
