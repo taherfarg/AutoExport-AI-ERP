@@ -51,6 +51,8 @@ NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
 NEXT_PUBLIC_APP_URL=http://localhost:3000
+OPENAI_API_KEY=
+OPENAI_MODEL=
 ```
 
 Never commit `.env.local` or service-role secrets.
@@ -79,6 +81,7 @@ Phase 1 migrations create:
 - Finance Lite expenses, receivables, payables, payment methods, bank/cash accounts, profit snapshots, salesperson commissions, RLS policies, and invoice-to-receivable sync triggers
 - Central documents, document links, generic checklists, verification history, signature requests, signed document archive, private document storage bucket, and storage/RLS policies
 - Marketing listing channels, vehicle listings, social post drafts, campaigns, content calendar, lead source metrics, RLS policies, and vehicle listing status sync triggers
+- AI conversations, messages, requests, actions, approvals, document extraction jobs, report requests, RLS policies, and AI seed records
 
 ## RLS Model
 
@@ -86,11 +89,13 @@ Every tenant-owned table uses `company_id`. Branch-scoped tables also validate t
 
 ## Role and Permission System
 
-Phase 1 roles are tenant-scoped. Company onboarding creates a `Company Owner` role with all seeded permissions and assigns it to the workspace creator. Phase 3A adds CRM permissions for customers, leads, assignment, and follow-ups. Phase 4 adds sales and payment permissions for quotations, reservations, invoices, and payment recording. Phase 5 adds export viewing, export status updates, and logistics partner permissions. Phase 6 adds finance management and commission management permissions. Phase 7 adds central document viewing and internal signature management permissions. Phase 8 uses `manage_marketing` for listings, campaigns, content, and source metrics.
+Phase 1 roles are tenant-scoped. Company onboarding creates a `Company Owner` role with all seeded permissions and assigns it to the workspace creator. Phase 3A adds CRM permissions for customers, leads, assignment, and follow-ups. Phase 4 adds sales and payment permissions for quotations, reservations, invoices, and payment recording. Phase 5 adds export viewing, export status updates, and logistics partner permissions. Phase 6 adds finance management and commission management permissions. Phase 7 adds central document viewing and internal signature management permissions. Phase 8 uses `manage_marketing` for listings, campaigns, content, and source metrics. Phase 9 uses `use_ai_assistant` plus each underlying business permission before exposing an AI tool.
 
 ## AI Architecture
 
-AI is planned as a permission-aware server-side layer. AI requests, generated actions, and approvals will be stored and audited. Sensitive actions require human approval.
+AI is implemented as a permission-aware server-side layer. AI requests, generated actions, messages, approvals, report requests, and extraction jobs are stored and audited. Sensitive actions create approval records instead of mutating business data directly.
+
+The first AI implementation uses deterministic server-side business tools and is provider-ready for OpenAI through server-only `OPENAI_API_KEY` and `OPENAI_MODEL`. AI tools are filtered by the current user's permissions, so finance, profit, documents, sales drafts, and reports cannot be exposed through AI unless the same user can access that data through the product.
 
 ## Payment Architecture
 
@@ -127,10 +132,10 @@ npm run test:e2e
 
 ## Known Limitations
 
-- Phase 1 implements the SaaS foundation, Phase 2A implements the vehicle inventory core, Phase 2B implements vehicle media/document checklist workflows, Phase 3A implements CRM leads/follow-ups, Phase 4 implements sales transactions/payments, Phase 5 implements import/export operations, Phase 6 implements Finance Lite, Phase 7 implements central documents/signatures, and Phase 8 implements Marketing & Listings.
-- AI, alerts, chat, and reports are represented in module gating but built in later phases.
+- Phase 1 implements the SaaS foundation, Phase 2A implements the vehicle inventory core, Phase 2B implements vehicle media/document checklist workflows, Phase 3A implements CRM leads/follow-ups, Phase 4 implements sales transactions/payments, Phase 5 implements import/export operations, Phase 6 implements Finance Lite, Phase 7 implements central documents/signatures, Phase 8 implements Marketing & Listings, and Phase 9 implements AI Technical Intelligence.
+- Alerts, chat, and full reports are represented in module gating but built in later phases.
 - External digital signature providers, payment, messaging, and logistics integrations are architecture-ready but not integrated yet.
 
 ## Future Roadmap
 
-See `docs/MASTER_BUILD_PROMPT.md`, `docs/superpowers/plans/2026-05-18-phase-1-saas-foundation.md`, `docs/superpowers/plans/2026-05-18-phase-2a-vehicle-inventory.md`, `docs/superpowers/plans/2026-05-19-phase-2b-vehicle-documents-photos.md`, `docs/superpowers/plans/2026-05-19-phase-3a-crm-leads.md`, `docs/superpowers/plans/2026-05-19-phase-4-sales-transactions.md`, `docs/superpowers/plans/2026-05-19-phase-5-import-export.md`, `docs/superpowers/plans/2026-05-19-phase-6-finance-lite.md`, `docs/superpowers/plans/2026-05-19-phase-7-documents-signature.md`, and `docs/superpowers/plans/2026-05-19-phase-8-marketing-listings.md`.
+See `docs/MASTER_BUILD_PROMPT.md`, `docs/superpowers/plans/2026-05-18-phase-1-saas-foundation.md`, `docs/superpowers/plans/2026-05-18-phase-2a-vehicle-inventory.md`, `docs/superpowers/plans/2026-05-19-phase-2b-vehicle-documents-photos.md`, `docs/superpowers/plans/2026-05-19-phase-3a-crm-leads.md`, `docs/superpowers/plans/2026-05-19-phase-4-sales-transactions.md`, `docs/superpowers/plans/2026-05-19-phase-5-import-export.md`, `docs/superpowers/plans/2026-05-19-phase-6-finance-lite.md`, `docs/superpowers/plans/2026-05-19-phase-7-documents-signature.md`, `docs/superpowers/plans/2026-05-19-phase-8-marketing-listings.md`, and `docs/superpowers/plans/2026-05-19-phase-9-ai-intelligence.md`.

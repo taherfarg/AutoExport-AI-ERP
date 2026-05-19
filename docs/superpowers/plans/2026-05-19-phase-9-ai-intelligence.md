@@ -16,12 +16,12 @@
 - Create: `supabase/migrations/<timestamp>_phase_9_ai_intelligence.sql`
 - Create: `supabase/tests/phase_9_ai_intelligence.sql`
 
-- [ ] Create AI enums.
-- [ ] Create `ai_conversations`, `ai_messages`, `ai_requests`, `ai_actions`, `ai_approvals`, `ai_extracted_documents`, and `ai_report_requests`.
-- [ ] Add AI permissions or reuse `use_ai_assistant` with approval status controls.
-- [ ] Add indexes, grants, RLS, soft deletes, and updated_at triggers.
-- [ ] Seed one AI conversation/request example for existing companies.
-- [ ] Add pgTAP tests for RLS, tenant isolation, AI permissions, and approval queue records.
+- [x] Create AI enums.
+- [x] Create `ai_conversations`, `ai_messages`, `ai_requests`, `ai_actions`, `ai_approvals`, `ai_extracted_documents`, and `ai_report_requests`.
+- [x] Add AI permissions or reuse `use_ai_assistant` with approval status controls.
+- [x] Add indexes, grants, RLS, soft deletes, and updated_at triggers.
+- [x] Seed one AI conversation/request example for existing companies.
+- [x] Add pgTAP tests for RLS, tenant isolation, AI permissions, and approval queue records.
 
 ### Task 2: Domain Helpers
 
@@ -33,11 +33,11 @@
 - Create: `components/ai/ai-status-badge.tsx`
 - Create: `tests/unit/ai.test.ts`
 
-- [ ] Write failing tests for permission-aware tool visibility, intent routing, answer cards, approval need detection, and validation.
-- [ ] Implement AI tool registry metadata.
-- [ ] Implement deterministic assistant routing and response formatting.
-- [ ] Add Zod schemas for asking AI, report requests, extraction requests, and approval decisions.
-- [ ] Add AI status badge.
+- [x] Write failing tests for permission-aware tool visibility, intent routing, answer cards, approval need detection, and validation.
+- [x] Implement AI tool registry metadata.
+- [x] Implement deterministic assistant routing and response formatting.
+- [x] Add Zod schemas for asking AI, report requests, extraction requests, and approval decisions.
+- [x] Add AI status badge.
 
 ### Task 3: Queries And Actions
 
@@ -45,27 +45,27 @@
 - Create: `features/ai/queries.ts`
 - Create: `features/ai/actions.ts`
 
-- [ ] Add AI permission helper.
-- [ ] Query dashboard data: conversations, messages, requests, actions, approvals, extraction jobs, and report requests.
-- [ ] Add `askAiAssistant` action.
-- [ ] Add `createAiReportRequest` action.
-- [ ] Add `createAiExtractionRequest` action.
-- [ ] Add `decideAiApproval` action.
-- [ ] Write audit logs for AI requests, tool actions, and approval decisions.
-- [ ] Revalidate `/ai` after mutations.
+- [x] Add AI permission helper.
+- [x] Query dashboard data: conversations, messages, requests, actions, approvals, extraction jobs, and report requests.
+- [x] Add `askAiAssistant` action.
+- [x] Add `createAiReportRequest` action.
+- [x] Add `createAiExtractionRequest` action.
+- [x] Add `decideAiApproval` action.
+- [x] Write audit logs for AI requests, tool actions, and approval decisions.
+- [x] Revalidate `/ai` after mutations.
 
 ### Task 4: UI Route
 
 **Files:**
 - Create: `app/(app)/ai/page.tsx`
 
-- [ ] Build AI KPI cards.
-- [ ] Build Ask AI form with example questions.
-- [ ] Build answer panel and message timeline.
-- [ ] Build tool/action log.
-- [ ] Build approval queue controls.
-- [ ] Build report/extraction request forms.
-- [ ] Keep all controls permission-aware.
+- [x] Build AI KPI cards.
+- [x] Build Ask AI form with example questions.
+- [x] Build answer panel and message timeline.
+- [x] Build tool/action log.
+- [x] Build approval queue controls.
+- [x] Build report/extraction request forms.
+- [x] Keep all controls permission-aware.
 
 ### Task 5: Verification And Docs
 
@@ -74,13 +74,13 @@
 - Modify: `README.md`
 - Create: `docs/phase-9-ai-intelligence.md`
 
-- [ ] Extend E2E to ask AI, create report/extraction requests, and decide an approval.
-- [ ] Document AI behavior, OpenAI env vars, safety rules, and limitations.
-- [ ] Run `npm run lint`.
-- [ ] Run `npm run test`.
-- [ ] Run `npx tsc --noEmit`.
-- [ ] Run `npm run build`.
-- [ ] Run `npx supabase db reset`.
-- [ ] Run `npx supabase test db`.
-- [ ] Run `npm run test:e2e`.
-- [ ] Commit implementation.
+- [x] Extend E2E to ask AI, create report/extraction requests, and decide an approval.
+- [x] Document AI behavior, OpenAI env vars, safety rules, and limitations.
+- [x] Run `npm run lint`.
+- [x] Run `npm run test`.
+- [x] Run `npx tsc --noEmit`.
+- [x] Run `npm run build`.
+- [x] Run `npx supabase db reset`.
+- [x] Run `npx supabase test db`.
+- [x] Run `npm run test:e2e`.
+- [x] Commit implementation.

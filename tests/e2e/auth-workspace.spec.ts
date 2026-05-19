@@ -221,4 +221,25 @@ test("new workspace can add a branch, vehicle, and lead", async ({ page }) => {
   await page.locator("#monthlyLeads").fill("24");
   await page.getByRole("button", { name: "Save source metrics" }).click();
   await expect(page.getByText(`Instagram ${id}`)).toBeVisible();
+
+  await page.goto("/ai");
+  await expect(page.getByRole("heading", { name: "AI Technical Intelligence" })).toBeVisible();
+  await page.locator("#prompt").fill("Which Toyota cars are available?");
+  await page.getByRole("button", { name: "Ask AI" }).click();
+  await expect(page.getByText("Found", { exact: false }).first()).toBeVisible();
+
+  await page.locator("#prompt").fill("Create quotation draft for this customer.");
+  await page.getByRole("button", { name: "Ask AI" }).click();
+  await expect(page.getByText("Approval queue")).toBeVisible();
+  await page.getByRole("button", { name: "Approve" }).first().click();
+  await expect(page.getByText("Approved").first()).toBeVisible();
+
+  await page.locator("#reportPrompt").fill(`Generate inventory report draft ${id}.`);
+  await page.getByRole("button", { name: "Create report request" }).click();
+  await expect(page.getByText(/^AIR-/)).toBeVisible();
+
+  await page.locator("#documentId").selectOption({ label: documentTitle });
+  await page.locator("#documentType").fill("vehicle_title");
+  await page.getByRole("button", { name: "Queue extraction" }).click();
+  await expect(page.getByText(/^AIX-/)).toBeVisible();
 });
