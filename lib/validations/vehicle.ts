@@ -21,6 +21,10 @@ const optionalText = z
   .optional();
 
 const money = z.coerce.number().min(0).default(0);
+const optionalInt = z.preprocess(
+  (value) => (value === "" || value === null ? undefined : value),
+  z.coerce.number().int().min(1).optional(),
+);
 
 export const createVehicleSchema = z.object({
   companyId: z.uuid(),
@@ -40,8 +44,8 @@ export const createVehicleSchema = z.object({
   drivetrain: optionalText,
   fuelType: optionalText,
   bodyType: optionalText,
-  seats: z.coerce.number().int().min(1).max(100).optional(),
-  doors: z.coerce.number().int().min(1).max(20).optional(),
+  seats: optionalInt.pipe(z.number().int().min(1).max(100).optional()),
+  doors: optionalInt.pipe(z.number().int().min(1).max(20).optional()),
   originCountryCode: z.string().trim().length(2).default("AE"),
   currentCountryCode: z.string().trim().length(2).default("AE"),
   currentLocation: optionalText,
@@ -67,6 +71,21 @@ export const updateVehicleStatusSchema = vehicleIdSchema.extend({
 
 export const moveVehicleBranchSchema = vehicleIdSchema.extend({
   branchId: z.uuid(),
+});
+
+export const updateVehiclePricingSchema = vehicleIdSchema.extend({
+  purchasePrice: money,
+  shippingCost: money,
+  customsCost: money,
+  registrationCost: money,
+  inspectionCost: money,
+  repairPreparationCost: money,
+  detailingCost: money,
+  marketingCost: money,
+  salesCommission: money,
+  otherExpenses: money,
+  sellingPrice: money,
+  currencyCode: z.string().trim().length(3).default("AED"),
 });
 
 export const vehicleDocumentStatusSchema = z.enum(["missing", "partial", "complete", "verified"]);

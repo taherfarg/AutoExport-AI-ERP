@@ -10,6 +10,7 @@ import {
   addVehiclePhotoSchema,
   createVehicleSchema,
   moveVehicleBranchSchema,
+  updateVehiclePricingSchema,
   updateVehicleStatusSchema,
   vehicleIdSchema,
 } from "@/lib/validations/vehicle";
@@ -85,7 +86,9 @@ export async function createVehicle(formData: FormData) {
   });
 
   if (!parsed.success || parsed.data.companyId !== workspace.companyId) {
-    throw new Error("Vehicle details are invalid.");
+    const firstIssue = parsed.success ? null : parsed.error.issues[0];
+    const field = firstIssue?.path.join(".");
+    return { error: field ? `${field}: ${firstIssue?.message}` : "Vehicle details are invalid." };
   }
 
   const supabase = await createClient();
@@ -131,7 +134,7 @@ export async function createVehicle(formData: FormData) {
     .single();
 
   if (error || !vehicle) {
-    throw new Error(error?.message ?? "Vehicle could not be created.");
+    return { error: error?.message ?? "Vehicle could not be created." };
   }
 
   await supabase.from("vehicle_costs").insert({
@@ -150,7 +153,7 @@ export async function createVehicle(formData: FormData) {
   });
 
   revalidatePath("/vehicles");
-  redirect(`/vehicles/${vehicle.id}`);
+  return { vehicleId: vehicle.id };
 }
 
 export async function updateVehicleStatus(formData: FormData) {
@@ -223,6 +226,90 @@ export async function moveVehicleBranch(formData: FormData) {
   }
 
   revalidatePath("/vehicles");
+  revalidatePath(`/vehicles/${parsed.data.vehicleId}`);
+}
+
+export async function updateVehiclePricing(formData: FormData) {
+  const workspace = await getCurrentWorkspace();
+  const parsed = updateVehiclePricingSchema.safeParse({
+    vehicleId: formData.get("vehicleId"),
+    purchasePrice: formNumber(formData.get("purchasePrice")),
+    shippingCost: formNumber(formData.get("shippingCost")),
+    customsCost: formNumber(formData.get("customsCost")),
+    registrationCost: formNumber(formData.get("registrationCost")),
+    inspectionCost: formNumber(formData.get("inspectionCost")),
+    repairPreparationCost: formNumber(formData.get("repairPreparationCost")),
+    detailingCost: formNumber(formData.get("detailingCost")),
+    marketingCost: formNumber(formData.get("marketingCost")),
+    salesCommission: formNumber(formData.get("salesCommission")),
+    otherExpenses: formNumber(formData.get("otherExpenses")),
+    sellingPrice: formNumber(formData.get("sellingPrice")),
+    currencyCode: formData.get("currencyCode") || "AED",
+  });
+
+  if (!parsed.success) {
+    return { error: "Pricing details are invalid." };
+  }
+
+  await ensureVehicleInWorkspace(parsed.data.vehicleId, workspace.companyId);
+
+  const detailedPreparationCost =
+    parsed.data.registrationCost +
+    parsed.data.inspectionCost +
+    parsed.data.repairPreparationCost +
+    parsed.data.detailingCost;
+  const otherExpensesWithCommission = parsed.data.otherExpenses + parsed.data.salesCommission;
+  const supabase = await createClient();
+  const { error: vehicleError } = await supabase
+    .from("vehicles")
+    .update({
+      purchase_price: parsed.data.purchasePrice,
+      shipping_cost: parsed.data.shippingCost,
+      customs_cost: parsed.data.customsCost,
+      preparation_cost: detailedPreparationCost,
+      marketing_cost: parsed.data.marketingCost,
+      other_expenses: otherExpensesWithCommission,
+      selling_price: parsed.data.sellingPrice,
+      currency_code: parsed.data.currencyCode.toUpperCase(),
+      updated_by: workspace.profileId,
+    })
+    .eq("id", parsed.data.vehicleId)
+    .eq("company_id", workspace.companyId);
+
+  if (vehicleError) {
+    return { error: vehicleError.message };
+  }
+
+  const { error: costError } = await supabase
+    .from("vehicle_costs")
+    .upsert(
+      {
+        company_id: workspace.companyId,
+        vehicle_id: parsed.data.vehicleId,
+        purchase_price: parsed.data.purchasePrice,
+        shipping_cost: parsed.data.shippingCost,
+        customs_cost: parsed.data.customsCost,
+        transport_cost: parsed.data.registrationCost,
+        inspection_cost: parsed.data.inspectionCost,
+        repair_cost: parsed.data.repairPreparationCost,
+        detailing_cost: parsed.data.detailingCost,
+        marketing_cost: parsed.data.marketingCost,
+        commission_cost: parsed.data.salesCommission,
+        other_expenses: parsed.data.otherExpenses,
+        selling_price: parsed.data.sellingPrice,
+        currency_code: parsed.data.currencyCode.toUpperCase(),
+        updated_by: workspace.profileId,
+        created_by: workspace.profileId,
+      },
+      { onConflict: "company_id,vehicle_id" },
+    );
+
+  if (costError) {
+    return { error: costError.message };
+  }
+
+  revalidatePath("/vehicles");
+  revalidatePath("/vehicles/pricing");
   revalidatePath(`/vehicles/${parsed.data.vehicleId}`);
 }
 
@@ -306,6 +393,7 @@ export async function addVehiclePhoto(formData: FormData) {
   }
 
   revalidatePath(`/vehicles/${parsed.data.vehicleId}`);
+  return { success: "Vehicle photo uploaded." };
 }
 
 export async function addVehicleDocument(formData: FormData) {
@@ -379,4 +467,5 @@ export async function addVehicleDocument(formData: FormData) {
     );
 
   revalidatePath(`/vehicles/${parsed.data.vehicleId}`);
+  return { success: "Vehicle document saved." };
 }

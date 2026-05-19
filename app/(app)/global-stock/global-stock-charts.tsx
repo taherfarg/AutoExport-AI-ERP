@@ -1,12 +1,12 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import {
   BarChart,
   Bar,
   XAxis,
   YAxis,
   Tooltip,
-  ResponsiveContainer,
   PieChart,
   Pie,
   Cell,
@@ -24,16 +24,52 @@ type Props = {
   byStatus: { status: string; count: number }[];
 };
 
+const CHART_HEIGHT = 224;
+
+function MeasuredChart({
+  children,
+}: {
+  children: (size: { width: number; height: number }) => React.ReactNode;
+}) {
+  const frameRef = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(0);
+
+  useEffect(() => {
+    const frame = frameRef.current;
+    if (!frame) {
+      return;
+    }
+
+    const updateWidth = () => {
+      setWidth(Math.max(0, Math.floor(frame.getBoundingClientRect().width)));
+    };
+
+    updateWidth();
+
+    const observer = new ResizeObserver(updateWidth);
+    observer.observe(frame);
+
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div ref={frameRef} className="h-full min-w-0 w-full">
+      {width > 0 ? children({ width, height: CHART_HEIGHT }) : null}
+    </div>
+  );
+}
+
 export function GlobalStockCharts({ byBrand, byStatus }: Props) {
   return (
     <div className="grid gap-5 md:grid-cols-2">
       {/* Brand distribution */}
-      <div className="rounded-xl border border-border/50 bg-card p-5 shadow-sm">
+      <div className="min-w-0 rounded-xl border border-border/50 bg-card p-5 shadow-sm">
         <h3 className="text-sm font-semibold text-foreground mb-1">Stock by Brand</h3>
         <p className="text-[11px] text-muted-foreground mb-4">Top 10 brands in active inventory</p>
-        <div className="h-56">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={byBrand} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
+        <div className="h-56 min-w-0">
+          <MeasuredChart>
+            {({ width, height }) => (
+            <BarChart width={width} height={height} data={byBrand} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(214 31.8% 91.4%)" />
               <XAxis dataKey="brand" tick={{ fontSize: 10, fill: "#94a3b8" }} />
               <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} allowDecimals={false} />
@@ -51,17 +87,19 @@ export function GlobalStockCharts({ byBrand, byStatus }: Props) {
                 ))}
               </Bar>
             </BarChart>
-          </ResponsiveContainer>
+            )}
+          </MeasuredChart>
         </div>
       </div>
 
       {/* Status distribution */}
-      <div className="rounded-xl border border-border/50 bg-card p-5 shadow-sm">
+      <div className="min-w-0 rounded-xl border border-border/50 bg-card p-5 shadow-sm">
         <h3 className="text-sm font-semibold text-foreground mb-1">Status Distribution</h3>
         <p className="text-[11px] text-muted-foreground mb-4">All vehicles by current status</p>
-        <div className="h-56">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
+        <div className="h-56 min-w-0">
+          <MeasuredChart>
+            {({ width, height }) => (
+            <PieChart width={width} height={height}>
               <Pie
                 data={byStatus}
                 dataKey="count"
@@ -91,7 +129,8 @@ export function GlobalStockCharts({ byBrand, byStatus }: Props) {
                 )}
               />
             </PieChart>
-          </ResponsiveContainer>
+            )}
+          </MeasuredChart>
         </div>
       </div>
     </div>

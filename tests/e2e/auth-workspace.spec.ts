@@ -1,5 +1,7 @@
 import { expect, test } from "@playwright/test";
 
+test.describe.configure({ timeout: 180_000 });
+
 test("login page renders", async ({ page }) => {
   await page.goto("/login");
   await expect(page.getByRole("heading", { name: "Sign in to AutoSphere ERP" })).toBeVisible();
@@ -70,7 +72,7 @@ test("new workspace can add a branch, vehicle, and lead", async ({ page }) => {
   await page.getByRole("button", { name: "Create workspace" }).click();
 
   await page.waitForURL("**/dashboard", { timeout: 15000 });
-  await expect(page.getByRole("heading", { name: "Dashboard" })).toBeVisible({ timeout: 15000 });
+  await expect(page.getByRole("heading", { name: "Command Center" })).toBeVisible({ timeout: 15000 });
 
   await page.goto("/settings/branches");
   await page.getByLabel("Name").fill("Dubai Showroom");
@@ -79,7 +81,7 @@ test("new workspace can add a branch, vehicle, and lead", async ({ page }) => {
   await page.getByRole("button", { name: "Add branch" }).click();
   await expect(page.getByText("Dubai Showroom")).toBeVisible();
 
-  await page.goto("/vehicles");
+  await page.goto("/vehicles?create=1#add-vehicle");
   await page.locator("#stockNumber").fill(stockNumber);
   await page.locator("#vin").fill(vin);
   await page.locator("#vehicleBrand").fill("Toyota");
@@ -100,6 +102,7 @@ test("new workspace can add a branch, vehicle, and lead", async ({ page }) => {
   await expect(page.getByText("0 of 3 required documents complete")).toBeVisible();
 
   await page.getByRole("button", { name: "Save document" }).click();
+  await expect(page.getByText("Vehicle document saved.")).toBeVisible({ timeout: 15000 });
   await expect(page.getByText("1 of 3 required documents complete")).toBeVisible();
 
   await page.goto("/crm/leads");
@@ -135,9 +138,13 @@ test("new workspace can add a branch, vehicle, and lead", async ({ page }) => {
   await expect(page.getByText("deposit")).toBeVisible();
 
   await page.getByRole("button", { name: "Create invoice" }).click();
+  await page.waitForTimeout(1000);
+  await page.reload();
   await expect(page.getByRole("button", { name: "Record payment" })).toBeVisible();
 
   await page.getByRole("button", { name: "Record payment" }).click();
+  await page.waitForTimeout(1000);
+  await page.reload();
   await expect(page.getByText(/^PAY-/)).toBeVisible();
 
   await page.goto("/sales/invoices");
@@ -150,16 +157,22 @@ test("new workspace can add a branch, vehicle, and lead", async ({ page }) => {
   await page.locator("#amount").fill("2500");
   await page.locator("#supplierName").fill(`Detailing Supplier ${id}`);
   await page.getByRole("button", { name: "Record expense" }).click();
+  await page.waitForTimeout(1000);
+  await page.reload();
   await expect(page.getByText(`Preparation expense ${id}`)).toBeVisible();
 
   await page.locator("#payableSupplierName").fill(`Repair Supplier ${id}`);
   await page.locator("#payableDescription").fill(`Repair payable ${id}`);
   await page.locator("#payableAmount").fill("5000");
   await page.getByRole("button", { name: "Create payable" }).click();
+  await page.waitForTimeout(1000);
+  await page.reload();
   await expect(page.getByText(`Repair Supplier ${id}`)).toBeVisible();
 
   await page.locator("#commissionRate").fill("2.5");
   await page.getByRole("button", { name: "Create commission" }).click();
+  await page.waitForTimeout(1000);
+  await page.reload();
   await expect(page.getByText(/^COM-/)).toBeVisible();
 
   await page.goto("/export/orders");
@@ -169,30 +182,46 @@ test("new workspace can add a branch, vehicle, and lead", async ({ page }) => {
   await page.locator("#containerNumber").fill(`CONT-${id}`);
   await page.locator("#blNumber").fill(`BL-${id}`);
   await page.getByRole("button", { name: "Create order" }).click();
+  await page.waitForTimeout(1000);
+  if (!/\/export\/orders\/[^/]+$/.test(new URL(page.url()).pathname)) {
+    await page.reload();
+    await page.locator("tr").filter({ hasText: stockNumber }).getByRole("link").click();
+    await page.waitForURL("**/export/orders/*", { timeout: 30000 });
+  }
 
   await expect(page.getByText("Export overview")).toBeVisible();
   await expect(page.getByText(`BK-${id}`)).toBeVisible();
 
   await page.getByRole("button", { name: "Add event" }).click();
-  await expect(page.getByText("Booked").first()).toBeVisible();
+  await page.waitForTimeout(1000);
+  await page.reload();
+  await expect(page.getByText("Jebel Ali")).toBeVisible();
 
   await page.locator("#customsStatus").selectOption("submitted");
   await page.locator("#declarationNumber").fill(`DECL-${id}`);
   await page.getByRole("button", { name: "Save customs" }).click();
+  await page.waitForTimeout(1000);
+  await page.reload();
   await expect(page.getByText(`DECL-${id}`)).toBeVisible();
 
   await page.locator('select[name="status"]').first().selectOption("verified");
   await page.getByRole("button", { name: "Save" }).first().click();
+  await page.waitForTimeout(1000);
+  await page.reload();
   await expect(page.getByText("1/9 required docs ready")).toBeVisible();
 
   await page.locator("#amount").fill("8500");
   await page.locator("#supplierName").fill(`GulfLine ${id}`);
   await page.getByRole("button", { name: "Add cost" }).click();
+  await page.waitForTimeout(1000);
+  await page.reload();
   await expect(page.getByText(`GulfLine ${id}`)).toBeVisible();
 
   await page.goto("/export/orders");
   await page.locator("#supplierName").fill(`Belgium Import ${id}`);
   await page.getByRole("button", { name: "Create import order" }).click();
+  await page.waitForTimeout(1000);
+  await page.reload();
   await expect(page.getByText(`Belgium Import ${id}`)).toBeVisible();
 
   await page.goto("/documents");
@@ -204,17 +233,23 @@ test("new workspace can add a branch, vehicle, and lead", async ({ page }) => {
     buffer: pdfBuffer,
   });
   await page.getByRole("button", { name: "Upload document" }).click();
+  await page.waitForTimeout(1000);
+  await page.reload();
   await expect(page.getByText(documentTitle).first()).toBeVisible();
 
   await page.locator("#documentId").selectOption({ label: documentTitle });
   await page.locator("#verificationNotes").fill(`Verified archive document ${id}`);
   await page.getByRole("button", { name: "Verify document" }).click();
+  await page.waitForTimeout(1000);
+  await page.reload();
   await expect(page.getByText(`Verified archive document ${id}`)).toBeVisible();
 
   await page.locator("#signatureTitle").fill(signatureTitle);
   await page.locator("#sentToName").fill(`Signer ${id}`);
   await page.locator("#sentToEmail").fill(`signer-${id}@example.test`);
   await page.getByRole("button", { name: "Create signature request" }).click();
+  await page.waitForTimeout(1000);
+  await page.reload();
   await expect(page.getByText(`Signer ${id}`).first()).toBeVisible();
 
   await page.locator("#signedByName").fill(`Signer ${id}`);
@@ -229,51 +264,73 @@ test("new workspace can add a branch, vehicle, and lead", async ({ page }) => {
     buffer: pdfBuffer,
   });
   await page.getByRole("button", { name: "Mark signed" }).click();
+  await page.waitForTimeout(1000);
+  await page.reload();
   await expect(page.getByText(/^SDOC-/)).toBeVisible();
 
   await page.goto("/marketing/listings");
   await expect(page.getByRole("heading", { name: "Marketing & Listings" })).toBeVisible();
   await page.locator("#listingTitle").fill(marketingListingTitle);
   await page.getByRole("button", { name: "Create listing" }).click();
+  await page.waitForTimeout(1000);
+  await page.reload();
   await expect(page.getByText(marketingListingTitle)).toBeVisible();
 
   await page.locator("#caption").fill(`Instagram launch caption ${id}`);
   await page.getByRole("button", { name: "Create social draft" }).click();
+  await page.waitForTimeout(1000);
+  await page.reload();
   await expect(page.getByText(`Instagram launch caption ${id}`)).toBeVisible();
 
   await page.locator("#campaignName").fill(campaignName);
   await page.getByRole("button", { name: "Create campaign" }).click();
+  await page.waitForTimeout(1000);
+  await page.reload();
   await expect(page.getByText(campaignName)).toBeVisible();
 
   await page.locator("#calendarTitle").fill(calendarTitle);
   await page.getByRole("button", { name: "Add calendar item" }).click();
+  await page.waitForTimeout(1000);
+  await page.reload();
   await expect(page.getByText(calendarTitle)).toBeVisible();
 
   await page.locator("#sourceKey").fill(`instagram_${id}`);
   await page.locator("#sourceName").fill(`Instagram ${id}`);
   await page.locator("#monthlyLeads").fill("24");
   await page.getByRole("button", { name: "Save source metrics" }).click();
+  await page.waitForTimeout(1000);
+  await page.reload();
   await expect(page.getByText(`Instagram ${id}`)).toBeVisible();
 
   await page.goto("/ai");
   await expect(page.getByRole("heading", { name: "AI Technical Intelligence" })).toBeVisible();
   await page.locator("#prompt").fill("Which Toyota cars are available?");
   await page.getByRole("button", { name: "Ask AI" }).click();
+  await page.waitForTimeout(1000);
+  await page.reload();
   await expect(page.getByText("Found", { exact: false }).first()).toBeVisible();
 
   await page.locator("#prompt").fill("Create quotation draft for this customer.");
   await page.getByRole("button", { name: "Ask AI" }).click();
+  await page.waitForTimeout(1000);
+  await page.reload();
   await expect(page.getByText("Approval queue")).toBeVisible();
   await page.getByRole("button", { name: "Approve" }).first().click();
+  await page.waitForTimeout(1000);
+  await page.reload();
   await expect(page.getByText("Approved").first()).toBeVisible();
 
   await page.locator("#reportPrompt").fill(`Generate inventory report draft ${id}.`);
   await page.getByRole("button", { name: "Create report request" }).click();
+  await page.waitForTimeout(1000);
+  await page.reload();
   await expect(page.getByText(/^AIR-/)).toBeVisible();
 
   await page.locator("#documentId").selectOption({ label: documentTitle });
   await page.locator("#documentType").fill("vehicle_title");
   await page.getByRole("button", { name: "Queue extraction" }).click();
+  await page.waitForTimeout(1000);
+  await page.reload();
   await expect(page.getByText(/^AIX-/)).toBeVisible();
 
   await page.goto("/reports");

@@ -1,6 +1,6 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
-import { ArrowLeft, Archive, FileText, ImageIcon, MoveRight, Upload } from "lucide-react";
+import { notFound, redirect } from "next/navigation";
+import { ArrowLeft, Archive, FileText, ImageIcon, MoveRight } from "lucide-react";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { VehicleStatusBadge } from "@/components/vehicles/status-badge";
 import { Button } from "@/components/ui/button";
@@ -12,10 +12,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { Input } from "@/components/ui/input";
 import {
-  addVehicleDocument,
-  addVehiclePhoto,
   archiveVehicle,
   moveVehicleBranch,
   updateVehicleStatus,
@@ -32,6 +29,7 @@ import {
 import { getBranches } from "@/features/branches/queries";
 import { getCurrentWorkspace } from "@/lib/auth/current-workspace";
 import { daysBetween, formatMoney, formatVehicleStatus } from "@/lib/vehicles/format";
+import { VehicleDocumentUploadForm, VehiclePhotoUploadForm } from "./vehicle-media-forms";
 
 const VEHICLE_STATUSES = [
   "available",
@@ -45,23 +43,25 @@ const VEHICLE_STATUSES = [
   "cancelled",
 ];
 
-const DOCUMENT_TYPES = [
-  ["vehicle_title", "Vehicle title"],
-  ["purchase_invoice", "Purchase invoice"],
-  ["inspection_report", "Inspection report"],
-  ["insurance", "Insurance"],
-  ["export_certificate", "Export certificate"],
-  ["certificate_of_origin", "Certificate of origin"],
-  ["bill_of_lading", "Bill of lading"],
-  ["customs_certificate", "Customs certificate"],
-];
-
 type VehicleDetailPageProps = {
   params: Promise<{ vehicleId: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
-export default async function VehicleDetailPage({ params }: VehicleDetailPageProps) {
+function firstParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function vehicleMessageUrl(vehicleId: string, params: Record<string, string>) {
+  const searchParams = new URLSearchParams(params);
+  return `/vehicles/${vehicleId}?${searchParams.toString()}`;
+}
+
+export default async function VehicleDetailPage({ params, searchParams }: VehicleDetailPageProps) {
   const { vehicleId } = await params;
+  const pageParams = await searchParams;
+  const actionError = firstParam(pageParams.error);
+  const actionSuccess = firstParam(pageParams.success);
   const workspace = await getCurrentWorkspace();
 
   let vehicle;
@@ -100,29 +100,36 @@ export default async function VehicleDetailPage({ params }: VehicleDetailPagePro
   async function updateStatusFromForm(formData: FormData) {
     "use server";
 
-    await updateVehicleStatus(formData);
+    const result = await updateVehicleStatus(formData);
+    if (result?.error) {
+      redirect(vehicleMessageUrl(String(formData.get("vehicleId")), { error: result.error }));
+    }
+    redirect(vehicleMessageUrl(String(formData.get("vehicleId")), { success: "Vehicle status updated." }));
   }
 
   async function moveBranchFromForm(formData: FormData) {
     "use server";
 
-    await moveVehicleBranch(formData);
-  }
-
-  async function addPhotoFromForm(formData: FormData) {
-    "use server";
-
-    await addVehiclePhoto(formData);
-  }
-
-  async function addDocumentFromForm(formData: FormData) {
-    "use server";
-
-    await addVehicleDocument(formData);
+    const result = await moveVehicleBranch(formData);
+    if (result?.error) {
+      redirect(vehicleMessageUrl(String(formData.get("vehicleId")), { error: result.error }));
+    }
+    redirect(vehicleMessageUrl(String(formData.get("vehicleId")), { success: "Vehicle branch updated." }));
   }
 
   return (
     <div className="space-y-6">
+      {actionError ? (
+        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {actionError}
+        </div>
+      ) : null}
+      {actionSuccess ? (
+        <div className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+          {actionSuccess}
+        </div>
+      ) : null}
+
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div className="space-y-2">
           <Button asChild variant="ghost" size="sm" className="-ml-3">
@@ -296,27 +303,7 @@ export default async function VehicleDetailPage({ params }: VehicleDetailPagePro
               )}
 
               {permissions.canUploadDocuments ? (
-                <form action={addPhotoFromForm} className="grid gap-3 rounded-md border p-4 md:grid-cols-[1fr_1fr_auto]">
-                  <input type="hidden" name="vehicleId" value={vehicle.id} />
-                  <div className="grid gap-2">
-                    <Label htmlFor="photo">Photo file</Label>
-                    <Input id="photo" name="photo" type="file" accept="image/jpeg,image/png,image/webp" required />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="altText">Alt text</Label>
-                    <Input id="altText" name="altText" placeholder="Front exterior" />
-                  </div>
-                  <label className="flex items-end gap-2 pb-2 text-sm">
-                    <input name="isPrimary" type="checkbox" className="h-4 w-4 rounded border-slate-300" />
-                    Primary
-                  </label>
-                  <div className="md:col-span-3">
-                    <Button type="submit" variant="outline">
-                      <Upload className="h-4 w-4" />
-                      Upload photo
-                    </Button>
-                  </div>
-                </form>
+                <VehiclePhotoUploadForm vehicleId={vehicle.id} />
               ) : null}
             </CardContent>
           </Card>
@@ -369,46 +356,7 @@ export default async function VehicleDetailPage({ params }: VehicleDetailPagePro
               </div>
 
               {permissions.canUploadDocuments ? (
-                <form action={addDocumentFromForm} className="grid gap-3 rounded-md border p-4 md:grid-cols-3">
-                  <input type="hidden" name="vehicleId" value={vehicle.id} />
-                  <div className="grid gap-2">
-                    <Label htmlFor="documentType">Document type</Label>
-                    <select id="documentType" name="documentType" className="h-9 rounded-md border bg-white px-3 text-sm">
-                      {DOCUMENT_TYPES.map(([value, label]) => (
-                        <option key={value} value={value}>
-                          {label}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="documentTitle">Title</Label>
-                    <Input id="documentTitle" name="title" defaultValue="Vehicle title" />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="documentStatus">Status</Label>
-                    <select id="documentStatus" name="status" defaultValue="complete" className="h-9 rounded-md border bg-white px-3 text-sm">
-                      <option value="missing">Missing</option>
-                      <option value="partial">Partial</option>
-                      <option value="complete">Complete</option>
-                      <option value="verified">Verified</option>
-                    </select>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="document">Document file</Label>
-                    <Input id="document" name="document" type="file" accept="application/pdf,image/jpeg,image/png,image/webp" />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="expiresAt">Expiry date</Label>
-                    <Input id="expiresAt" name="expiresAt" type="date" />
-                  </div>
-                  <div className="flex items-end">
-                    <Button type="submit" variant="outline">
-                      <Upload className="h-4 w-4" />
-                      Save document
-                    </Button>
-                  </div>
-                </form>
+                <VehicleDocumentUploadForm vehicleId={vehicle.id} />
               ) : null}
             </CardContent>
           </Card>

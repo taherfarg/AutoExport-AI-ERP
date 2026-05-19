@@ -6,6 +6,7 @@ import { getCurrentWorkspace } from "@/lib/auth/current-workspace";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import {
+  createCustomerSchema,
   createFollowUpSchema,
   createLeadSchema,
   leadIdSchema,
@@ -111,6 +112,50 @@ export async function createLead(formData: FormData) {
   redirect(`/crm/leads/${lead.id}`);
 }
 
+export async function createCustomer(formData: FormData) {
+  const workspace = await getCurrentWorkspace();
+  const parsed = createCustomerSchema.safeParse({
+    companyId: formData.get("companyId"),
+    branchId: formOptional(formData.get("branchId")),
+    customerType: formData.get("customerType") || "individual",
+    name: formData.get("name"),
+    phone: formOptional(formData.get("phone")),
+    whatsapp: formOptional(formData.get("whatsapp")),
+    email: formOptional(formData.get("email")),
+    countryCode: formOptional(formData.get("countryCode"))?.toUpperCase(),
+    city: formOptional(formData.get("city")),
+    preferredLanguage: formData.get("preferredLanguage") || "en",
+    notes: formOptional(formData.get("notes")),
+  });
+
+  if (!parsed.success || parsed.data.companyId !== workspace.companyId) {
+    throw new Error("Customer details are invalid.");
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("customers").insert({
+    company_id: parsed.data.companyId,
+    branch_id: parsed.data.branchId,
+    customer_type: parsed.data.customerType,
+    name: parsed.data.name,
+    phone: parsed.data.phone,
+    whatsapp: parsed.data.whatsapp,
+    email: parsed.data.email,
+    country_code: parsed.data.countryCode,
+    city: parsed.data.city,
+    preferred_language: parsed.data.preferredLanguage,
+    notes: parsed.data.notes,
+    created_by: workspace.profileId,
+    updated_by: workspace.profileId,
+  });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  revalidatePath("/crm/customers");
+}
+
 export async function updateLeadStatus(formData: FormData) {
   const workspace = await getCurrentWorkspace();
   const parsed = updateLeadStatusSchema.safeParse({
@@ -187,6 +232,7 @@ export async function createFollowUp(formData: FormData) {
 
   revalidatePath("/crm/leads");
   revalidatePath(`/crm/leads/${lead.id}`);
+  return { success: "Follow-up created." };
 }
 
 export async function logLeadMessage(formData: FormData) {
@@ -234,6 +280,7 @@ export async function logLeadMessage(formData: FormData) {
 
   revalidatePath("/crm/leads");
   revalidatePath(`/crm/leads/${lead.id}`);
+  return { success: "Message logged." };
 }
 
 export async function archiveLead(formData: FormData) {

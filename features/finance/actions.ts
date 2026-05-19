@@ -119,6 +119,7 @@ export async function createExpense(formData: FormData) {
   });
 
   revalidatePath("/finance");
+  return { success: "Expense recorded." };
 }
 
 export async function createPayable(formData: FormData) {
@@ -174,6 +175,7 @@ export async function createPayable(formData: FormData) {
   });
 
   revalidatePath("/finance");
+  return { success: "Payable created." };
 }
 
 export async function createSalespersonCommission(formData: FormData) {
@@ -233,4 +235,5 @@ export async function createSalespersonCommission(formData: FormData) {
   });
 
   revalidatePath("/finance");
+  return { success: "Commission created." };
 }

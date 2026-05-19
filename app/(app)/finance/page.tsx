@@ -1,7 +1,6 @@
-import { Landmark, Plus, ReceiptText, WalletCards } from "lucide-react";
+import { Landmark } from "lucide-react";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { FinanceStatusBadge } from "@/components/finance/finance-status-badge";
-import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -9,20 +8,13 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { getBranches } from "@/features/branches/queries";
-import {
-  createExpense,
-  createPayable,
-  createSalespersonCommission,
-} from "@/features/finance/actions";
 import { getFinanceDashboardData, getFinancePermissions } from "@/features/finance/queries";
 import { getCompanyUsers } from "@/features/users/queries";
 import { getCurrentWorkspace } from "@/lib/auth/current-workspace";
 import { formatFinanceStatus } from "@/lib/finance/format";
 import { formatMoney } from "@/lib/vehicles/format";
-import { financeCommissionStatuses, financeExpenseCategories } from "@/lib/validations/finance";
+import { FinanceCommissionForm, FinanceExpenseForm, FinancePayableForm } from "./finance-action-forms";
 
 type CompanyUserRow = {
   profiles: { id: string; full_name: string; email: string } | { id: string; full_name: string; email: string }[] | null;
@@ -56,24 +48,6 @@ export default async function FinancePage() {
     .map(profileFrom)
     .filter(Boolean) as { id: string; full_name: string; email: string }[];
   const currencyCode = finance.invoices[0]?.currency_code ?? defaultVehicle?.currency_code ?? branches[0]?.currency_code ?? "AED";
-
-  async function expenseFromForm(formData: FormData) {
-    "use server";
-
-    await createExpense(formData);
-  }
-
-  async function payableFromForm(formData: FormData) {
-    "use server";
-
-    await createPayable(formData);
-  }
-
-  async function commissionFromForm(formData: FormData) {
-    "use server";
-
-    await createSalespersonCommission(formData);
-  }
 
   return (
     <div className="space-y-6">
@@ -233,60 +207,15 @@ export default async function FinancePage() {
                 <CardDescription>Add vehicle, branch, supplier, or preparation expense.</CardDescription>
               </CardHeader>
               <CardContent>
-                <form action={expenseFromForm} className="grid gap-3">
-                  <input type="hidden" name="companyId" value={workspace.companyId} />
-                  <div className="grid gap-2">
-                    <Label htmlFor="branchId">Branch</Label>
-                    <select id="branchId" name="branchId" defaultValue={defaultBranchId} className="h-9 rounded-md border bg-white px-3 text-sm">
-                      {branches.map((branch) => (
-                        <option key={branch.id} value={branch.id}>{branch.name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="vehicleId">Vehicle</Label>
-                    <select id="vehicleId" name="vehicleId" defaultValue={defaultVehicle?.id ?? ""} className="h-9 rounded-md border bg-white px-3 text-sm">
-                      <option value="">Branch expense</option>
-                      {finance.vehicles.map((vehicle) => (
-                        <option key={vehicle.id} value={vehicle.id}>{vehicle.stock_number} - {vehicle.brand} {vehicle.model}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="category">Category</Label>
-                    <select id="category" name="category" defaultValue="repair" className="h-9 rounded-md border bg-white px-3 text-sm">
-                      {financeExpenseCategories.map((category) => (
-                        <option key={category} value={category}>{formatFinanceStatus(category)}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="description">Description</Label>
-                    <Input id="description" name="description" defaultValue="Vehicle preparation expense" required />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="amount">Amount</Label>
-                    <Input id="amount" name="amount" type="number" min="0" defaultValue="2500" required />
-                  </div>
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <div className="grid gap-2">
-                      <Label htmlFor="currencyCode">Currency</Label>
-                      <Input id="currencyCode" name="currencyCode" defaultValue={currencyCode} maxLength={3} />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="expenseDate">Expense date</Label>
-                      <Input id="expenseDate" name="expenseDate" type="date" defaultValue={today()} required />
-                    </div>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="supplierName">Supplier</Label>
-                    <Input id="supplierName" name="supplierName" />
-                  </div>
-                  <Button type="submit">
-                    <Plus className="h-4 w-4" />
-                    Record expense
-                  </Button>
-                </form>
+                <FinanceExpenseForm
+                  branches={branches}
+                  vehicles={finance.vehicles}
+                  companyId={workspace.companyId}
+                  defaultBranchId={defaultBranchId}
+                  defaultVehicleId={defaultVehicle?.id}
+                  currencyCode={currencyCode}
+                  today={today()}
+                />
               </CardContent>
             </Card>
           ) : null}
@@ -298,43 +227,13 @@ export default async function FinancePage() {
                 <CardDescription>Track supplier and vendor obligations.</CardDescription>
               </CardHeader>
               <CardContent>
-                <form action={payableFromForm} className="grid gap-3">
-                  <input type="hidden" name="companyId" value={workspace.companyId} />
-                  <input type="hidden" name="branchId" value={defaultBranchId} />
-                  <input type="hidden" name="vehicleId" value={defaultVehicle?.id ?? ""} />
-                  <div className="grid gap-2">
-                    <Label htmlFor="payableSupplierName">Supplier</Label>
-                    <Input id="payableSupplierName" name="supplierName" defaultValue="Repair Supplier" required />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="payableDescription">Description</Label>
-                    <Input id="payableDescription" name="description" defaultValue="Supplier payable" required />
-                  </div>
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <div className="grid gap-2">
-                      <Label htmlFor="payableAmount">Amount</Label>
-                      <Input id="payableAmount" name="amount" type="number" min="0" defaultValue="5000" required />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="paidAmount">Paid</Label>
-                      <Input id="paidAmount" name="paidAmount" type="number" min="0" defaultValue="0" />
-                    </div>
-                  </div>
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <div className="grid gap-2">
-                      <Label htmlFor="payableCurrencyCode">Currency</Label>
-                      <Input id="payableCurrencyCode" name="currencyCode" defaultValue={currencyCode} maxLength={3} />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="dueDate">Due date</Label>
-                      <Input id="dueDate" name="dueDate" type="date" defaultValue={dateIn(14)} />
-                    </div>
-                  </div>
-                  <Button type="submit" variant="outline">
-                    <ReceiptText className="h-4 w-4" />
-                    Create payable
-                  </Button>
-                </form>
+                <FinancePayableForm
+                  companyId={workspace.companyId}
+                  defaultBranchId={defaultBranchId}
+                  defaultVehicleId={defaultVehicle?.id}
+                  currencyCode={currencyCode}
+                  dueDate={dateIn(14)}
+                />
               </CardContent>
             </Card>
           ) : null}
@@ -346,49 +245,14 @@ export default async function FinancePage() {
                 <CardDescription>Calculate salesperson commission from invoice value.</CardDescription>
               </CardHeader>
               <CardContent>
-                <form action={commissionFromForm} className="grid gap-3">
-                  <input type="hidden" name="companyId" value={workspace.companyId} />
-                  <input type="hidden" name="branchId" value={defaultInvoice?.branch_id ?? defaultBranchId} />
-                  <input type="hidden" name="salesInvoiceId" value={defaultInvoice?.id ?? ""} />
-                  <input type="hidden" name="vehicleId" value={defaultInvoice?.vehicle_id ?? defaultVehicle?.id ?? ""} />
-                  <div className="grid gap-2">
-                    <Label htmlFor="salespersonId">Salesperson</Label>
-                    <select id="salespersonId" name="salespersonId" defaultValue={userOptions[0]?.id ?? ""} className="h-9 rounded-md border bg-white px-3 text-sm">
-                      <option value="">No salesperson</option>
-                      {userOptions.map((user) => (
-                        <option key={user.id} value={user.id}>{user.full_name || user.email}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <div className="grid gap-2">
-                      <Label htmlFor="basisAmount">Basis amount</Label>
-                      <Input id="basisAmount" name="basisAmount" type="number" min="0" defaultValue={defaultInvoice?.total ?? defaultVehicle?.selling_price ?? 0} required />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="commissionRate">Rate %</Label>
-                      <Input id="commissionRate" name="commissionRate" type="number" min="0" step="0.1" defaultValue="2.5" required />
-                    </div>
-                  </div>
-                  <div className="grid gap-3 md:grid-cols-2">
-                    <div className="grid gap-2">
-                      <Label htmlFor="commissionCurrencyCode">Currency</Label>
-                      <Input id="commissionCurrencyCode" name="currencyCode" defaultValue={currencyCode} maxLength={3} />
-                    </div>
-                    <div className="grid gap-2">
-                      <Label htmlFor="status">Status</Label>
-                      <select id="status" name="status" defaultValue="pending" className="h-9 rounded-md border bg-white px-3 text-sm">
-                        {financeCommissionStatuses.map((status) => (
-                          <option key={status} value={status}>{formatFinanceStatus(status)}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-                  <Button type="submit" variant="outline">
-                    <WalletCards className="h-4 w-4" />
-                    Create commission
-                  </Button>
-                </form>
+                <FinanceCommissionForm
+                  companyId={workspace.companyId}
+                  defaultBranchId={defaultBranchId}
+                  defaultInvoice={defaultInvoice}
+                  defaultVehicle={defaultVehicle}
+                  users={userOptions}
+                  currencyCode={currencyCode}
+                />
               </CardContent>
             </Card>
           ) : null}

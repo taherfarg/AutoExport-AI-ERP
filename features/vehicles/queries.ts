@@ -102,6 +102,24 @@ export type VehicleChecklistRow = {
   vehicle_document_id: string | null;
 };
 
+export type VehiclePricingRow = VehicleListRow & {
+  purchase_price: number;
+  shipping_cost: number;
+  customs_cost: number;
+  preparation_cost: number;
+  marketing_cost: number;
+  other_expenses: number;
+  vehicle_costs:
+    | {
+        transport_cost: number;
+        inspection_cost: number;
+        repair_cost: number;
+        detailing_cost: number;
+        commission_cost: number;
+      }[]
+    | null;
+};
+
 export async function getVehiclePermissions(companyId: string): Promise<VehiclePermissions> {
   const permissions = await getCurrentPermissionSet(companyId);
 
@@ -176,6 +194,29 @@ export async function getVehicleDetail(companyId: string, vehicleId: string) {
   }
 
   return data as unknown as VehicleDetail;
+}
+
+export async function getVehiclePricingRows(companyId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("vehicles")
+    .select(
+      "id, stock_number, vin, brand, model, year, trim, condition, mileage, branch_id, current_country_code, total_landed_cost, selling_price, expected_profit, profit_margin, currency_code, status, export_available, documents_status, photos_status, acquired_at, purchase_price, shipping_cost, customs_cost, preparation_cost, marketing_cost, other_expenses, branches(name, code, country_code), vehicle_costs(transport_cost, inspection_cost, repair_cost, detailing_cost, commission_cost)",
+    )
+    .eq("company_id", companyId)
+    .is("deleted_at", null)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (data ?? []) as unknown as VehiclePricingRow[];
+}
+
+export async function getVehiclePricingRow(companyId: string, vehicleId: string) {
+  const rows = await getVehiclePricingRows(companyId);
+  return rows.find((row) => row.id === vehicleId) ?? rows[0] ?? null;
 }
 
 export async function getVehicleStatusHistory(companyId: string, vehicleId: string) {

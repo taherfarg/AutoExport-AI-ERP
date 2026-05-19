@@ -11,6 +11,30 @@ export type LeadFilters = {
   assignedTo?: string;
 };
 
+export type CustomerFilters = {
+  search?: string;
+  type?: string;
+  branchId?: string;
+  countryCode?: string;
+};
+
+export type CustomerRow = {
+  id: string;
+  company_id: string;
+  branch_id: string | null;
+  customer_type: string;
+  name: string;
+  phone: string | null;
+  whatsapp: string | null;
+  email: string | null;
+  country_code: string | null;
+  city: string | null;
+  preferred_language: string;
+  notes: string | null;
+  created_at: string;
+  branches: { name: string; code: string; country_code: string } | null;
+};
+
 export type LeadListRow = {
   id: string;
   company_id: string;
@@ -80,6 +104,8 @@ export type MatchingVehicleRow = {
 };
 
 export type CrmPermissions = {
+  canCreateCustomer: boolean;
+  canUpdateCustomer: boolean;
   canCreateLead: boolean;
   canUpdateLead: boolean;
   canAssignLead: boolean;
@@ -91,11 +117,67 @@ export async function getCrmPermissions(companyId: string): Promise<CrmPermissio
   const permissions = await getCurrentPermissionSet(companyId);
 
   return {
+    canCreateCustomer: permissions.has(PERMISSIONS.CREATE_CUSTOMER),
+    canUpdateCustomer: permissions.has(PERMISSIONS.UPDATE_CUSTOMER),
     canCreateLead: permissions.has(PERMISSIONS.CREATE_LEAD),
     canUpdateLead: permissions.has(PERMISSIONS.UPDATE_LEAD),
     canAssignLead: permissions.has(PERMISSIONS.ASSIGN_LEAD),
     canCreateFollowUp: permissions.has(PERMISSIONS.CREATE_FOLLOW_UP),
     canUpdateFollowUp: permissions.has(PERMISSIONS.UPDATE_FOLLOW_UP),
+  };
+}
+
+export async function getCustomers(companyId: string, filters: CustomerFilters = {}) {
+  const supabase = await createClient();
+  let query = supabase
+    .from("customers")
+    .select(
+      "id, company_id, branch_id, customer_type, name, phone, whatsapp, email, country_code, city, preferred_language, notes, created_at, branches(name, code, country_code)",
+    )
+    .eq("company_id", companyId)
+    .is("deleted_at", null)
+    .order("created_at", { ascending: false });
+
+  if (filters.search) {
+    const search = filters.search.replaceAll("%", "").replaceAll(",", " ");
+    query = query.or(
+      `name.ilike.%${search}%,phone.ilike.%${search}%,whatsapp.ilike.%${search}%,email.ilike.%${search}%,city.ilike.%${search}%`,
+    );
+  }
+
+  if (filters.type && filters.type !== "all") {
+    query = query.eq("customer_type", filters.type);
+  }
+
+  if (filters.branchId && filters.branchId !== "all") {
+    query = query.eq("branch_id", filters.branchId);
+  }
+
+  if (filters.countryCode && filters.countryCode !== "all") {
+    query = query.eq("country_code", filters.countryCode.toUpperCase());
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (data ?? []) as unknown as CustomerRow[];
+}
+
+export function getCustomerStats(customers: CustomerRow[]) {
+  return {
+    total: customers.length,
+    exportBuyers: customers.filter((customer) => customer.customer_type === "export_buyer").length,
+    companies: customers.filter((customer) => customer.customer_type === "company" || customer.customer_type === "dealer").length,
+    countries: new Set(customers.map((customer) => customer.country_code).filter(Boolean)).size,
+  };
+}
+
+export function getCustomerFilterOptions(customers: CustomerRow[]) {
+  return {
+    countries: Array.from(new Set(customers.map((customer) => customer.country_code).filter(Boolean) as string[])).sort(),
   };
 }
 

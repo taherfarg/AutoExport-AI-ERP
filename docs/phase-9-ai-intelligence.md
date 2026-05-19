@@ -11,8 +11,9 @@ Phase 9 adds the production AI safety and assistant foundation for AutoSphere ER
 - AI report request records.
 - AI document extraction request records.
 - Server-side AI tool registry with permission filtering.
-- Deterministic business tools for stock, leads, payments, documents, pricing, marketing drafts, quotation drafts, follow-up drafts, and report drafts.
-- Provider-ready OpenAI path: if `OPENAI_API_KEY` exists, requests are tagged as OpenAI-ready while sensitive business execution still stays server-side and approval-gated.
+- Deterministic business tools for stock, vehicle details, leads, payments, documents, pricing, marketing drafts, quotation drafts, follow-up drafts, and report drafts.
+- OpenAI-compatible Responses API provider path for model-assisted tool routing and answer refinement when `OPENAI_API_KEY` exists.
+- Deterministic local fallback when no provider key is configured or the provider fails.
 
 ## Safety Notes
 
@@ -21,8 +22,8 @@ Phase 9 adds the production AI safety and assistant foundation for AutoSphere ER
 - AI cannot mutate sensitive records without approval.
 - Sensitive actions create approval records.
 - API keys must remain server-only environment variables.
-- The first implementation does not let AI directly send customer messages, change prices, record payments, sell vehicles, or generate final invoices.
-- External model calls can be added behind the existing server action/provider boundary without changing RLS or approval storage.
+- AI does not directly send customer messages, change prices, record payments, sell vehicles, or generate final invoices.
+- External model calls never bypass RLS or server permission checks; the provider receives only the permitted server-side tool output.
 
 ## Environment Variables
 
@@ -30,7 +31,8 @@ Optional:
 
 ```env
 OPENAI_API_KEY=
-OPENAI_MODEL=
+OPENAI_MODEL=gpt-5-mini
+OPENAI_BASE_URL=https://api.openai.com/v1
 ```
 
 Do not expose these through `NEXT_PUBLIC_` variables.

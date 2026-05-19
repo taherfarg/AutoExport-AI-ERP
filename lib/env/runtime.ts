@@ -7,6 +7,7 @@ const runtimeEnvSchema = z.object({
   NEXT_PUBLIC_APP_URL: z.string().trim().url(),
   OPENAI_API_KEY: z.string().trim().min(1).optional(),
   OPENAI_MODEL: z.string().trim().min(1).optional(),
+  OPENAI_BASE_URL: z.string().trim().url().optional(),
 });
 
 export type RuntimeEnv = z.infer<typeof runtimeEnvSchema>;

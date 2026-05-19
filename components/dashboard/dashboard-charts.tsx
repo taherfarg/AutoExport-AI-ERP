@@ -1,12 +1,12 @@
 "use client";
 
+import { useEffect, useRef, useState } from "react";
 import {
   BarChart,
   Bar,
   XAxis,
   YAxis,
   Tooltip,
-  ResponsiveContainer,
   PieChart,
   Pie,
   Cell,
@@ -35,16 +35,52 @@ type ChartCardProps = {
   children: React.ReactNode;
 };
 
+type ChartSize = {
+  width: number;
+  height: number;
+};
+
+const CHART_HEIGHT = 224;
+
 function ChartCard({ title, subtitle, children }: ChartCardProps) {
   return (
-    <div className="rounded-xl border border-border/50 bg-card p-5 shadow-sm hover:shadow-md transition-shadow">
+    <div className="min-w-0 rounded-xl border border-border/50 bg-card p-5 shadow-sm transition-shadow hover:shadow-md">
       <div className="mb-4">
         <h3 className="text-sm font-semibold text-foreground">{title}</h3>
         {subtitle && (
           <p className="text-[11px] text-muted-foreground mt-0.5">{subtitle}</p>
         )}
       </div>
-      <div className="h-56">{children}</div>
+      <div className="h-56 min-w-0">{children}</div>
+    </div>
+  );
+}
+
+function MeasuredChart({ children }: { children: (size: ChartSize) => React.ReactNode }) {
+  const frameRef = useRef<HTMLDivElement>(null);
+  const [width, setWidth] = useState(0);
+
+  useEffect(() => {
+    const frame = frameRef.current;
+    if (!frame) {
+      return;
+    }
+
+    const updateWidth = () => {
+      setWidth(Math.max(0, Math.floor(frame.getBoundingClientRect().width)));
+    };
+
+    updateWidth();
+
+    const observer = new ResizeObserver(updateWidth);
+    observer.observe(frame);
+
+    return () => observer.disconnect();
+  }, []);
+
+  return (
+    <div ref={frameRef} className="h-full min-w-0 w-full">
+      {width > 0 ? children({ width, height: CHART_HEIGHT }) : null}
     </div>
   );
 }
@@ -56,8 +92,9 @@ type SalesByMonthData = { label: string; revenue: number; profit: number }[];
 export function SalesByMonthChart({ data }: { data: SalesByMonthData }) {
   return (
     <ChartCard title="Sales Revenue" subtitle="Last 6 months">
-      <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={data} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
+      <MeasuredChart>
+        {({ width, height }) => (
+        <AreaChart width={width} height={height} data={data} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
           <defs>
             <linearGradient id="gradRevenue" x1="0" y1="0" x2="0" y2="1">
               <stop offset="5%" stopColor="#f97316" stopOpacity={0.3} />
@@ -74,7 +111,7 @@ export function SalesByMonthChart({ data }: { data: SalesByMonthData }) {
               borderRadius: "8px",
               fontSize: 12,
             }}
-            formatter={(value: number) => [compactNum(value), "Revenue"]}
+            formatter={(value) => [compactNum(value), "Revenue"]}
           />
           <Area
             type="monotone"
@@ -84,7 +121,8 @@ export function SalesByMonthChart({ data }: { data: SalesByMonthData }) {
             fill="url(#gradRevenue)"
           />
         </AreaChart>
-      </ResponsiveContainer>
+        )}
+      </MeasuredChart>
     </ChartCard>
   );
 }
@@ -96,8 +134,9 @@ type StockByBrandData = { brand: string; count: number }[];
 export function StockByBrandChart({ data }: { data: StockByBrandData }) {
   return (
     <ChartCard title="Stock by Brand" subtitle="Active inventory">
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
+      <MeasuredChart>
+        {({ width, height }) => (
+        <BarChart width={width} height={height} data={data} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(214 31.8% 91.4%)" />
           <XAxis dataKey="brand" tick={{ fontSize: 10, fill: "#94a3b8" }} />
           <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} allowDecimals={false} />
@@ -115,7 +154,8 @@ export function StockByBrandChart({ data }: { data: StockByBrandData }) {
             ))}
           </Bar>
         </BarChart>
-      </ResponsiveContainer>
+        )}
+      </MeasuredChart>
     </ChartCard>
   );
 }
@@ -127,8 +167,9 @@ type CarsByStatusData = { status: string; count: number }[];
 export function CarsByStatusChart({ data }: { data: CarsByStatusData }) {
   return (
     <ChartCard title="Cars by Status" subtitle="All vehicles">
-      <ResponsiveContainer width="100%" height="100%">
-        <PieChart>
+      <MeasuredChart>
+        {({ width, height }) => (
+        <PieChart width={width} height={height}>
           <Pie
             data={data}
             dataKey="count"
@@ -158,7 +199,8 @@ export function CarsByStatusChart({ data }: { data: CarsByStatusData }) {
             )}
           />
         </PieChart>
-      </ResponsiveContainer>
+        )}
+      </MeasuredChart>
     </ChartCard>
   );
 }
@@ -170,8 +212,9 @@ type LeadsBySourceData = { source: string; count: number }[];
 export function LeadsBySourceChart({ data }: { data: LeadsBySourceData }) {
   return (
     <ChartCard title="Leads by Source" subtitle="All time">
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} layout="vertical" margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
+      <MeasuredChart>
+        {({ width, height }) => (
+        <BarChart width={width} height={height} data={data} layout="vertical" margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(214 31.8% 91.4%)" />
           <XAxis type="number" tick={{ fontSize: 11, fill: "#94a3b8" }} allowDecimals={false} />
           <YAxis dataKey="source" type="category" width={90} tick={{ fontSize: 10, fill: "#94a3b8" }} />
@@ -185,7 +228,8 @@ export function LeadsBySourceChart({ data }: { data: LeadsBySourceData }) {
           />
           <Bar dataKey="count" radius={[0, 6, 6, 0]} fill="#3b82f6" />
         </BarChart>
-      </ResponsiveContainer>
+        )}
+      </MeasuredChart>
     </ChartCard>
   );
 }
@@ -197,8 +241,9 @@ type ExportDestData = { country: string; count: number }[];
 export function ExportDestinationsChart({ data }: { data: ExportDestData }) {
   return (
     <ChartCard title="Export Destinations" subtitle="Orders by country">
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
+      <MeasuredChart>
+        {({ width, height }) => (
+        <BarChart width={width} height={height} data={data} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(214 31.8% 91.4%)" />
           <XAxis dataKey="country" tick={{ fontSize: 10, fill: "#94a3b8" }} />
           <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} allowDecimals={false} />
@@ -216,7 +261,8 @@ export function ExportDestinationsChart({ data }: { data: ExportDestData }) {
             ))}
           </Bar>
         </BarChart>
-      </ResponsiveContainer>
+        )}
+      </MeasuredChart>
     </ChartCard>
   );
 }
@@ -230,8 +276,9 @@ const AGING_COLORS = ["#10b981", "#f59e0b", "#f97316", "#ef4444"];
 export function StockAgingChart({ data }: { data: StockAgingData }) {
   return (
     <ChartCard title="Stock Aging" subtitle="Days in inventory">
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
+      <MeasuredChart>
+        {({ width, height }) => (
+        <BarChart width={width} height={height} data={data} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(214 31.8% 91.4%)" />
           <XAxis dataKey="range" tick={{ fontSize: 11, fill: "#94a3b8" }} />
           <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} allowDecimals={false} />
@@ -249,7 +296,8 @@ export function StockAgingChart({ data }: { data: StockAgingData }) {
             ))}
           </Bar>
         </BarChart>
-      </ResponsiveContainer>
+        )}
+      </MeasuredChart>
     </ChartCard>
   );
 }
@@ -261,8 +309,9 @@ type StockByBranchData = { branch: string; count: number }[];
 export function StockByBranchChart({ data }: { data: StockByBranchData }) {
   return (
     <ChartCard title="Stock by Branch" subtitle="Active stock distribution">
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
+      <MeasuredChart>
+        {({ width, height }) => (
+        <BarChart width={width} height={height} data={data} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(214 31.8% 91.4%)" />
           <XAxis dataKey="branch" tick={{ fontSize: 10, fill: "#94a3b8" }} />
           <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} allowDecimals={false} />
@@ -276,7 +325,8 @@ export function StockByBranchChart({ data }: { data: StockByBranchData }) {
           />
           <Bar dataKey="count" radius={[6, 6, 0, 0]} fill="#8b5cf6" />
         </BarChart>
-      </ResponsiveContainer>
+        )}
+      </MeasuredChart>
     </ChartCard>
   );
 }
@@ -288,8 +338,9 @@ type ProfitByBranchData = { branch: string; profit: number }[];
 export function ProfitByBranchChart({ data }: { data: ProfitByBranchData }) {
   return (
     <ChartCard title="Profit by Branch" subtitle="Sold vehicles">
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={data} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
+      <MeasuredChart>
+        {({ width, height }) => (
+        <BarChart width={width} height={height} data={data} margin={{ top: 4, right: 8, bottom: 0, left: 0 }}>
           <CartesianGrid strokeDasharray="3 3" stroke="hsl(214 31.8% 91.4%)" />
           <XAxis dataKey="branch" tick={{ fontSize: 10, fill: "#94a3b8" }} />
           <YAxis tick={{ fontSize: 11, fill: "#94a3b8" }} tickFormatter={compactNum} />
@@ -300,11 +351,12 @@ export function ProfitByBranchChart({ data }: { data: ProfitByBranchData }) {
               borderRadius: "8px",
               fontSize: 12,
             }}
-            formatter={(value: number) => [compactNum(value), "Profit"]}
+            formatter={(value) => [compactNum(value), "Profit"]}
           />
           <Bar dataKey="profit" radius={[6, 6, 0, 0]} fill="#10b981" />
         </BarChart>
-      </ResponsiveContainer>
+        )}
+      </MeasuredChart>
     </ChartCard>
   );
 }
@@ -316,8 +368,9 @@ type InventoryValueByBranchData = { branch: string; value: number }[];
 export function InventoryValueChart({ data }: { data: InventoryValueByBranchData }) {
   return (
     <ChartCard title="Inventory Value" subtitle="By branch (selling price)">
-      <ResponsiveContainer width="100%" height="100%">
-        <PieChart>
+      <MeasuredChart>
+        {({ width, height }) => (
+        <PieChart width={width} height={height}>
           <Pie
             data={data}
             dataKey="value"
@@ -340,7 +393,7 @@ export function InventoryValueChart({ data }: { data: InventoryValueByBranchData
               borderRadius: "8px",
               fontSize: 12,
             }}
-            formatter={(value: number) => [compactNum(value), "Value"]}
+            formatter={(value) => [compactNum(value), "Value"]}
           />
           <Legend
             formatter={(value: string) => (
@@ -348,14 +401,16 @@ export function InventoryValueChart({ data }: { data: InventoryValueByBranchData
             )}
           />
         </PieChart>
-      </ResponsiveContainer>
+        )}
+      </MeasuredChart>
     </ChartCard>
   );
 }
 
 /* ---------- Helpers ---------- */
 
-function compactNum(n: number) {
+function compactNum(value: unknown) {
+  const n = Number(value ?? 0);
   if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(1)}M`;
   if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K`;
   return String(n);

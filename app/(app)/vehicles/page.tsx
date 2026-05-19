@@ -12,7 +12,7 @@ import {
 } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { createVehicle } from "@/features/vehicles/actions";
+import { VehicleCreateForm } from "./vehicle-create-form";
 import {
   getInventoryStats,
   getVehicleFilterOptions,
@@ -53,6 +53,8 @@ export default async function VehiclesPage({ searchParams }: VehiclesPageProps) 
     brand: firstParam(params.brand),
     exportAvailable: firstParam(params.exportAvailable),
   };
+  const showCreateForm = firstParam(params.create) === "1";
+  const createError = firstParam(params.error);
   const [vehicles, branches, permissions] = await Promise.all([
     getVehicles(workspace.companyId, filters),
     getBranches(workspace.companyId),
@@ -72,10 +74,10 @@ export default async function VehiclesPage({ searchParams }: VehiclesPageProps) 
           </p>
         </div>
         <Button asChild>
-          <a href="#add-vehicle">
+          <Link href="/vehicles?create=1#add-vehicle">
             <Plus className="h-4 w-4" />
             Add vehicle
-          </a>
+          </Link>
         </Button>
       </div>
 
@@ -90,6 +92,33 @@ export default async function VehiclesPage({ searchParams }: VehiclesPageProps) 
           hint="Selling value of filtered rows"
         />
       </div>
+
+      {showCreateForm ? (
+        <Card id="add-vehicle">
+          <CardHeader>
+            <CardTitle>Add vehicle</CardTitle>
+            <CardDescription>Create an inventory record with landed cost and selling price.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {!permissions.canCreate ? (
+              <p className="text-sm text-slate-500">You do not have permission to create vehicles.</p>
+            ) : !defaultBranchId ? (
+              <div className="space-y-3">
+                <p className="text-sm text-slate-500">Create a branch before adding vehicles.</p>
+                <Button asChild>
+                  <Link href="/settings/branches">Create branch</Link>
+                </Button>
+              </div>
+            ) : (
+              <VehicleCreateForm
+                branches={branches}
+                companyId={workspace.companyId}
+                initialError={createError}
+              />
+            )}
+          </CardContent>
+        </Card>
+      ) : null}
 
       <Card>
         <CardHeader>
@@ -216,101 +245,6 @@ export default async function VehiclesPage({ searchParams }: VehiclesPageProps) 
                 </tbody>
               </table>
             </div>
-          )}
-        </CardContent>
-      </Card>
-
-      <Card id="add-vehicle">
-        <CardHeader>
-          <CardTitle>Add vehicle</CardTitle>
-          <CardDescription>Create an inventory record with landed cost and selling price.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          {!permissions.canCreate ? (
-            <p className="text-sm text-slate-500">You do not have permission to create vehicles.</p>
-          ) : !defaultBranchId ? (
-            <p className="text-sm text-slate-500">Create a branch before adding vehicles.</p>
-          ) : (
-            <form action={createVehicle} className="grid gap-4 md:grid-cols-4">
-              <input type="hidden" name="companyId" value={workspace.companyId} />
-              <div className="grid gap-2">
-                <Label htmlFor="branchIdCreate">Branch</Label>
-                <select id="branchIdCreate" name="branchId" defaultValue={defaultBranchId} className="h-9 rounded-md border bg-white px-3 text-sm">
-                  {branches.map((branch) => (
-                    <option key={branch.id} value={branch.id}>
-                      {branch.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="stockNumber">Stock number</Label>
-                <Input id="stockNumber" name="stockNumber" required />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="vin">VIN</Label>
-                <Input id="vin" name="vin" required />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="vehicleBrand">Brand</Label>
-                <Input id="vehicleBrand" name="brand" required />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="model">Model</Label>
-                <Input id="model" name="model" required />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="year">Year</Label>
-                <Input id="year" name="year" type="number" defaultValue="2026" required />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="trim">Trim</Label>
-                <Input id="trim" name="trim" />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="condition">Condition</Label>
-                <select id="condition" name="condition" defaultValue="new" className="h-9 rounded-md border bg-white px-3 text-sm">
-                  <option value="new">New</option>
-                  <option value="used">Used</option>
-                  <option value="certified_pre_owned">Certified pre-owned</option>
-                </select>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="purchasePrice">Purchase price</Label>
-                <Input id="purchasePrice" name="purchasePrice" type="number" min="0" defaultValue="0" />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="shippingCost">Shipping</Label>
-                <Input id="shippingCost" name="shippingCost" type="number" min="0" defaultValue="0" />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="customsCost">Customs</Label>
-                <Input id="customsCost" name="customsCost" type="number" min="0" defaultValue="0" />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="preparationCost">Preparation</Label>
-                <Input id="preparationCost" name="preparationCost" type="number" min="0" defaultValue="0" />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="sellingPrice">Selling price</Label>
-                <Input id="sellingPrice" name="sellingPrice" type="number" min="0" defaultValue="0" />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="currencyCode">Currency</Label>
-                <Input id="currencyCode" name="currencyCode" defaultValue="AED" maxLength={3} />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="currentCountryCode">Current country</Label>
-                <Input id="currentCountryCode" name="currentCountryCode" defaultValue="AE" maxLength={2} />
-              </div>
-              <label className="flex items-end gap-2 pb-2 text-sm text-slate-700">
-                <input name="exportAvailable" type="checkbox" className="h-4 w-4 rounded border-slate-300" />
-                Export available
-              </label>
-              <div className="flex items-end md:col-span-4">
-                <Button type="submit">Create vehicle</Button>
-              </div>
-            </form>
           )}
         </CardContent>
       </Card>

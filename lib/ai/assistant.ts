@@ -12,8 +12,19 @@ export type AiAnswerInput = {
   suggestedActions?: string[];
 };
 
+export type AiAnswerPayload = {
+  directAnswer: string;
+  metrics: AiMetric[];
+  rows: Record<string, unknown>[];
+  suggestedActions: string[];
+};
+
 export function routeAiIntent(prompt: string) {
   const normalized = prompt.toLowerCase();
+
+  if (normalized.includes("detail") || normalized.includes("specification") || normalized.includes("vin")) {
+    return "getVehicleDetails";
+  }
 
   if (normalized.includes("social") || normalized.includes("caption")) {
     return "generateSocialPostDraft";
@@ -54,7 +65,7 @@ export function routeAiIntent(prompt: string) {
   return "getAvailableStock";
 }
 
-export function buildAiAnswerPayload(input: AiAnswerInput) {
+export function buildAiAnswerPayload(input: AiAnswerInput): AiAnswerPayload {
   return {
     directAnswer: input.directAnswer,
     metrics: (input.metrics ?? []).map((metric) => ({ ...metric, value: String(metric.value) })),

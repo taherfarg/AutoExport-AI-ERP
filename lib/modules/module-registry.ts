@@ -3,6 +3,7 @@ import {
   Bot,
   Building2,
   Car,
+  Calculator,
   ClipboardList,
   MessageSquareText,
   FileText,
@@ -12,14 +13,17 @@ import {
   Settings,
   Ship,
   Siren,
+  Users,
   WalletCards,
 } from "lucide-react";
 
 export const MODULE_REGISTRY = [
   { key: "dashboard", label: "Dashboard", href: "/dashboard", icon: BarChart3 },
   { key: "vehicles", label: "Vehicle Inventory", href: "/vehicles", icon: Car },
+  { key: "vehicle_pricing", gateKey: "vehicles", label: "Smart Pricing", href: "/vehicles/pricing", icon: Calculator },
   { key: "global_stock", label: "Global Stock", href: "/global-stock", icon: Globe2 },
   { key: "crm", label: "Sales CRM", href: "/crm/leads", icon: ClipboardList },
+  { key: "crm_customers", gateKey: "crm", label: "Customers", href: "/crm/customers", icon: Users },
   { key: "sales", label: "Sales", href: "/sales/quotations", icon: Receipt },
   { key: "export", label: "Import & Export", href: "/export/orders", icon: Ship },
   { key: "documents", label: "Documents", href: "/documents", icon: FileText },
@@ -37,5 +41,23 @@ export type ModuleKey = (typeof MODULE_REGISTRY)[number]["key"];
 
 export function filterModulesByPackage(enabledKeys: string[]) {
   const enabled = new Set(enabledKeys);
-  return MODULE_REGISTRY.filter((module) => enabled.has(module.key) || module.key === "branches");
+  return MODULE_REGISTRY.filter((module) => {
+    const gateKey = "gateKey" in module ? module.gateKey : module.key;
+    return enabled.has(gateKey) || module.key === "branches";
+  });
+}
+
+export function getModulesWithAccess(enabledKeys: string[]) {
+  const enabled = new Set(enabledKeys);
+
+  return MODULE_REGISTRY.map((module) => {
+    const gateKey = "gateKey" in module ? module.gateKey : module.key;
+    const unlocked = enabled.has(gateKey) || module.key === "branches" || module.key === "settings";
+
+    return {
+      ...module,
+      unlocked,
+      gateKey,
+    };
+  });
 }

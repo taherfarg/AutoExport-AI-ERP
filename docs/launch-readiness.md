@@ -27,7 +27,8 @@ Optional:
 
 ```env
 OPENAI_API_KEY=
-OPENAI_MODEL=
+OPENAI_MODEL=gpt-5-mini
+OPENAI_BASE_URL=https://api.openai.com/v1
 STRIPE_SECRET_KEY=
 STRIPE_WEBHOOK_SECRET=
 NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=
@@ -96,7 +97,7 @@ npm run test:e2e
 
 Production provider work can now be added behind the existing module boundaries:
 
-- OpenAI provider call path behind AI server actions.
+- OpenAI-compatible provider call path behind AI server actions is implemented; configure `OPENAI_API_KEY` to enable live model routing/refinement.
 - Stripe subscriptions behind package/subscription tables.
 - Email provider for notifications and reports.
 - WhatsApp/Meta provider for customer messaging drafts.

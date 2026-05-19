@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getCurrentPermissionSet, getCurrentWorkspace } from "@/lib/auth/current-workspace";
 import { buildAiAnswerPayload, decideApprovalRequirement, routeAiIntent } from "@/lib/ai/assistant";
 import { makeAiNumber } from "@/lib/ai/format";
+import { refineAiAnswerWithProvider, selectAiToolWithProvider } from "@/lib/ai/provider";
 import { filterAiToolsByPermissions, findAiTool, getAiToolRegistry } from "@/lib/ai/tools";
 import { createListingDraftFromVehicle, createSocialCaptionDraft } from "@/lib/marketing/calculations";
 import { PERMISSIONS } from "@/lib/permissions/permissions";
@@ -184,6 +185,68 @@ async function executeTool({
     });
   }
 
+  if (toolName === "getVehicleDetails") {
+    let query = supabase
+      .from("vehicles")
+      .select(
+        "id, stock_number, vin, brand, model, year, trim, condition, mileage, exterior_color, interior_color, engine, transmission, drivetrain, fuel_type, body_type, seats, doors, origin_country_code, current_country_code, current_location, status, selling_price, currency_code, export_available, documents_status, photos_status, purchase_price, shipping_cost, customs_cost, preparation_cost, marketing_cost, other_expenses",
+      )
+      .eq("company_id", companyId)
+      .is("deleted_at", null)
+      .limit(1);
+
+    const stockMatch = prompt.match(/\b[A-Z]{2,5}-[A-Z0-9-]{2,}\b/i);
+    if (stockMatch) {
+      query = query.eq("stock_number", stockMatch[0].toUpperCase());
+    } else if (normalized.includes("toyota")) {
+      query = query.eq("brand", "Toyota");
+    }
+
+    const { data } = await query.single();
+
+    if (!data) {
+      return buildAiAnswerPayload({
+        directAnswer: "I could not find a matching vehicle in your permitted workspace.",
+        suggestedActions: ["Open vehicle inventory", "Search by stock number"],
+      });
+    }
+
+    const pricing = permissions.has(PERMISSIONS.VIEW_VEHICLE_COST) && permissions.has(PERMISSIONS.VIEW_VEHICLE_PROFIT)
+      ? calculateVehiclePricing({
+          purchasePrice: Number(data.purchase_price),
+          shippingCost: Number(data.shipping_cost),
+          customsCost: Number(data.customs_cost),
+          preparationCost: Number(data.preparation_cost),
+          marketingCost: Number(data.marketing_cost),
+          otherExpenses: Number(data.other_expenses),
+          sellingPrice: Number(data.selling_price),
+        })
+      : null;
+
+    return buildAiAnswerPayload({
+      directAnswer: `${data.year} ${data.brand} ${data.model} ${data.trim ?? ""} is ${data.status}.`,
+      metrics: [
+        { label: "Mileage", value: Number(data.mileage ?? 0) },
+        { label: "Selling price", value: `${data.currency_code} ${data.selling_price}` },
+        ...(pricing ? [{ label: "Expected profit", value: pricing.expectedProfit }] : []),
+      ],
+      rows: [{
+        stockNumber: data.stock_number,
+        vin: data.vin,
+        vehicle: `${data.year} ${data.brand} ${data.model}`,
+        trim: data.trim,
+        engine: data.engine,
+        transmission: data.transmission,
+        drivetrain: data.drivetrain,
+        location: data.current_location,
+        exportAvailable: data.export_available ? "Yes" : "No",
+        documentsStatus: data.documents_status,
+        photosStatus: data.photos_status,
+      }],
+      suggestedActions: ["Open vehicle details", "Generate listing draft", "Create quotation draft"],
+    });
+  }
+
   if (toolName === "getLeadsDueToday") {
     const today = new Date().toISOString().slice(0, 10);
     const { data } = await supabase
@@ -329,6 +392,82 @@ async function executeTool({
     });
   }
 
+  if (toolName === "createQuotationDraft") {
+    const { data: quoteVehicle } = await supabase
+      .from("vehicles")
+      .select("id, stock_number, brand, model, year, trim, selling_price, currency_code, status")
+      .eq("company_id", companyId)
+      .is("deleted_at", null)
+      .neq("status", "sold")
+      .limit(1)
+      .single();
+    const { data: customer } = await supabase
+      .from("customers")
+      .select("id, name, customer_type, country_code")
+      .eq("company_id", companyId)
+      .is("deleted_at", null)
+      .limit(1)
+      .single();
+
+    return buildAiAnswerPayload({
+      directAnswer: "Quotation draft prepared for human review. It has not created a final quotation yet.",
+      metrics: quoteVehicle ? [{ label: "Draft price", value: `${quoteVehicle.currency_code} ${quoteVehicle.selling_price}` }] : [],
+      rows: [{
+        customer: customer?.name ?? "Select customer",
+        vehicle: quoteVehicle ? `${quoteVehicle.year} ${quoteVehicle.brand} ${quoteVehicle.model}` : "Select vehicle",
+        stockNumber: quoteVehicle?.stock_number ?? "-",
+        price: quoteVehicle ? `${quoteVehicle.currency_code} ${quoteVehicle.selling_price}` : "-",
+        nextStep: "Manager reviews and creates quotation",
+      }],
+      suggestedActions: ["Review approval queue", "Open quotations", "Attach terms"],
+    });
+  }
+
+  if (toolName === "createFollowUpTask") {
+    const { data: lead } = await supabase
+      .from("leads")
+      .select("id, name, preferred_brand, preferred_model, next_follow_up_at, status")
+      .eq("company_id", companyId)
+      .is("deleted_at", null)
+      .order("next_follow_up_at", { ascending: true, nullsFirst: false })
+      .limit(1)
+      .single();
+
+    return buildAiAnswerPayload({
+      directAnswer: "Follow-up task draft prepared for approval. No task was created yet.",
+      rows: [{
+        lead: lead?.name ?? "Select lead",
+        interest: [lead?.preferred_brand, lead?.preferred_model].filter(Boolean).join(" ") || "Vehicle inquiry",
+        status: lead?.status ?? "new",
+        suggestedTask: "Contact buyer, confirm budget and export destination, then send matching stock.",
+      }],
+      suggestedActions: ["Review approval queue", "Open CRM follow-ups"],
+    });
+  }
+
+  if (toolName === "generateReportDraft") {
+    const [{ count: vehicleCount }, { count: leadCount }, { count: invoiceCount }] = await Promise.all([
+      supabase.from("vehicles").select("id", { count: "exact", head: true }).eq("company_id", companyId).is("deleted_at", null),
+      supabase.from("leads").select("id", { count: "exact", head: true }).eq("company_id", companyId).is("deleted_at", null),
+      supabase.from("sales_invoices").select("id", { count: "exact", head: true }).eq("company_id", companyId).is("deleted_at", null),
+    ]);
+
+    return buildAiAnswerPayload({
+      directAnswer: "Report draft prepared from your permitted company data.",
+      metrics: [
+        { label: "Vehicles", value: vehicleCount ?? 0 },
+        { label: "Leads", value: leadCount ?? 0 },
+        { label: "Invoices", value: invoiceCount ?? 0 },
+      ],
+      rows: [
+        { section: "Inventory", summary: `${vehicleCount ?? 0} active vehicle records.` },
+        { section: "CRM", summary: `${leadCount ?? 0} lead records.` },
+        { section: "Sales", summary: `${invoiceCount ?? 0} invoice records.` },
+      ],
+      suggestedActions: ["Create report export", "Schedule manager review"],
+    });
+  }
+
   return buildAiAnswerPayload({
     directAnswer: "I prepared a safe draft for review. This action needs human approval before it changes records.",
     rows: [{ toolName, prompt }],
@@ -349,9 +488,15 @@ export async function askAiAssistant(formData: FormData) {
     return { error: "AI prompt is invalid." };
   }
 
-  const toolName = routeAiIntent(parsed.data.prompt);
-  const tool = findAiTool(toolName);
   const allowedTools = filterAiToolsByPermissions(getAiToolRegistry(), permissions);
+  const fallbackToolName = routeAiIntent(parsed.data.prompt);
+  const toolSelection = await selectAiToolWithProvider({
+    prompt: parsed.data.prompt,
+    fallbackToolName,
+    allowedTools,
+  });
+  const toolName = toolSelection.toolName;
+  const tool = findAiTool(toolName);
   const isAllowed = allowedTools.some((allowedTool) => allowedTool.name === toolName);
   const conversationId = await ensureConversation({
     workspace,
@@ -370,15 +515,35 @@ export async function askAiAssistant(formData: FormData) {
   });
 
   const approval = decideApprovalRequirement(toolName);
-  const answerPayload = isAllowed
+  const baseAnswerPayload = isAllowed
     ? await executeTool({ companyId: workspace.companyId, prompt: parsed.data.prompt, toolName, permissions })
     : buildAiAnswerPayload({
         directAnswer: `The ${toolName} tool is not available for your current permissions.`,
         suggestedActions: ["Ask an admin to review your permissions"],
       });
-  const provider = process.env.OPENAI_API_KEY ? "openai-responses-ready" : "local";
+  const providerResult = isAllowed
+    ? await refineAiAnswerWithProvider({
+        prompt: parsed.data.prompt,
+        toolName,
+        toolDescription: tool?.description,
+        answerPayload: baseAnswerPayload,
+        sensitive: approval.sensitive,
+        requiresApproval: approval.requiresApproval,
+      })
+    : {
+        provider: toolSelection.provider,
+        model: toolSelection.model,
+        answerPayload: baseAnswerPayload,
+        responseText: baseAnswerPayload.directAnswer,
+        errorMessage: undefined,
+      };
+  const answerPayload = providerResult.answerPayload;
+  const provider = providerResult.provider;
   const status = !isAllowed ? "failed" : approval.requiresApproval ? "approval_required" : "completed";
-  const response = answerPayload.directAnswer;
+  const response = providerResult.responseText;
+  const errorMessage = !isAllowed
+    ? "Permission denied for selected AI tool."
+    : [toolSelection.errorMessage, providerResult.errorMessage].filter(Boolean).join(" | ") || null;
 
   const { data: requestRow, error: requestError } = await supabase
     .from("ai_requests")
@@ -391,9 +556,9 @@ export async function askAiAssistant(formData: FormData) {
       response,
       answer_payload: answerPayload,
       provider,
-      model: process.env.OPENAI_MODEL ?? (provider === "local" ? "deterministic" : "configured"),
+      model: providerResult.model,
       status,
-      error_message: isAllowed ? null : "Permission denied for selected AI tool.",
+      error_message: errorMessage,
       created_by: workspace.profileId,
       updated_by: workspace.profileId,
     })
@@ -419,7 +584,7 @@ export async function askAiAssistant(formData: FormData) {
       requires_approval: approval.requiresApproval,
       input_payload: { prompt: parsed.data.prompt },
       output_payload: answerPayload,
-      error_message: isAllowed ? null : "Permission denied.",
+      error_message: errorMessage,
       created_by: workspace.profileId,
       updated_by: workspace.profileId,
     })

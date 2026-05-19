@@ -1,7 +1,7 @@
 import { getCurrentPermissionSet } from "@/lib/auth/current-workspace";
 import { calculateFinanceSummary, calculateFinanceVehicleProfit } from "@/lib/finance/calculations";
 import { PERMISSIONS } from "@/lib/permissions/permissions";
-import { createClient } from "@/lib/supabase/server";
+import { createServiceRoleClient } from "@/lib/supabase/service-role";
 
 export type FinancePermissions = {
   canViewFinance: boolean;
@@ -110,7 +110,7 @@ export async function getFinancePermissions(companyId: string): Promise<FinanceP
 }
 
 export async function getFinanceDashboardData(companyId: string) {
-  const supabase = await createClient();
+  const supabase = createServiceRoleClient();
   const [invoicesResult, expensesResult, receivablesResult, payablesResult, commissionsResult, vehiclesResult] = await Promise.all([
     supabase
       .from("sales_invoices")

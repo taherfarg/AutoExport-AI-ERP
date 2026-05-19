@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, CalendarClock, MessageSquare, Search } from "lucide-react";
 import { LeadStatusBadge } from "@/components/crm/lead-status-badge";
 import { KpiCard } from "@/components/dashboard/kpi-card";
@@ -11,11 +11,7 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import {
-  createFollowUp,
-  logLeadMessage,
   updateLeadStatus,
 } from "@/features/crm/actions";
 import {
@@ -29,10 +25,12 @@ import { getCompanyUsers } from "@/features/users/queries";
 import { getCurrentWorkspace } from "@/lib/auth/current-workspace";
 import { formatCrmStatus, isFollowUpOverdue } from "@/lib/crm/format";
 import { formatMoney } from "@/lib/vehicles/format";
-import { followUpPriorities, leadStatuses, messageChannels, messageDirections } from "@/lib/validations/crm";
+import { leadStatuses } from "@/lib/validations/crm";
+import { LeadFollowUpForm, LeadMessageForm } from "./lead-activity-forms";
 
 type LeadDetailPageProps = {
   params: Promise<{ leadId: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
 type CompanyUserRow = {
@@ -48,8 +46,20 @@ function defaultDueAt() {
   return due.toISOString().slice(0, 16);
 }
 
-export default async function LeadDetailPage({ params }: LeadDetailPageProps) {
+function firstParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function leadMessageUrl(leadId: string, params: Record<string, string>) {
+  const searchParams = new URLSearchParams(params);
+  return `/crm/leads/${leadId}?${searchParams.toString()}`;
+}
+
+export default async function LeadDetailPage({ params, searchParams }: LeadDetailPageProps) {
   const { leadId } = await params;
+  const pageParams = await searchParams;
+  const actionError = firstParam(pageParams.error);
+  const actionSuccess = firstParam(pageParams.success);
   const workspace = await getCurrentWorkspace();
 
   let lead;
@@ -76,23 +86,26 @@ export default async function LeadDetailPage({ params }: LeadDetailPageProps) {
   async function updateStatusFromForm(formData: FormData) {
     "use server";
 
-    await updateLeadStatus(formData);
-  }
-
-  async function createFollowUpFromForm(formData: FormData) {
-    "use server";
-
-    await createFollowUp(formData);
-  }
-
-  async function logMessageFromForm(formData: FormData) {
-    "use server";
-
-    await logLeadMessage(formData);
+    const result = await updateLeadStatus(formData);
+    if (result?.error) {
+      redirect(leadMessageUrl(String(formData.get("leadId")), { error: result.error }));
+    }
+    redirect(leadMessageUrl(String(formData.get("leadId")), { success: "Lead status updated." }));
   }
 
   return (
     <div className="space-y-6">
+      {actionError ? (
+        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {actionError}
+        </div>
+      ) : null}
+      {actionSuccess ? (
+        <div className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+          {actionSuccess}
+        </div>
+      ) : null}
+
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div className="space-y-2">
           <Button asChild variant="ghost" size="sm" className="-ml-3">
@@ -230,39 +243,7 @@ export default async function LeadDetailPage({ params }: LeadDetailPageProps) {
                 </div>
               )}
               {permissions.canUpdateLead ? (
-                <form action={logMessageFromForm} className="grid gap-3 rounded-md border p-4 md:grid-cols-3">
-                  <input type="hidden" name="leadId" value={lead.id} />
-                  <div className="grid gap-2">
-                    <Label htmlFor="direction">Direction</Label>
-                    <select id="direction" name="direction" defaultValue="internal" className="h-9 rounded-md border bg-white px-3 text-sm">
-                      {messageDirections.map((direction) => (
-                        <option key={direction} value={direction}>{formatCrmStatus(direction)}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="channel">Channel</Label>
-                    <select id="channel" name="channel" defaultValue="whatsapp" className="h-9 rounded-md border bg-white px-3 text-sm">
-                      {messageChannels.map((channel) => (
-                        <option key={channel} value={channel}>{formatCrmStatus(channel)}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="subject">Subject</Label>
-                    <Input id="subject" name="subject" />
-                  </div>
-                  <div className="grid gap-2 md:col-span-3">
-                    <Label htmlFor="body">Message</Label>
-                    <textarea id="body" name="body" required className="min-h-20 rounded-md border bg-white px-3 py-2 text-sm" />
-                  </div>
-                  <div className="md:col-span-3">
-                    <Button type="submit" variant="outline">
-                      <MessageSquare className="h-4 w-4" />
-                      Log message
-                    </Button>
-                  </div>
-                </form>
+                <LeadMessageForm leadId={lead.id} />
               ) : null}
             </CardContent>
           </Card>
@@ -296,41 +277,12 @@ export default async function LeadDetailPage({ params }: LeadDetailPageProps) {
                 </div>
               )}
               {permissions.canCreateFollowUp ? (
-                <form action={createFollowUpFromForm} className="grid gap-3 rounded-md border p-4">
-                  <input type="hidden" name="leadId" value={lead.id} />
-                  <div className="grid gap-2">
-                    <Label htmlFor="title">Title</Label>
-                    <Input id="title" name="title" defaultValue="Call buyer" required />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="dueAt">Due date</Label>
-                    <Input id="dueAt" name="dueAt" type="datetime-local" defaultValue={defaultDueAt()} required />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="priority">Priority</Label>
-                    <select id="priority" name="priority" defaultValue="normal" className="h-9 rounded-md border bg-white px-3 text-sm">
-                      {followUpPriorities.map((priority) => (
-                        <option key={priority} value={priority}>{formatCrmStatus(priority)}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="assignedTo">Owner</Label>
-                    <select id="assignedTo" name="assignedTo" defaultValue={lead.assigned_salesperson_id ?? workspace.profileId} className="h-9 rounded-md border bg-white px-3 text-sm">
-                      {userOptions.map((user) => (
-                        <option key={user.id} value={user.id}>{user.full_name}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="followUpNotes">Notes</Label>
-                    <textarea id="followUpNotes" name="notes" className="min-h-20 rounded-md border bg-white px-3 py-2 text-sm" />
-                  </div>
-                  <Button type="submit">
-                    <CalendarClock className="h-4 w-4" />
-                    Create follow-up
-                  </Button>
-                </form>
+                <LeadFollowUpForm
+                  leadId={lead.id}
+                  defaultAssignedTo={lead.assigned_salesperson_id ?? workspace.profileId}
+                  defaultDueAt={defaultDueAt()}
+                  users={userOptions}
+                />
               ) : null}
             </CardContent>
           </Card>

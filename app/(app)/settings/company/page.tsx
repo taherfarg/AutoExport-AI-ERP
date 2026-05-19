@@ -1,5 +1,5 @@
-import { requireUser } from "@/lib/auth/require-user";
-import { createClient } from "@/lib/supabase/server";
+import { getCurrentWorkspace } from "@/lib/auth/current-workspace";
+import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import {
   Card,
   CardContent,
@@ -23,38 +23,26 @@ type CompanyRow = {
   company_settings: CompanySettingsRow | CompanySettingsRow[] | null;
 };
 
-type MembershipRow = {
-  companies: CompanyRow | CompanyRow[] | null;
-};
-
-type ProfileCompanyRow = {
-  company_memberships: MembershipRow[];
-};
-
 export default async function CompanySettingsPage() {
-  const user = await requireUser();
-  const supabase = await createClient();
-  const { data, error } = await supabase
-    .from("profiles")
+  const workspace = await getCurrentWorkspace();
+  const supabase = createServiceRoleClient();
+  const { data: company, error } = await supabase
+    .from("companies")
     .select(
-      "company_memberships(companies(name, legal_name, primary_country_code, primary_currency_code, default_language, timezone, company_settings(branding, localization)))",
+      "name, legal_name, primary_country_code, primary_currency_code, default_language, timezone, company_settings(branding, localization)",
     )
-    .eq("auth_user_id", user.id)
+    .eq("id", workspace.companyId)
     .single();
 
-  const profile = data as unknown as ProfileCompanyRow | null;
+  const companyRow = company as unknown as CompanyRow | null;
 
-  if (error || !profile?.company_memberships?.[0]) {
+  if (error || !companyRow) {
     throw new Error("Company settings were not found.");
   }
 
-  const membership = profile.company_memberships[0];
-  const company = Array.isArray(membership.companies)
-    ? membership.companies[0]
-    : membership.companies;
-  const settings = Array.isArray(company?.company_settings)
-    ? company?.company_settings[0]
-    : company?.company_settings;
+  const settings = Array.isArray(companyRow.company_settings)
+    ? companyRow.company_settings[0]
+    : companyRow.company_settings;
 
   return (
     <div className="space-y-6">
@@ -64,14 +52,14 @@ export default async function CompanySettingsPage() {
       </div>
       <Card>
         <CardHeader>
-          <CardTitle>{company?.name}</CardTitle>
-          <CardDescription>{company?.legal_name ?? "Legal name not set"}</CardDescription>
+          <CardTitle>{companyRow.name}</CardTitle>
+          <CardDescription>{companyRow.legal_name ?? "Legal name not set"}</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-3 text-sm md:grid-cols-2">
-          <span>Country: {company?.primary_country_code}</span>
-          <span>Currency: {company?.primary_currency_code}</span>
-          <span>Language: {company?.default_language}</span>
-          <span>Timezone: {company?.timezone}</span>
+          <span>Country: {companyRow.primary_country_code}</span>
+          <span>Currency: {companyRow.primary_currency_code}</span>
+          <span>Language: {companyRow.default_language}</span>
+          <span>Timezone: {companyRow.timezone}</span>
           <span>Branding: {JSON.stringify(settings?.branding ?? {})}</span>
           <span>Localization: {JSON.stringify(settings?.localization ?? {})}</span>
         </CardContent>

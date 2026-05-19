@@ -2,14 +2,15 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { filterModulesByPackage } from "@/lib/modules/module-registry";
+import { Lock } from "lucide-react";
+import { getModulesWithAccess } from "@/lib/modules/module-registry";
 
 type AppSidebarProps = {
   enabledModuleKeys: string[];
 };
 
 export function AppSidebar({ enabledModuleKeys }: AppSidebarProps) {
-  const modules = filterModulesByPackage(enabledModuleKeys);
+  const modules = getModulesWithAccess(enabledModuleKeys);
   const pathname = usePathname();
 
   return (
@@ -37,18 +38,23 @@ export function AppSidebar({ enabledModuleKeys }: AppSidebarProps) {
       <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-0.5">
         {modules.map((module) => {
           const Icon = module.icon;
+          const href = module.unlocked ? module.href : "/subscriptions";
           const isActive =
-            pathname === module.href ||
-            (module.href !== "/dashboard" && pathname.startsWith(module.href));
+            module.unlocked &&
+            (pathname === module.href ||
+              (module.href !== "/dashboard" && pathname.startsWith(module.href)));
 
           return (
             <Link
               key={module.key}
-              href={module.href}
+              href={href}
+              aria-disabled={!module.unlocked}
               className={`group flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] font-medium transition-all duration-200 ${
                 isActive
                   ? "bg-gradient-to-r from-orange-500/15 to-orange-500/5 text-orange-300 shadow-sm"
-                  : "text-slate-400 hover:bg-white/5 hover:text-slate-200"
+                  : module.unlocked
+                    ? "text-slate-400 hover:bg-white/5 hover:text-slate-200"
+                    : "text-slate-600 hover:bg-white/5 hover:text-slate-400"
               }`}
             >
               <span
@@ -60,7 +66,8 @@ export function AppSidebar({ enabledModuleKeys }: AppSidebarProps) {
               >
                 <Icon className="h-4 w-4" />
               </span>
-              {module.label}
+              <span className="min-w-0 flex-1 truncate">{module.label}</span>
+              {!module.unlocked && <Lock className="h-3.5 w-3.5 text-slate-600 group-hover:text-slate-400" />}
               {isActive && (
                 <span className="ml-auto h-1.5 w-1.5 rounded-full bg-orange-400 animate-pulse-glow" />
               )}

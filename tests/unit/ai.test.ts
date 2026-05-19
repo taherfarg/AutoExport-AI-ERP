@@ -1,4 +1,4 @@
-import { describe, expect, test } from "vitest";
+import { describe, expect, test, vi } from "vitest";
 import {
   buildAiAnswerPayload,
   decideApprovalRequirement,
@@ -9,6 +9,7 @@ import {
   getAiToolRegistry,
 } from "@/lib/ai/tools";
 import { formatAiStatus, makeAiNumber } from "@/lib/ai/format";
+import { refineAiAnswerWithProvider, selectAiToolWithProvider } from "@/lib/ai/provider";
 import {
   aiApprovalDecisionSchema,
   askAiSchema,
@@ -26,6 +27,7 @@ describe("AI technical intelligence", () => {
 
   test("routes common automotive questions to deterministic tools", () => {
     expect(routeAiIntent("Which Toyota cars are available?")).toBe("searchVehicles");
+    expect(routeAiIntent("Show vehicle details for PLX-DXB-001")).toBe("getVehicleDetails");
     expect(routeAiIntent("Which leads need follow-up today?")).toBe("getLeadsDueToday");
     expect(routeAiIntent("Show pending customer payments.")).toBe("getPendingPayments");
     expect(routeAiIntent("Create social media caption for this vehicle.")).toBe("generateSocialPostDraft");
@@ -97,5 +99,81 @@ describe("AI technical intelligence", () => {
         notes: "Manager approved draft.",
       }),
     ).toMatchObject({ decision: "approved" });
+  });
+
+  test("uses deterministic AI provider fallback when OpenAI is not configured", async () => {
+    const tools = getAiToolRegistry();
+    const selection = await selectAiToolWithProvider({
+      prompt: "Which cars are available?",
+      fallbackToolName: "searchVehicles",
+      allowedTools: tools,
+      env: {},
+    });
+
+    expect(selection).toMatchObject({
+      toolName: "searchVehicles",
+      provider: "local",
+      model: "deterministic",
+    });
+
+    const payload = buildAiAnswerPayload({ directAnswer: "Found 2 vehicles." });
+    await expect(refineAiAnswerWithProvider({
+      prompt: "Which cars are available?",
+      toolName: "searchVehicles",
+      answerPayload: payload,
+      sensitive: false,
+      requiresApproval: false,
+      env: {},
+    })).resolves.toMatchObject({
+      provider: "local",
+      model: "deterministic",
+      answerPayload: payload,
+    });
+  });
+
+  test("routes and refines through an OpenAI-compatible Responses provider", async () => {
+    const fetcher = vi.fn(async (_input: string | URL, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body)) as { instructions: string };
+      const outputText = body.instructions.includes("route")
+        ? "{\"toolName\":\"getPendingPayments\"}"
+        : "{\"directAnswer\":\"There are pending payment balances that need accountant review.\",\"suggestedActions\":[\"Open payments\"]}";
+
+      return new Response(JSON.stringify({ output_text: outputText }), { status: 200 });
+    });
+
+    const allowedTools = getAiToolRegistry();
+    const env = {
+      OPENAI_API_KEY: "test-key",
+      OPENAI_MODEL: "gpt-test",
+      OPENAI_BASE_URL: "https://example.test/v1",
+    };
+    const selection = await selectAiToolWithProvider({
+      prompt: "Show pending customer payments.",
+      fallbackToolName: "getAvailableStock",
+      allowedTools,
+      env,
+      fetcher,
+    });
+
+    expect(selection).toMatchObject({
+      toolName: "getPendingPayments",
+      provider: "openai",
+      model: "gpt-test",
+    });
+
+    const result = await refineAiAnswerWithProvider({
+      prompt: "Show pending customer payments.",
+      toolName: "getPendingPayments",
+      answerPayload: buildAiAnswerPayload({ directAnswer: "There are 2 invoices with pending balances." }),
+      sensitive: true,
+      requiresApproval: false,
+      env,
+      fetcher,
+    });
+
+    expect(result.provider).toBe("openai");
+    expect(result.answerPayload.directAnswer).toContain("pending payment balances");
+    expect(result.answerPayload.suggestedActions).toEqual(["Open payments"]);
+    expect(fetcher).toHaveBeenCalledTimes(2);
   });
 });

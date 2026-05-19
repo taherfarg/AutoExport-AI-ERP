@@ -13,6 +13,7 @@ const completeEnv = {
   NEXT_PUBLIC_APP_URL: "http://localhost:3000",
   OPENAI_API_KEY: "openai-secret",
   OPENAI_MODEL: "gpt-test",
+  OPENAI_BASE_URL: "https://api.openai.com/v1",
 };
 
 describe("runtime environment validation", () => {
@@ -22,6 +23,7 @@ describe("runtime environment validation", () => {
     expect(env.NEXT_PUBLIC_SUPABASE_URL).toBe("http://127.0.0.1:54321");
     expect(env.SUPABASE_SERVICE_ROLE_KEY).toBe("service-role-secret");
     expect(env.OPENAI_MODEL).toBe("gpt-test");
+    expect(env.OPENAI_BASE_URL).toBe("https://api.openai.com/v1");
   });
 
   it("throws a clear error when required variables are missing", () => {

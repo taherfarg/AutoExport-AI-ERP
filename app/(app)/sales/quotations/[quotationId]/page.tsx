@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { ArrowLeft, FileText, Receipt, WalletCards } from "lucide-react";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { SalesStatusBadge } from "@/components/sales/sales-status-badge";
@@ -34,14 +34,27 @@ import { paymentMethods, paymentTypes } from "@/lib/validations/sales";
 
 type QuotationDetailPageProps = {
   params: Promise<{ quotationId: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
 
 function dateIn(days: number) {
   return new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
 }
 
-export default async function QuotationDetailPage({ params }: QuotationDetailPageProps) {
+function firstParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function quotationMessageUrl(quotationId: string, params: Record<string, string>) {
+  const searchParams = new URLSearchParams(params);
+  return `/sales/quotations/${quotationId}?${searchParams.toString()}`;
+}
+
+export default async function QuotationDetailPage({ params, searchParams }: QuotationDetailPageProps) {
   const { quotationId } = await params;
+  const pageParams = await searchParams;
+  const actionError = firstParam(pageParams.error);
+  const actionSuccess = firstParam(pageParams.success);
   const workspace = await getCurrentWorkspace();
 
   let quotation;
@@ -64,29 +77,56 @@ export default async function QuotationDetailPage({ params }: QuotationDetailPag
   async function reserveFromForm(formData: FormData) {
     "use server";
 
-    await createReservationFromQuotation(formData);
+    const result = await createReservationFromQuotation(formData);
+    if (result?.error) {
+      redirect(quotationMessageUrl(String(formData.get("quotationId")), { error: result.error }));
+    }
+    redirect(quotationMessageUrl(String(formData.get("quotationId")), { success: "Reservation created." }));
   }
 
   async function proformaFromForm(formData: FormData) {
     "use server";
 
-    await createProformaFromQuotation(formData);
+    const result = await createProformaFromQuotation(formData);
+    if (result?.error) {
+      redirect(quotationMessageUrl(String(formData.get("quotationId")), { error: result.error }));
+    }
+    redirect(quotationMessageUrl(String(formData.get("quotationId")), { success: "Proforma created." }));
   }
 
   async function invoiceFromForm(formData: FormData) {
     "use server";
 
-    await createInvoiceFromQuotation(formData);
+    const result = await createInvoiceFromQuotation(formData);
+    if (result?.error) {
+      redirect(quotationMessageUrl(String(formData.get("quotationId")), { error: result.error }));
+    }
+    redirect(quotationMessageUrl(String(formData.get("quotationId")), { success: "Invoice created." }));
   }
 
   async function paymentFromForm(formData: FormData) {
     "use server";
 
-    await recordPayment(formData);
+    const result = await recordPayment(formData);
+    if (result?.error) {
+      redirect(quotationMessageUrl(quotationId, { error: result.error }));
+    }
+    redirect(quotationMessageUrl(quotationId, { success: "Payment recorded." }));
   }
 
   return (
     <div className="space-y-6">
+      {actionError ? (
+        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {actionError}
+        </div>
+      ) : null}
+      {actionSuccess ? (
+        <div className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+          {actionSuccess}
+        </div>
+      ) : null}
+
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
         <div className="space-y-2">
           <Button asChild variant="ghost" size="sm" className="-ml-3">

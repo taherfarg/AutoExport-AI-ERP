@@ -41,6 +41,20 @@ export const leadIdSchema = z.object({
   leadId: z.string().uuid(),
 });
 
+export const createCustomerSchema = z.object({
+  companyId: z.string().uuid(),
+  branchId: optionalUuid,
+  customerType: z.enum(customerTypes),
+  name: z.string().min(2).max(160),
+  phone: z.string().max(40).optional(),
+  whatsapp: z.string().max(40).optional(),
+  email: z.string().email().optional(),
+  countryCode: z.string().length(2).optional(),
+  city: z.string().max(80).optional(),
+  preferredLanguage: z.string().min(2).max(10),
+  notes: z.string().max(2000).optional(),
+});
+
 export const createLeadSchema = z.object({
   companyId: z.string().uuid(),
   branchId: z.string().uuid(),
