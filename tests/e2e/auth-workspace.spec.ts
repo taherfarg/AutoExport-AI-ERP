@@ -5,12 +5,15 @@ test("login page renders", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Sign in to AutoSphere ERP" })).toBeVisible();
 });
 
-test("new workspace can add a branch and vehicle", async ({ page }) => {
+test("new workspace can add a branch, vehicle, and lead", async ({ page }) => {
   const id = Date.now();
   const email = `phase2a-${id}@example.test`;
   const slug = `phase2a-${id}`;
   const stockNumber = `E2E-${id}`;
   const vin = `E2EVIN${id}`;
+  const leadName = `Gulf Fleet Lead ${id}`;
+  const followUpTitle = `Follow up buyer ${id}`;
+  const messageBody = `Customer asked for export-ready Hilux stock ${id}.`;
 
   await page.goto("/signup");
   await page.getByLabel("Email").fill(email);
@@ -54,4 +57,25 @@ test("new workspace can add a branch and vehicle", async ({ page }) => {
 
   await page.getByRole("button", { name: "Save document" }).click();
   await expect(page.getByText("1 of 3 required documents complete")).toBeVisible();
+
+  await page.goto("/crm/leads");
+  await expect(page.getByRole("heading", { name: "Sales CRM" })).toBeVisible();
+  await page.locator("#leadName").fill(leadName);
+  await page.locator("#phone").fill("+971500000000");
+  await page.locator("#preferredBrand").fill("Toyota");
+  await page.locator("#preferredModel").fill("Hilux");
+  await page.locator("#budget").fill("175000");
+  await page.getByRole("button", { name: "Create lead" }).click();
+
+  await expect(page.getByRole("heading", { name: leadName })).toBeVisible();
+  await expect(page.getByText("Toyota", { exact: true }).first()).toBeVisible();
+
+  await page.locator("#title").fill(followUpTitle);
+  await page.getByRole("button", { name: "Create follow-up" }).click();
+  await expect(page.getByText(followUpTitle)).toBeVisible();
+
+  await page.locator("#subject").fill("Vehicle inquiry");
+  await page.locator("#body").fill(messageBody);
+  await page.getByRole("button", { name: "Log message" }).click();
+  await expect(page.getByText(messageBody)).toBeVisible();
 });
