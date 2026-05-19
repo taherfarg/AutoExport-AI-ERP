@@ -48,6 +48,7 @@ test("new workspace can add a branch, vehicle, and lead", async ({ page }) => {
   await page.locator("#customsCost").fill("12000");
   await page.locator("#preparationCost").fill("2500");
   await page.locator("#sellingPrice").fill("150000");
+  await page.getByLabel("Export available").check();
   await page.getByRole("button", { name: "Create vehicle" }).click();
 
   await expect(page.getByRole("heading", { name: "2026 Toyota Hilux" })).toBeVisible();
@@ -99,4 +100,37 @@ test("new workspace can add a branch, vehicle, and lead", async ({ page }) => {
   await page.goto("/sales/invoices");
   await expect(page.getByRole("heading", { name: "Sales Invoices" })).toBeVisible();
   await expect(page.getByText("Paid amount", { exact: true })).toBeVisible();
+
+  await page.goto("/export/orders");
+  await expect(page.getByRole("heading", { name: "Import & Export Operations" })).toBeVisible();
+  await page.locator("#destinationPort").fill("Algiers");
+  await page.locator("#bookingNumber").fill(`BK-${id}`);
+  await page.locator("#containerNumber").fill(`CONT-${id}`);
+  await page.locator("#blNumber").fill(`BL-${id}`);
+  await page.getByRole("button", { name: "Create order" }).click();
+
+  await expect(page.getByText("Export overview")).toBeVisible();
+  await expect(page.getByText(`BK-${id}`)).toBeVisible();
+
+  await page.getByRole("button", { name: "Add event" }).click();
+  await expect(page.getByText("Booked").first()).toBeVisible();
+
+  await page.locator("#customsStatus").selectOption("submitted");
+  await page.locator("#declarationNumber").fill(`DECL-${id}`);
+  await page.getByRole("button", { name: "Save customs" }).click();
+  await expect(page.getByText(`DECL-${id}`)).toBeVisible();
+
+  await page.locator('select[name="status"]').first().selectOption("verified");
+  await page.getByRole("button", { name: "Save" }).first().click();
+  await expect(page.getByText("1/9 required docs ready")).toBeVisible();
+
+  await page.locator("#amount").fill("8500");
+  await page.locator("#supplierName").fill(`GulfLine ${id}`);
+  await page.getByRole("button", { name: "Add cost" }).click();
+  await expect(page.getByText(`GulfLine ${id}`)).toBeVisible();
+
+  await page.goto("/export/orders");
+  await page.locator("#supplierName").fill(`Belgium Import ${id}`);
+  await page.getByRole("button", { name: "Create import order" }).click();
+  await expect(page.getByText(`Belgium Import ${id}`)).toBeVisible();
 });
