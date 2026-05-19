@@ -16,11 +16,11 @@
 - Create: `supabase/migrations/<timestamp>_phase_10_reports_alerts_chat.sql`
 - Create: `supabase/tests/phase_10_reports_alerts_chat.sql`
 
-- [ ] Create report, alert, task, reminder, and chat enums.
-- [ ] Create `saved_reports`, `report_exports`, `report_schedules`, `alerts`, `tasks`, `task_comments`, `reminders`, `chat_threads`, `chat_participants`, `chat_messages`, and `chat_attachments`.
-- [ ] Add indexes, grants, RLS, soft deletes, and updated_at triggers.
-- [ ] Seed saved report definitions, smart alerts, tasks, reminders, and chat threads for existing companies.
-- [ ] Add pgTAP tests for RLS, tenant isolation, alert resolution, and chat access.
+- [x] Create report, alert, task, reminder, and chat enums.
+- [x] Create `saved_reports`, `report_exports`, `report_schedules`, `alerts`, `tasks`, `task_comments`, `reminders`, `chat_threads`, `chat_participants`, `chat_messages`, and `chat_attachments`.
+- [x] Add indexes, grants, RLS, soft deletes, and updated_at triggers.
+- [x] Seed saved report definitions, smart alerts, tasks, reminders, and chat threads for existing companies.
+- [x] Add pgTAP tests for RLS, tenant isolation, alert resolution, and chat access.
 
 ### Task 2: Domain Helpers
 
@@ -31,10 +31,10 @@
 - Create: `components/operations/operations-status-badge.tsx`
 - Create: `tests/unit/operations.test.ts`
 
-- [ ] Write failing unit tests for report summary calculations, alert priority formatting, task status labels, chat previews, and validation.
-- [ ] Implement report summary calculators using plain arrays.
-- [ ] Implement formatting helpers and status badge component.
-- [ ] Implement Zod schemas for report exports, schedules, alerts, tasks, messages, reminders, and notification reads.
+- [x] Write failing unit tests for report summary calculations, alert priority formatting, task status labels, chat previews, and validation.
+- [x] Implement report summary calculators using plain arrays.
+- [x] Implement formatting helpers and status badge component.
+- [x] Implement Zod schemas for report exports, schedules, alerts, tasks, messages, reminders, and notification reads.
 
 ### Task 3: Queries And Actions
 
@@ -42,13 +42,13 @@
 - Create: `features/operations/queries.ts`
 - Create: `features/operations/actions.ts`
 
-- [ ] Query report dashboard data.
-- [ ] Query alert/task/reminder data.
-- [ ] Query chat and audit data.
-- [ ] Add report export and schedule actions.
-- [ ] Add alert resolve, alert snooze, task create/update, reminder create, chat thread/message, chat task, and notification read actions.
-- [ ] Write audit logs for all mutations.
-- [ ] Revalidate affected routes after mutations.
+- [x] Query report dashboard data.
+- [x] Query alert/task/reminder data.
+- [x] Query chat and audit data.
+- [x] Add report export and schedule actions.
+- [x] Add alert resolve, alert snooze, task create/update, reminder create, chat thread/message, chat task, and notification read actions.
+- [x] Write audit logs for all mutations.
+- [x] Revalidate affected routes after mutations.
 
 ### Task 4: UI Routes
 
@@ -59,11 +59,11 @@
 - Create: `app/(app)/settings/audit-logs/page.tsx`
 - Modify: `lib/modules/module-registry.ts`
 
-- [ ] Build reports dashboard.
-- [ ] Build smart alerts and tasks page.
-- [ ] Build chat center.
-- [ ] Build audit log viewer.
-- [ ] Add sidebar route entries for operations alerts and chat.
+- [x] Build reports dashboard.
+- [x] Build smart alerts and tasks page.
+- [x] Build chat center.
+- [x] Build audit log viewer.
+- [x] Add sidebar route entries for operations alerts and chat.
 
 ### Task 5: Verification And Docs
 
@@ -72,13 +72,13 @@
 - Modify: `README.md`
 - Create: `docs/phase-10-reports-alerts-chat.md`
 
-- [ ] Extend E2E to create a report export, resolve an alert, send chat, and view audit logs.
-- [ ] Document Phase 10 behavior, security model, and integration limits.
-- [ ] Run `npm run lint`.
-- [ ] Run `npm run test`.
-- [ ] Run `npx tsc --noEmit`.
-- [ ] Run `npm run build`.
-- [ ] Run `npx supabase db reset`.
-- [ ] Run `npx supabase test db`.
-- [ ] Run `npm run test:e2e`.
-- [ ] Commit implementation.
+- [x] Extend E2E to create a report export, resolve an alert, send chat, and view audit logs.
+- [x] Document Phase 10 behavior, security model, and integration limits.
+- [x] Run `npm run lint`.
+- [x] Run `npm run test`.
+- [x] Run `npx tsc --noEmit`.
+- [x] Run `npm run build`.
+- [x] Run `npx supabase db reset`.
+- [x] Run `npx supabase test db`.
+- [x] Run `npm run test:e2e`.
+- [x] Commit implementation.

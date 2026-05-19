@@ -4,12 +4,14 @@ import {
   Building2,
   Car,
   ClipboardList,
+  MessageSquareText,
   FileText,
   Globe2,
   Megaphone,
   Receipt,
   Settings,
   Ship,
+  Siren,
   WalletCards,
 } from "lucide-react";
 
@@ -25,6 +27,8 @@ export const MODULE_REGISTRY = [
   { key: "marketing", label: "Marketing", href: "/marketing/listings", icon: Megaphone },
   { key: "ai", label: "AI Intelligence", href: "/ai", icon: Bot },
   { key: "reports", label: "Reports", href: "/reports", icon: BarChart3 },
+  { key: "alerts", label: "Smart Alerts", href: "/operations/alerts", icon: Siren },
+  { key: "chat", label: "Chat Center", href: "/chat", icon: MessageSquareText },
   { key: "settings", label: "Settings", href: "/settings/company", icon: Settings },
   { key: "branches", label: "Branches", href: "/settings/branches", icon: Building2 },
 ] as const;

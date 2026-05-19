@@ -16,7 +16,7 @@ Production white-label Automotive SaaS ERP for car showrooms, dealers, brokers, 
 - Vehicle inventory and global stock
 - CRM, leads, quotations, reservations, invoices, and payments
 - Import/export, shipping, customs, and documents
-- Finance Lite, marketing, reports, alerts, chat, and AI intelligence
+- Finance Lite, marketing, AI intelligence, reports, alerts, chat, and audit visibility
 
 ## Tech Stack
 
@@ -82,6 +82,7 @@ Phase 1 migrations create:
 - Central documents, document links, generic checklists, verification history, signature requests, signed document archive, private document storage bucket, and storage/RLS policies
 - Marketing listing channels, vehicle listings, social post drafts, campaigns, content calendar, lead source metrics, RLS policies, and vehicle listing status sync triggers
 - AI conversations, messages, requests, actions, approvals, document extraction jobs, report requests, RLS policies, and AI seed records
+- Saved reports, report exports, report schedules, smart alerts, tasks, reminders, chat threads/messages, RLS policies, and operations seed records
 
 ## RLS Model
 
@@ -89,7 +90,7 @@ Every tenant-owned table uses `company_id`. Branch-scoped tables also validate t
 
 ## Role and Permission System
 
-Phase 1 roles are tenant-scoped. Company onboarding creates a `Company Owner` role with all seeded permissions and assigns it to the workspace creator. Phase 3A adds CRM permissions for customers, leads, assignment, and follow-ups. Phase 4 adds sales and payment permissions for quotations, reservations, invoices, and payment recording. Phase 5 adds export viewing, export status updates, and logistics partner permissions. Phase 6 adds finance management and commission management permissions. Phase 7 adds central document viewing and internal signature management permissions. Phase 8 uses `manage_marketing` for listings, campaigns, content, and source metrics. Phase 9 uses `use_ai_assistant` plus each underlying business permission before exposing an AI tool.
+Phase 1 roles are tenant-scoped. Company onboarding creates a `Company Owner` role with all seeded permissions and assigns it to the workspace creator. Phase 3A adds CRM permissions for customers, leads, assignment, and follow-ups. Phase 4 adds sales and payment permissions for quotations, reservations, invoices, and payment recording. Phase 5 adds export viewing, export status updates, and logistics partner permissions. Phase 6 adds finance management and commission management permissions. Phase 7 adds central document viewing and internal signature management permissions. Phase 8 uses `manage_marketing` for listings, campaigns, content, and source metrics. Phase 9 uses `use_ai_assistant` plus each underlying business permission before exposing an AI tool. Phase 10 adds `manage_reports`, `view_alerts`, `manage_alerts`, and `use_chat`.
 
 ## AI Architecture
 
@@ -133,9 +134,9 @@ npm run test:e2e
 ## Known Limitations
 
 - Phase 1 implements the SaaS foundation, Phase 2A implements the vehicle inventory core, Phase 2B implements vehicle media/document checklist workflows, Phase 3A implements CRM leads/follow-ups, Phase 4 implements sales transactions/payments, Phase 5 implements import/export operations, Phase 6 implements Finance Lite, Phase 7 implements central documents/signatures, Phase 8 implements Marketing & Listings, and Phase 9 implements AI Technical Intelligence.
-- Alerts, chat, and full reports are represented in module gating but built in later phases.
+- Phase 10 implements reports, smart alerts, chat, notification handling, and audit log visibility foundations.
 - External digital signature providers, payment, messaging, and logistics integrations are architecture-ready but not integrated yet.
 
 ## Future Roadmap
 
-See `docs/MASTER_BUILD_PROMPT.md`, `docs/superpowers/plans/2026-05-18-phase-1-saas-foundation.md`, `docs/superpowers/plans/2026-05-18-phase-2a-vehicle-inventory.md`, `docs/superpowers/plans/2026-05-19-phase-2b-vehicle-documents-photos.md`, `docs/superpowers/plans/2026-05-19-phase-3a-crm-leads.md`, `docs/superpowers/plans/2026-05-19-phase-4-sales-transactions.md`, `docs/superpowers/plans/2026-05-19-phase-5-import-export.md`, `docs/superpowers/plans/2026-05-19-phase-6-finance-lite.md`, `docs/superpowers/plans/2026-05-19-phase-7-documents-signature.md`, `docs/superpowers/plans/2026-05-19-phase-8-marketing-listings.md`, and `docs/superpowers/plans/2026-05-19-phase-9-ai-intelligence.md`.
+See `docs/MASTER_BUILD_PROMPT.md`, `docs/superpowers/plans/2026-05-18-phase-1-saas-foundation.md`, `docs/superpowers/plans/2026-05-18-phase-2a-vehicle-inventory.md`, `docs/superpowers/plans/2026-05-19-phase-2b-vehicle-documents-photos.md`, `docs/superpowers/plans/2026-05-19-phase-3a-crm-leads.md`, `docs/superpowers/plans/2026-05-19-phase-4-sales-transactions.md`, `docs/superpowers/plans/2026-05-19-phase-5-import-export.md`, `docs/superpowers/plans/2026-05-19-phase-6-finance-lite.md`, `docs/superpowers/plans/2026-05-19-phase-7-documents-signature.md`, `docs/superpowers/plans/2026-05-19-phase-8-marketing-listings.md`, `docs/superpowers/plans/2026-05-19-phase-9-ai-intelligence.md`, and `docs/superpowers/plans/2026-05-19-phase-10-reports-alerts-chat.md`.

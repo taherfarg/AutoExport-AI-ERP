@@ -242,4 +242,49 @@ test("new workspace can add a branch, vehicle, and lead", async ({ page }) => {
   await page.locator("#documentType").fill("vehicle_title");
   await page.getByRole("button", { name: "Queue extraction" }).click();
   await expect(page.getByText(/^AIX-/)).toBeVisible();
+
+  await page.goto("/reports");
+  await expect(page.getByRole("heading", { name: "Reports" })).toBeVisible();
+  await page.locator("#reportType").selectOption("inventory");
+  await page.locator("#exportFormat").selectOption("csv");
+  await page.getByRole("button", { name: "Create export" }).click();
+  await expect(page.getByText(/^EXP-/)).toBeVisible();
+
+  await page.goto("/operations/alerts");
+  await expect(page.getByRole("heading", { name: "Smart Alerts" })).toBeVisible();
+  await page.locator("#alertTitle").fill(`Payment alert ${id}`);
+  await page.getByRole("button", { name: "Create alert" }).click();
+  await expect(page.getByText(`Payment alert ${id}`)).toBeVisible();
+
+  await page.getByRole("button", { name: "Resolve alert" }).first().click();
+  await expect(page.getByText("Resolved").first()).toBeVisible();
+
+  await page.locator("#taskTitle").fill(`Alert task ${id}`);
+  await page.getByRole("button", { name: "Create task" }).click();
+  await expect(page.getByText(`Alert task ${id}`)).toBeVisible();
+
+  await page.locator("#reminderTitle").fill(`Alert reminder ${id}`);
+  await page.getByRole("button", { name: "Create reminder" }).click();
+  await expect(page.getByText(`Alert reminder ${id}`)).toBeVisible();
+
+  await page.goto("/chat");
+  await expect(page.getByRole("heading", { name: "Chat Center" })).toBeVisible();
+  await page.locator("#threadTitle").fill(`Operations thread ${id}`);
+  await page.getByRole("button", { name: "Create thread" }).click();
+  await expect(page.getByText(`Operations thread ${id}`)).toBeVisible();
+
+  await page.locator("#messageBody").fill(`Operations chat message ${id}`);
+  await page.getByRole("button", { name: "Send message" }).click();
+  await expect(page.getByText(`Operations chat message ${id}`)).toBeVisible();
+
+  await page.locator("#chatTaskTitle").fill(`Chat task ${id}`);
+  await Promise.all([
+    page.waitForURL("**/operations/alerts"),
+    page.getByRole("button", { name: "Create chat task" }).click(),
+  ]);
+  await expect(page.getByText(`Chat task ${id}`)).toBeVisible();
+
+  await page.goto("/settings/audit-logs");
+  await expect(page.getByRole("heading", { name: "Audit Logs" })).toBeVisible();
+  await expect(page.getByText("Create report export").first()).toBeVisible();
 });
