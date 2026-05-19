@@ -5,6 +5,39 @@ test("login page renders", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Sign in to AutoSphere ERP" })).toBeVisible();
 });
 
+test("health endpoint returns safe readiness payload", async ({ request }) => {
+  const response = await request.get("/api/health");
+  expect(response.ok()).toBeTruthy();
+
+  const body = await response.json();
+  expect(body.status).toBe("ok");
+  expect(body.supabaseUrlConfigured).toBe(true);
+  expect(body.serviceRoleConfigured).toBe(true);
+  expect(JSON.stringify(body)).not.toContain("SUPABASE_SERVICE_ROLE_KEY");
+  expect(JSON.stringify(body)).not.toContain("OPENAI_API_KEY");
+});
+
+test("protected app routes redirect unauthenticated visitors", async ({ page }) => {
+  const protectedRoutes = [
+    "/dashboard",
+    "/vehicles",
+    "/crm/leads",
+    "/sales/quotations",
+    "/documents",
+    "/ai",
+    "/reports",
+    "/operations/alerts",
+    "/chat",
+    "/settings/audit-logs",
+  ];
+
+  for (const route of protectedRoutes) {
+    await page.goto(route);
+    await page.waitForURL("**/login", { timeout: 15000 });
+    await expect(page.getByRole("heading", { name: "Sign in to AutoSphere ERP" })).toBeVisible();
+  }
+});
+
 test("new workspace can add a branch, vehicle, and lead", async ({ page }) => {
   const id = Date.now();
   const email = `phase2a-${id}@example.test`;

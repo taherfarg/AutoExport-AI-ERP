@@ -17,27 +17,27 @@
 - Create: `app/api/health/route.ts`
 - Create: `tests/unit/env.test.ts`
 
-- [ ] Write failing tests for env validation and safe health payloads.
-- [ ] Implement runtime env validation with Zod.
-- [ ] Implement `/api/health` without exposing secret values.
-- [ ] Update Supabase client helpers to use centralized env helpers where practical.
+- [x] Write failing tests for env validation and safe health payloads.
+- [x] Implement runtime env validation with Zod.
+- [x] Implement `/api/health` without exposing secret values.
+- [x] Update Supabase client helpers to use centralized env helpers where practical.
 
 ### Task 2: Supabase Security Audit
 
 **Files:**
 - Create: `supabase/tests/launch_security_audit.sql`
 
-- [ ] Add pgTAP tests that every public table has RLS enabled.
-- [ ] Add pgTAP tests that `anon` has no direct table privileges in public.
-- [ ] Add pgTAP tests that `app_private` functions are not executable by `anon`.
+- [x] Add pgTAP tests that every public table has RLS enabled.
+- [x] Add pgTAP tests that `anon` has no direct table privileges in public.
+- [x] Add pgTAP tests that `app_private` functions are not executable by `anon`.
 
 ### Task 3: Route Protection E2E
 
 **Files:**
 - Modify: `tests/e2e/auth-workspace.spec.ts`
 
-- [ ] Add unauthenticated route redirect smoke coverage for protected modules.
-- [ ] Verify `/api/health` responds without leaking env values.
+- [x] Add unauthenticated route redirect smoke coverage for protected modules.
+- [x] Verify `/api/health` responds without leaking env values.
 
 ### Task 4: Launch Documentation
 
@@ -46,18 +46,18 @@
 - Modify: `.env.example`
 - Modify: `README.md`
 
-- [ ] Document required environment variables.
-- [ ] Document staging setup and migration commands.
-- [ ] Document security checklist.
-- [ ] Document production verification commands.
+- [x] Document required environment variables.
+- [x] Document staging setup and migration commands.
+- [x] Document security checklist.
+- [x] Document production verification commands.
 
 ### Task 5: Verification
 
-- [ ] Run `npm run lint`.
-- [ ] Run `npm run test`.
-- [ ] Run `npx tsc --noEmit`.
-- [ ] Run `npm run build`.
-- [ ] Run `npx supabase db reset`.
-- [ ] Run `npx supabase test db`.
-- [ ] Run `npm run test:e2e`.
-- [ ] Commit implementation.
+- [x] Run `npm run lint`.
+- [x] Run `npm run test`.
+- [x] Run `npx tsc --noEmit`.
+- [x] Run `npm run build`.
+- [x] Run `npx supabase db reset`.
+- [x] Run `npx supabase test db`.
+- [x] Run `npm run test:e2e`.
+- [x] Commit implementation.

@@ -53,9 +53,13 @@ SUPABASE_SERVICE_ROLE_KEY=
 NEXT_PUBLIC_APP_URL=http://localhost:3000
 OPENAI_API_KEY=
 OPENAI_MODEL=
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
+NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=
 ```
 
 Never commit `.env.local` or service-role secrets.
+Use `docs/launch-readiness.md` for the staging and production checklist.
 
 ## Database Migrations
 
@@ -130,6 +134,8 @@ npm run test:e2e
 - Backend: Supabase
 - Separate dev, staging, and production environments
 - Production secrets managed through deployment environment variables
+- `/api/health` can be used for deployment readiness checks
+- Launch checklist: `docs/launch-readiness.md`
 
 ## Known Limitations
 

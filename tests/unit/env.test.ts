@@ -1,0 +1,58 @@
+import { describe, expect, it } from "vitest";
+import {
+  buildHealthPayload,
+  getPublicSupabaseEnv,
+  getServiceRoleEnv,
+  validateRuntimeEnv,
+} from "@/lib/env/runtime";
+
+const completeEnv = {
+  NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54321",
+  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "publishable-key",
+  SUPABASE_SERVICE_ROLE_KEY: "service-role-secret",
+  NEXT_PUBLIC_APP_URL: "http://localhost:3000",
+  OPENAI_API_KEY: "openai-secret",
+  OPENAI_MODEL: "gpt-test",
+};
+
+describe("runtime environment validation", () => {
+  it("validates required app and Supabase environment variables", () => {
+    const env = validateRuntimeEnv(completeEnv);
+
+    expect(env.NEXT_PUBLIC_SUPABASE_URL).toBe("http://127.0.0.1:54321");
+    expect(env.SUPABASE_SERVICE_ROLE_KEY).toBe("service-role-secret");
+    expect(env.OPENAI_MODEL).toBe("gpt-test");
+  });
+
+  it("throws a clear error when required variables are missing", () => {
+    expect(() => validateRuntimeEnv({ NEXT_PUBLIC_SUPABASE_URL: "http://127.0.0.1:54321" })).toThrow(
+      /Missing required environment variables/,
+    );
+  });
+
+  it("returns only public Supabase configuration for browser clients", () => {
+    const publicEnv = getPublicSupabaseEnv(completeEnv);
+
+    expect(publicEnv).toEqual({
+      supabaseUrl: "http://127.0.0.1:54321",
+      publishableKey: "publishable-key",
+    });
+    expect(JSON.stringify(publicEnv)).not.toContain("service-role-secret");
+  });
+
+  it("returns service-role configuration only for server code", () => {
+    const serviceEnv = getServiceRoleEnv(completeEnv);
+
+    expect(serviceEnv.serviceRoleKey).toBe("service-role-secret");
+  });
+
+  it("builds a safe health payload without leaking secret values", () => {
+    const payload = buildHealthPayload(completeEnv);
+
+    expect(payload.status).toBe("ok");
+    expect(payload.supabaseUrlConfigured).toBe(true);
+    expect(payload.serviceRoleConfigured).toBe(true);
+    expect(JSON.stringify(payload)).not.toContain("service-role-secret");
+    expect(JSON.stringify(payload)).not.toContain("openai-secret");
+  });
+});
