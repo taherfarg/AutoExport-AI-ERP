@@ -101,6 +101,24 @@ test("new workspace can add a branch, vehicle, and lead", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Sales Invoices" })).toBeVisible();
   await expect(page.getByText("Paid amount", { exact: true })).toBeVisible();
 
+  await page.goto("/finance");
+  await expect(page.getByRole("heading", { name: "Finance Lite" })).toBeVisible();
+  await page.locator("#description").fill(`Preparation expense ${id}`);
+  await page.locator("#amount").fill("2500");
+  await page.locator("#supplierName").fill(`Detailing Supplier ${id}`);
+  await page.getByRole("button", { name: "Record expense" }).click();
+  await expect(page.getByText(`Preparation expense ${id}`)).toBeVisible();
+
+  await page.locator("#payableSupplierName").fill(`Repair Supplier ${id}`);
+  await page.locator("#payableDescription").fill(`Repair payable ${id}`);
+  await page.locator("#payableAmount").fill("5000");
+  await page.getByRole("button", { name: "Create payable" }).click();
+  await expect(page.getByText(`Repair Supplier ${id}`)).toBeVisible();
+
+  await page.locator("#commissionRate").fill("2.5");
+  await page.getByRole("button", { name: "Create commission" }).click();
+  await expect(page.getByText(/^COM-/)).toBeVisible();
+
   await page.goto("/export/orders");
   await expect(page.getByRole("heading", { name: "Import & Export Operations" })).toBeVisible();
   await page.locator("#destinationPort").fill("Algiers");

@@ -32,6 +32,8 @@ export const PERMISSIONS = {
   MANAGE_MARKETING: "manage_marketing",
   VIEW_REPORTS: "view_reports",
   VIEW_FINANCE: "view_finance",
+  MANAGE_FINANCE: "manage_finance",
+  MANAGE_COMMISSIONS: "manage_commissions",
   MANAGE_USERS: "manage_users",
   MANAGE_SUBSCRIPTIONS: "manage_subscriptions",
   MANAGE_COMPANY_SETTINGS: "manage_company_settings",

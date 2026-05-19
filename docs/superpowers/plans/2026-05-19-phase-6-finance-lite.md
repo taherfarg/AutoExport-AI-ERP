@@ -13,12 +13,12 @@
 - Create: `supabase/tests/phase_6_finance_lite.sql`
 - Modify: `lib/permissions/permissions.ts`
 
-- [ ] Add finance enums for expense category, receivable/payable status, commission status, account status, and snapshot period.
-- [ ] Add `manage_finance` and `manage_commissions` permissions.
-- [ ] Create payment methods, bank accounts, cash accounts, expenses, receivables, payables, vehicle profit snapshots, branch profit snapshots, and salesperson commissions.
-- [ ] Add indexes, grants, updated-at triggers, and RLS policies.
-- [ ] Seed finance records for existing development companies.
-- [ ] Add pgTAP tests for RLS isolation and finance rollups.
+- [x] Add finance enums for expense category, receivable/payable status, commission status, account status, and snapshot period.
+- [x] Add `manage_finance` and `manage_commissions` permissions.
+- [x] Create payment methods, bank accounts, cash accounts, expenses, receivables, payables, vehicle profit snapshots, branch profit snapshots, and salesperson commissions.
+- [x] Add indexes, grants, updated-at triggers, and RLS policies.
+- [x] Seed finance records for existing development companies.
+- [x] Add pgTAP tests for RLS isolation and finance rollups.
 
 ### Task 2: Domain Helpers
 
@@ -29,10 +29,10 @@
 - Create: `components/finance/finance-status-badge.tsx`
 - Create: `tests/unit/finance.test.ts`
 
-- [ ] Write failing tests for vehicle profit, finance summary, receivable status, payable status, and commission calculations.
-- [ ] Implement calculation and formatting helpers.
-- [ ] Add Zod schemas for expenses, receivables, payables, profit snapshots, and commissions.
-- [ ] Add finance status badge component.
+- [x] Write failing tests for vehicle profit, finance summary, receivable status, payable status, and commission calculations.
+- [x] Implement calculation and formatting helpers.
+- [x] Add Zod schemas for expenses, receivables, payables, profit snapshots, and commissions.
+- [x] Add finance status badge component.
 
 ### Task 3: Queries And Actions
 
@@ -40,22 +40,22 @@
 - Create: `features/finance/queries.ts`
 - Create: `features/finance/actions.ts`
 
-- [ ] Add finance permission helper.
-- [ ] Add dashboard queries for invoices, payments, expenses, receivables, payables, commissions, and branch snapshots.
-- [ ] Add actions to create expenses, receivables, payables, profit snapshots, branch snapshots, and commissions.
-- [ ] Revalidate finance and related vehicle/sales pages after mutations.
+- [x] Add finance permission helper.
+- [x] Add dashboard queries for invoices, payments, expenses, receivables, payables, commissions, and branch snapshots.
+- [x] Add actions to create expenses, payables, and commissions.
+- [x] Revalidate finance and related vehicle/sales pages after mutations.
 
 ### Task 4: UI Routes
 
 **Files:**
 - Create: `app/(app)/finance/page.tsx`
 
-- [ ] Build Finance Lite dashboard KPIs.
-- [ ] Build vehicle profit table.
-- [ ] Build receivables and payables tables.
-- [ ] Build expense and commission forms.
-- [ ] Add branch profit summary.
-- [ ] Keep controls permission-aware.
+- [x] Build Finance Lite dashboard KPIs.
+- [x] Build vehicle profit table.
+- [x] Build receivables and payables tables.
+- [x] Build expense and commission forms.
+- [x] Add branch profit summary.
+- [x] Keep controls permission-aware.
 
 ### Task 5: Verification And Docs
 
@@ -64,13 +64,13 @@
 - Modify: `README.md`
 - Create: `docs/phase-6-finance-lite.md`
 
-- [ ] Extend E2E to create an expense and commission and verify finance dashboard.
-- [ ] Document Phase 6 behavior and security notes.
-- [ ] Run `npm run lint`.
-- [ ] Run `npm run test`.
-- [ ] Run `npx tsc --noEmit`.
-- [ ] Run `npm run build`.
-- [ ] Run `npx supabase db reset`.
-- [ ] Run `npx supabase test db`.
-- [ ] Run `npm run test:e2e`.
+- [x] Extend E2E to create an expense and commission and verify finance dashboard.
+- [x] Document Phase 6 behavior and security notes.
+- [x] Run `npm run lint`.
+- [x] Run `npm run test`.
+- [x] Run `npx tsc --noEmit`.
+- [x] Run `npm run build`.
+- [x] Run `npx supabase db reset`.
+- [x] Run `npx supabase test db`.
+- [x] Run `npm run test:e2e`.
 - [ ] Commit implementation.
