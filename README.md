@@ -72,6 +72,7 @@ Phase 1 migrations create:
 - RLS helper functions and policies
 - Package, module, and permission seed data
 - Vehicle inventory tables, RLS policies, and seed vehicles
+- Vehicle media storage bucket, storage policies, and document checklist rows
 
 ## RLS Model
 
@@ -118,10 +119,10 @@ npx supabase test db
 
 ## Known Limitations
 
-- Phase 1 implements the SaaS foundation and Phase 2A implements the vehicle inventory core.
-- CRM, sales, documents upload, payments, export, finance, AI, alerts, chat, and reports are represented in module gating but built in later phases.
+- Phase 1 implements the SaaS foundation, Phase 2A implements the vehicle inventory core, and Phase 2B implements vehicle media/document checklist workflows.
+- CRM, sales, payments, export, finance, AI, alerts, chat, and reports are represented in module gating but built in later phases.
 - Digital signature, payment, messaging, and logistics integrations are architecture-ready but not integrated yet.
 
 ## Future Roadmap
 
-See `docs/MASTER_BUILD_PROMPT.md`, `docs/superpowers/plans/2026-05-18-phase-1-saas-foundation.md`, and `docs/superpowers/plans/2026-05-18-phase-2a-vehicle-inventory.md`.
+See `docs/MASTER_BUILD_PROMPT.md`, `docs/superpowers/plans/2026-05-18-phase-1-saas-foundation.md`, `docs/superpowers/plans/2026-05-18-phase-2a-vehicle-inventory.md`, and `docs/superpowers/plans/2026-05-19-phase-2b-vehicle-documents-photos.md`.

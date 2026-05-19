@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Archive, MoveRight } from "lucide-react";
+import { ArrowLeft, Archive, FileText, ImageIcon, MoveRight, Upload } from "lucide-react";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { VehicleStatusBadge } from "@/components/vehicles/status-badge";
 import { Button } from "@/components/ui/button";
@@ -12,10 +12,20 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
-import { archiveVehicle, moveVehicleBranch, updateVehicleStatus } from "@/features/vehicles/actions";
+import { Input } from "@/components/ui/input";
+import {
+  addVehicleDocument,
+  addVehiclePhoto,
+  archiveVehicle,
+  moveVehicleBranch,
+  updateVehicleStatus,
+} from "@/features/vehicles/actions";
 import {
   getVehicleBranchMovements,
+  getVehicleDocumentChecklist,
+  getVehicleDocuments,
   getVehicleDetail,
+  getVehiclePhotos,
   getVehiclePermissions,
   getVehicleStatusHistory,
 } from "@/features/vehicles/queries";
@@ -35,6 +45,17 @@ const VEHICLE_STATUSES = [
   "cancelled",
 ];
 
+const DOCUMENT_TYPES = [
+  ["vehicle_title", "Vehicle title"],
+  ["purchase_invoice", "Purchase invoice"],
+  ["inspection_report", "Inspection report"],
+  ["insurance", "Insurance"],
+  ["export_certificate", "Export certificate"],
+  ["certificate_of_origin", "Certificate of origin"],
+  ["bill_of_lading", "Bill of lading"],
+  ["customs_certificate", "Customs certificate"],
+];
+
 type VehicleDetailPageProps = {
   params: Promise<{ vehicleId: string }>;
 };
@@ -50,13 +71,30 @@ export default async function VehicleDetailPage({ params }: VehicleDetailPagePro
     notFound();
   }
 
-  const [permissions, branches, statusHistory, branchMovements] = await Promise.all([
+  const [
+    permissions,
+    branches,
+    statusHistory,
+    branchMovements,
+    photos,
+    documents,
+    documentChecklist,
+  ] = await Promise.all([
     getVehiclePermissions(workspace.companyId),
     getBranches(workspace.companyId),
     getVehicleStatusHistory(workspace.companyId, vehicleId),
     getVehicleBranchMovements(workspace.companyId, vehicleId),
+    getVehiclePhotos(workspace.companyId, vehicleId),
+    getVehicleDocuments(workspace.companyId, vehicleId),
+    getVehicleDocumentChecklist(workspace.companyId, vehicleId),
   ]);
-  const documentReadiness = vehicle.documents_status === "verified" || vehicle.documents_status === "complete" ? 100 : vehicle.documents_status === "partial" ? 50 : 0;
+  const requiredDocuments = documentChecklist.filter((item) => item.is_required);
+  const completeRequiredDocuments = requiredDocuments.filter((item) =>
+    ["complete", "verified"].includes(item.status),
+  );
+  const documentReadiness = requiredDocuments.length
+    ? Math.round((completeRequiredDocuments.length / requiredDocuments.length) * 100)
+    : vehicle.documents_status === "verified" || vehicle.documents_status === "complete" ? 100 : vehicle.documents_status === "partial" ? 50 : 0;
   const exportReadiness = vehicle.export_available && documentReadiness === 100 && vehicle.photos_status === "complete" ? 100 : vehicle.export_available ? 60 : 20;
 
   async function updateStatusFromForm(formData: FormData) {
@@ -69,6 +107,18 @@ export default async function VehicleDetailPage({ params }: VehicleDetailPagePro
     "use server";
 
     await moveVehicleBranch(formData);
+  }
+
+  async function addPhotoFromForm(formData: FormData) {
+    "use server";
+
+    await addVehiclePhoto(formData);
+  }
+
+  async function addDocumentFromForm(formData: FormData) {
+    "use server";
+
+    await addVehicleDocument(formData);
   }
 
   return (
@@ -214,6 +264,154 @@ export default async function VehicleDetailPage({ params }: VehicleDetailPagePro
               </CardContent>
             </Card>
           ) : null}
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Photos</CardTitle>
+              <CardDescription>{photos.length} private vehicle media records</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {photos.length === 0 ? (
+                <div className="rounded-md border border-dashed p-6 text-sm text-slate-500">
+                  No photos uploaded yet.
+                </div>
+              ) : (
+                <div className="grid gap-3 md:grid-cols-2">
+                  {photos.map((photo) => (
+                    <a
+                      key={photo.id}
+                      href={photo.signed_url ?? "#"}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="flex items-center gap-3 rounded-md border p-3 text-sm hover:bg-slate-50"
+                    >
+                      <ImageIcon className="h-5 w-5 text-orange-500" />
+                      <span className="min-w-0 flex-1 truncate">
+                        {photo.alt_text ?? photo.storage_path.split("/").at(-1)}
+                      </span>
+                      {photo.is_primary ? <span className="text-xs font-medium text-orange-600">Primary</span> : null}
+                    </a>
+                  ))}
+                </div>
+              )}
+
+              {permissions.canUploadDocuments ? (
+                <form action={addPhotoFromForm} className="grid gap-3 rounded-md border p-4 md:grid-cols-[1fr_1fr_auto]">
+                  <input type="hidden" name="vehicleId" value={vehicle.id} />
+                  <div className="grid gap-2">
+                    <Label htmlFor="photo">Photo file</Label>
+                    <Input id="photo" name="photo" type="file" accept="image/jpeg,image/png,image/webp" required />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="altText">Alt text</Label>
+                    <Input id="altText" name="altText" placeholder="Front exterior" />
+                  </div>
+                  <label className="flex items-end gap-2 pb-2 text-sm">
+                    <input name="isPrimary" type="checkbox" className="h-4 w-4 rounded border-slate-300" />
+                    Primary
+                  </label>
+                  <div className="md:col-span-3">
+                    <Button type="submit" variant="outline">
+                      <Upload className="h-4 w-4" />
+                      Upload photo
+                    </Button>
+                  </div>
+                </form>
+              ) : null}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Document checklist</CardTitle>
+              <CardDescription>
+                {completeRequiredDocuments.length} of {requiredDocuments.length} required documents complete
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="overflow-hidden rounded-md border">
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-100 text-left text-slate-600">
+                    <tr>
+                      <th className="px-4 py-3">Document</th>
+                      <th className="px-4 py-3">Required</th>
+                      <th className="px-4 py-3">Export</th>
+                      <th className="px-4 py-3">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {documentChecklist.map((item) => (
+                      <tr key={item.id} className="border-t">
+                        <td className="px-4 py-3 font-medium">{item.title}</td>
+                        <td className="px-4 py-3">{item.is_required ? "Yes" : "No"}</td>
+                        <td className="px-4 py-3">{item.is_export_required ? "Yes" : "No"}</td>
+                        <td className="px-4 py-3">{formatVehicleStatus(item.status)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="space-y-2">
+                {documents.map((document) => (
+                  <a
+                    key={document.id}
+                    href={document.signed_url ?? "#"}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="flex items-center gap-3 rounded-md border p-3 text-sm hover:bg-slate-50"
+                  >
+                    <FileText className="h-5 w-5 text-blue-600" />
+                    <span className="min-w-0 flex-1 truncate">{document.title}</span>
+                    <span className="text-xs text-slate-500">{formatVehicleStatus(document.status)}</span>
+                  </a>
+                ))}
+              </div>
+
+              {permissions.canUploadDocuments ? (
+                <form action={addDocumentFromForm} className="grid gap-3 rounded-md border p-4 md:grid-cols-3">
+                  <input type="hidden" name="vehicleId" value={vehicle.id} />
+                  <div className="grid gap-2">
+                    <Label htmlFor="documentType">Document type</Label>
+                    <select id="documentType" name="documentType" className="h-9 rounded-md border bg-white px-3 text-sm">
+                      {DOCUMENT_TYPES.map(([value, label]) => (
+                        <option key={value} value={value}>
+                          {label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="documentTitle">Title</Label>
+                    <Input id="documentTitle" name="title" defaultValue="Vehicle title" />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="documentStatus">Status</Label>
+                    <select id="documentStatus" name="status" defaultValue="complete" className="h-9 rounded-md border bg-white px-3 text-sm">
+                      <option value="missing">Missing</option>
+                      <option value="partial">Partial</option>
+                      <option value="complete">Complete</option>
+                      <option value="verified">Verified</option>
+                    </select>
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="document">Document file</Label>
+                    <Input id="document" name="document" type="file" accept="application/pdf,image/jpeg,image/png,image/webp" />
+                  </div>
+                  <div className="grid gap-2">
+                    <Label htmlFor="expiresAt">Expiry date</Label>
+                    <Input id="expiresAt" name="expiresAt" type="date" />
+                  </div>
+                  <div className="flex items-end">
+                    <Button type="submit" variant="outline">
+                      <Upload className="h-4 w-4" />
+                      Save document
+                    </Button>
+                  </div>
+                </form>
+              ) : null}
+            </CardContent>
+          </Card>
         </div>
 
         <div className="space-y-6">

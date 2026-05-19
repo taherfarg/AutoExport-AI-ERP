@@ -12,13 +12,13 @@
 
 ## Tasks
 
-- [ ] Add migration for `vehicle_document_checklists`, storage bucket, storage RLS policies, functions, and seed checklist rows.
-- [ ] Add SQL tests for bucket, RLS, checklist rows, and storage path isolation.
-- [ ] Add validation schemas and server actions for photo/document metadata and optional file upload.
-- [ ] Add vehicle media/checklist queries and signed URL helpers.
-- [ ] Build photo and document sections on vehicle detail page.
-- [ ] Extend E2E coverage for adding vehicle document metadata.
-- [ ] Update docs and run full verification.
+- [x] Add migration for `vehicle_document_checklists`, storage bucket, storage RLS policies, functions, and seed checklist rows.
+- [x] Add SQL tests for bucket, RLS, checklist rows, and storage path isolation.
+- [x] Add validation schemas and server actions for photo/document metadata and optional file upload.
+- [x] Add vehicle media/checklist queries and signed URL helpers.
+- [x] Build photo and document sections on vehicle detail page.
+- [x] Extend E2E coverage for adding vehicle document metadata.
+- [x] Update docs and run full verification.
 
 ## Verification Commands
 
@@ -31,4 +31,3 @@ npx supabase db reset
 npx supabase test db
 npm run test:e2e
 ```
-

@@ -1,6 +1,7 @@
 import { getCurrentPermissionSet } from "@/lib/auth/current-workspace";
 import { PERMISSIONS } from "@/lib/permissions/permissions";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceRoleClient } from "@/lib/supabase/service-role";
 
 export type VehicleInventoryFilters = {
   search?: string;
@@ -64,6 +65,41 @@ export type VehiclePermissions = {
   canCreate: boolean;
   canUpdate: boolean;
   canDelete: boolean;
+  canUploadDocuments: boolean;
+  canVerifyDocuments: boolean;
+};
+
+export type VehiclePhotoRow = {
+  id: string;
+  storage_bucket: string;
+  storage_path: string;
+  alt_text: string | null;
+  sort_order: number;
+  is_primary: boolean;
+  signed_url: string | null;
+};
+
+export type VehicleDocumentRow = {
+  id: string;
+  document_type: string;
+  title: string;
+  storage_bucket: string | null;
+  storage_path: string | null;
+  status: string;
+  expires_at: string | null;
+  signed_url: string | null;
+};
+
+export type VehicleChecklistRow = {
+  id: string;
+  document_type: string;
+  title: string;
+  is_required: boolean;
+  is_export_required: boolean;
+  status: string;
+  due_at: string | null;
+  completed_at: string | null;
+  vehicle_document_id: string | null;
 };
 
 export async function getVehiclePermissions(companyId: string): Promise<VehiclePermissions> {
@@ -75,6 +111,8 @@ export async function getVehiclePermissions(companyId: string): Promise<VehicleP
     canCreate: permissions.has(PERMISSIONS.CREATE_VEHICLE),
     canUpdate: permissions.has(PERMISSIONS.UPDATE_VEHICLE),
     canDelete: permissions.has(PERMISSIONS.DELETE_VEHICLE),
+    canUploadDocuments: permissions.has(PERMISSIONS.UPLOAD_DOCUMENTS),
+    canVerifyDocuments: permissions.has(PERMISSIONS.VERIFY_DOCUMENTS),
   };
 }
 
@@ -172,6 +210,82 @@ export async function getVehicleBranchMovements(companyId: string, vehicleId: st
   return data ?? [];
 }
 
+async function signedUrl(bucket: string | null, path: string | null) {
+  if (!bucket || !path) {
+    return null;
+  }
+
+  const supabase = createServiceRoleClient();
+  const { data } = await supabase.storage.from(bucket).createSignedUrl(path, 60 * 10);
+  return data?.signedUrl ?? null;
+}
+
+export async function getVehiclePhotos(companyId: string, vehicleId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("vehicle_photos")
+    .select("id, storage_bucket, storage_path, alt_text, sort_order, is_primary")
+    .eq("company_id", companyId)
+    .eq("vehicle_id", vehicleId)
+    .is("deleted_at", null)
+    .order("is_primary", { ascending: false })
+    .order("sort_order", { ascending: true })
+    .order("created_at", { ascending: true });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return Promise.all(
+    ((data ?? []) as VehiclePhotoRow[]).map(async (photo) => ({
+      ...photo,
+      signed_url: await signedUrl(photo.storage_bucket, photo.storage_path),
+    })),
+  );
+}
+
+export async function getVehicleDocuments(companyId: string, vehicleId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("vehicle_documents")
+    .select("id, document_type, title, storage_bucket, storage_path, status, expires_at")
+    .eq("company_id", companyId)
+    .eq("vehicle_id", vehicleId)
+    .is("deleted_at", null)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return Promise.all(
+    ((data ?? []) as VehicleDocumentRow[]).map(async (document) => ({
+      ...document,
+      signed_url: await signedUrl(document.storage_bucket, document.storage_path),
+    })),
+  );
+}
+
+export async function getVehicleDocumentChecklist(companyId: string, vehicleId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("vehicle_document_checklists")
+    .select(
+      "id, document_type, title, is_required, is_export_required, status, due_at, completed_at, vehicle_document_id",
+    )
+    .eq("company_id", companyId)
+    .eq("vehicle_id", vehicleId)
+    .order("is_required", { ascending: false })
+    .order("is_export_required", { ascending: false })
+    .order("title", { ascending: true });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (data ?? []) as VehicleChecklistRow[];
+}
+
 export function getInventoryStats(vehicles: VehicleListRow[]) {
   return {
     total: vehicles.length,
@@ -188,4 +302,3 @@ export function getVehicleFilterOptions(vehicles: VehicleListRow[]) {
     brands: Array.from(new Set(vehicles.map((vehicle) => vehicle.brand))).sort(),
   };
 }
-

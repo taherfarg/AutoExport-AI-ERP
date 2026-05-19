@@ -50,4 +50,8 @@ test("new workspace can add a branch and vehicle", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "2026 Toyota Hilux" })).toBeVisible();
   await expect(page.getByText(stockNumber)).toBeVisible();
   await expect(page.getByText("Total landed cost")).toBeVisible();
+  await expect(page.getByText("0 of 3 required documents complete")).toBeVisible();
+
+  await page.getByRole("button", { name: "Save document" }).click();
+  await expect(page.getByText("1 of 3 required documents complete")).toBeVisible();
 });

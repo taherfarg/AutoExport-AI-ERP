@@ -69,6 +69,19 @@ export const moveVehicleBranchSchema = vehicleIdSchema.extend({
   branchId: z.uuid(),
 });
 
+export const vehicleDocumentStatusSchema = z.enum(["missing", "partial", "complete", "verified"]);
+
+export const addVehiclePhotoSchema = vehicleIdSchema.extend({
+  altText: optionalText,
+  isPrimary: z.coerce.boolean().default(false),
+});
+
+export const addVehicleDocumentSchema = vehicleIdSchema.extend({
+  documentType: z.string().trim().min(2).max(80),
+  title: z.string().trim().min(2).max(140),
+  status: vehicleDocumentStatusSchema.default("complete"),
+  expiresAt: optionalText,
+});
+
 export type CreateVehicleInput = z.infer<typeof createVehicleSchema>;
 export type VehicleStatus = z.infer<typeof vehicleStatusSchema>;
-

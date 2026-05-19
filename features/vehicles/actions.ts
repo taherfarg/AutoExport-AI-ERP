@@ -4,7 +4,10 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { getCurrentWorkspace } from "@/lib/auth/current-workspace";
 import { createClient } from "@/lib/supabase/server";
+import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import {
+  addVehicleDocumentSchema,
+  addVehiclePhotoSchema,
   createVehicleSchema,
   moveVehicleBranchSchema,
   updateVehicleStatusSchema,
@@ -17,6 +20,31 @@ function formNumber(value: FormDataEntryValue | null) {
 
 function formOptional(value: FormDataEntryValue | null) {
   return typeof value === "string" && value.length > 0 ? value : undefined;
+}
+
+function safeFileName(name: string) {
+  return name.replace(/[^a-zA-Z0-9._-]/g, "-").toLowerCase();
+}
+
+function formFile(value: FormDataEntryValue | null) {
+  return value instanceof File && value.size > 0 ? value : null;
+}
+
+async function ensureVehicleInWorkspace(vehicleId: string, companyId: string) {
+  const supabase = createServiceRoleClient();
+  const { data: vehicle, error } = await supabase
+    .from("vehicles")
+    .select("id, company_id")
+    .eq("id", vehicleId)
+    .eq("company_id", companyId)
+    .is("deleted_at", null)
+    .single();
+
+  if (error || !vehicle) {
+    throw new Error("Vehicle was not found.");
+  }
+
+  return vehicle;
 }
 
 export async function createVehicle(formData: FormData) {
@@ -224,4 +252,131 @@ export async function archiveVehicle(formData: FormData) {
 
   revalidatePath("/vehicles");
   redirect("/vehicles");
+}
+
+export async function addVehiclePhoto(formData: FormData) {
+  const workspace = await getCurrentWorkspace();
+  const parsed = addVehiclePhotoSchema.safeParse({
+    vehicleId: formData.get("vehicleId"),
+    altText: formOptional(formData.get("altText")),
+    isPrimary: formData.get("isPrimary") === "on",
+  });
+
+  if (!parsed.success) {
+    return { error: "Photo details are invalid." };
+  }
+
+  await ensureVehicleInWorkspace(parsed.data.vehicleId, workspace.companyId);
+
+  const file = formFile(formData.get("photo"));
+  if (!file) {
+    return { error: "Choose a vehicle photo to upload." };
+  }
+
+  const supabase = createServiceRoleClient();
+  const storagePath = `${workspace.companyId}/vehicles/${parsed.data.vehicleId}/photos/${Date.now()}-${safeFileName(file.name)}`;
+  const { error: uploadError } = await supabase.storage
+    .from("vehicle-media")
+    .upload(storagePath, file, { contentType: file.type, upsert: false });
+
+  if (uploadError) {
+    return { error: uploadError.message };
+  }
+
+  if (parsed.data.isPrimary) {
+    await supabase
+      .from("vehicle_photos")
+      .update({ is_primary: false })
+      .eq("company_id", workspace.companyId)
+      .eq("vehicle_id", parsed.data.vehicleId);
+  }
+
+  const { error } = await supabase.from("vehicle_photos").insert({
+    company_id: workspace.companyId,
+    vehicle_id: parsed.data.vehicleId,
+    storage_bucket: "vehicle-media",
+    storage_path: storagePath,
+    alt_text: parsed.data.altText,
+    is_primary: parsed.data.isPrimary,
+    created_by: workspace.profileId,
+  });
+
+  if (error) {
+    return { error: error.message };
+  }
+
+  revalidatePath(`/vehicles/${parsed.data.vehicleId}`);
+}
+
+export async function addVehicleDocument(formData: FormData) {
+  const workspace = await getCurrentWorkspace();
+  const parsed = addVehicleDocumentSchema.safeParse({
+    vehicleId: formData.get("vehicleId"),
+    documentType: formData.get("documentType"),
+    title: formData.get("title"),
+    status: formData.get("status") || "complete",
+    expiresAt: formOptional(formData.get("expiresAt")),
+  });
+
+  if (!parsed.success) {
+    return { error: "Document details are invalid." };
+  }
+
+  await ensureVehicleInWorkspace(parsed.data.vehicleId, workspace.companyId);
+
+  const supabase = createServiceRoleClient();
+  const file = formFile(formData.get("document"));
+  let storagePath: string | null = null;
+
+  if (file) {
+    storagePath = `${workspace.companyId}/vehicles/${parsed.data.vehicleId}/documents/${Date.now()}-${safeFileName(file.name)}`;
+    const { error: uploadError } = await supabase.storage
+      .from("vehicle-media")
+      .upload(storagePath, file, { contentType: file.type, upsert: false });
+
+    if (uploadError) {
+      return { error: uploadError.message };
+    }
+  }
+
+  const { data: documentRow, error } = await supabase
+    .from("vehicle_documents")
+    .insert({
+      company_id: workspace.companyId,
+      vehicle_id: parsed.data.vehicleId,
+      document_type: parsed.data.documentType,
+      title: parsed.data.title,
+      storage_bucket: storagePath ? "vehicle-media" : null,
+      storage_path: storagePath,
+      status: parsed.data.status,
+      expires_at: parsed.data.expiresAt,
+      created_by: workspace.profileId,
+      updated_by: workspace.profileId,
+    })
+    .select("id")
+    .single();
+
+  if (error || !documentRow) {
+    return { error: error?.message ?? "Document could not be created." };
+  }
+
+  await supabase
+    .from("vehicle_document_checklists")
+    .upsert(
+      {
+        company_id: workspace.companyId,
+        vehicle_id: parsed.data.vehicleId,
+        document_type: parsed.data.documentType,
+        title: parsed.data.title,
+        status: parsed.data.status,
+        vehicle_document_id: documentRow.id,
+        completed_at: parsed.data.status === "complete" || parsed.data.status === "verified"
+          ? new Date().toISOString()
+          : null,
+        updated_by: workspace.profileId,
+      },
+      { onConflict: "company_id,vehicle_id,document_type" },
+    );
+
+  revalidatePath(`/vehicles/${parsed.data.vehicleId}`);
 }
