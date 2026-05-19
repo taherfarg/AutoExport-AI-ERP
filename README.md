@@ -77,6 +77,7 @@ Phase 1 migrations create:
 - Sales quotations, reservations, proformas, invoices, payments, RLS policies, and payment triggers
 - Import/export destination countries, logistics partners, export/import orders, shipping events, customs clearance, export documents, shipment costs, RLS policies, and workflow triggers
 - Finance Lite expenses, receivables, payables, payment methods, bank/cash accounts, profit snapshots, salesperson commissions, RLS policies, and invoice-to-receivable sync triggers
+- Central documents, document links, generic checklists, verification history, signature requests, signed document archive, private document storage bucket, and storage/RLS policies
 
 ## RLS Model
 
@@ -84,7 +85,7 @@ Every tenant-owned table uses `company_id`. Branch-scoped tables also validate t
 
 ## Role and Permission System
 
-Phase 1 roles are tenant-scoped. Company onboarding creates a `Company Owner` role with all seeded permissions and assigns it to the workspace creator. Phase 3A adds CRM permissions for customers, leads, assignment, and follow-ups. Phase 4 adds sales and payment permissions for quotations, reservations, invoices, and payment recording. Phase 5 adds export viewing, export status updates, and logistics partner permissions. Phase 6 adds finance management and commission management permissions.
+Phase 1 roles are tenant-scoped. Company onboarding creates a `Company Owner` role with all seeded permissions and assigns it to the workspace creator. Phase 3A adds CRM permissions for customers, leads, assignment, and follow-ups. Phase 4 adds sales and payment permissions for quotations, reservations, invoices, and payment recording. Phase 5 adds export viewing, export status updates, and logistics partner permissions. Phase 6 adds finance management and commission management permissions. Phase 7 adds central document viewing and internal signature management permissions.
 
 ## AI Architecture
 
@@ -125,10 +126,10 @@ npm run test:e2e
 
 ## Known Limitations
 
-- Phase 1 implements the SaaS foundation, Phase 2A implements the vehicle inventory core, Phase 2B implements vehicle media/document checklist workflows, Phase 3A implements CRM leads/follow-ups, Phase 4 implements sales transactions/payments, Phase 5 implements import/export operations, and Phase 6 implements Finance Lite.
+- Phase 1 implements the SaaS foundation, Phase 2A implements the vehicle inventory core, Phase 2B implements vehicle media/document checklist workflows, Phase 3A implements CRM leads/follow-ups, Phase 4 implements sales transactions/payments, Phase 5 implements import/export operations, Phase 6 implements Finance Lite, and Phase 7 implements central documents/signatures.
 - AI, alerts, chat, and reports are represented in module gating but built in later phases.
-- Digital signature, payment, messaging, and logistics integrations are architecture-ready but not integrated yet.
+- External digital signature providers, payment, messaging, and logistics integrations are architecture-ready but not integrated yet.
 
 ## Future Roadmap
 
-See `docs/MASTER_BUILD_PROMPT.md`, `docs/superpowers/plans/2026-05-18-phase-1-saas-foundation.md`, `docs/superpowers/plans/2026-05-18-phase-2a-vehicle-inventory.md`, `docs/superpowers/plans/2026-05-19-phase-2b-vehicle-documents-photos.md`, `docs/superpowers/plans/2026-05-19-phase-3a-crm-leads.md`, `docs/superpowers/plans/2026-05-19-phase-4-sales-transactions.md`, `docs/superpowers/plans/2026-05-19-phase-5-import-export.md`, and `docs/superpowers/plans/2026-05-19-phase-6-finance-lite.md`.
+See `docs/MASTER_BUILD_PROMPT.md`, `docs/superpowers/plans/2026-05-18-phase-1-saas-foundation.md`, `docs/superpowers/plans/2026-05-18-phase-2a-vehicle-inventory.md`, `docs/superpowers/plans/2026-05-19-phase-2b-vehicle-documents-photos.md`, `docs/superpowers/plans/2026-05-19-phase-3a-crm-leads.md`, `docs/superpowers/plans/2026-05-19-phase-4-sales-transactions.md`, `docs/superpowers/plans/2026-05-19-phase-5-import-export.md`, `docs/superpowers/plans/2026-05-19-phase-6-finance-lite.md`, and `docs/superpowers/plans/2026-05-19-phase-7-documents-signature.md`.

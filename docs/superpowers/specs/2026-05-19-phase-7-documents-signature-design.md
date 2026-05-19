@@ -77,13 +77,13 @@ Sections:
 - Signature request table.
 - Signed document archive table.
 
-The first implementation uses metadata-first signature capture: a typed signer name and optional signature image path placeholder. Provider integrations remain later.
+The first implementation uses internal signature capture records with uploaded signature image and signed document files. Provider integrations remain later.
 
 ## Tests
 
 - pgTAP proves table RLS, storage bucket, permissions, and tenant isolation.
 - Vitest covers checklist completion, signature status labels, expiry detection, and validation.
-- Playwright extends the existing workspace flow to upload a metadata document, verify it, create a signature request, and mark it signed.
+- Playwright extends the existing workspace flow to upload a private document file, verify it, create a signature request, upload signature/signed files, and mark it signed.
 
 ## Non-Goals
 

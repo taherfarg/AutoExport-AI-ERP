@@ -14,6 +14,13 @@ test("new workspace can add a branch, vehicle, and lead", async ({ page }) => {
   const leadName = `Gulf Fleet Lead ${id}`;
   const followUpTitle = `Follow up buyer ${id}`;
   const messageBody = `Customer asked for export-ready Hilux stock ${id}.`;
+  const documentTitle = `Central archive title ${id}`;
+  const signatureTitle = `Reservation signature ${id}`;
+  const pdfBuffer = Buffer.from("%PDF-1.4\n1 0 obj\n<< /Type /Catalog >>\nendobj\ntrailer\n<< /Root 1 0 R >>\n%%EOF");
+  const pngBuffer = Buffer.from(
+    "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+    "base64",
+  );
 
   await page.goto("/signup");
   await page.getByLabel("Email").fill(email);
@@ -151,4 +158,40 @@ test("new workspace can add a branch, vehicle, and lead", async ({ page }) => {
   await page.locator("#supplierName").fill(`Belgium Import ${id}`);
   await page.getByRole("button", { name: "Create import order" }).click();
   await expect(page.getByText(`Belgium Import ${id}`)).toBeVisible();
+
+  await page.goto("/documents");
+  await expect(page.getByRole("heading", { name: "Documents & Digital Signature" })).toBeVisible();
+  await page.locator("#documentTitle").fill(documentTitle);
+  await page.locator("#documentFile").setInputFiles({
+    name: `document-${id}.pdf`,
+    mimeType: "application/pdf",
+    buffer: pdfBuffer,
+  });
+  await page.getByRole("button", { name: "Upload document" }).click();
+  await expect(page.getByText(documentTitle).first()).toBeVisible();
+
+  await page.locator("#documentId").selectOption({ label: documentTitle });
+  await page.locator("#verificationNotes").fill(`Verified archive document ${id}`);
+  await page.getByRole("button", { name: "Verify document" }).click();
+  await expect(page.getByText(`Verified archive document ${id}`)).toBeVisible();
+
+  await page.locator("#signatureTitle").fill(signatureTitle);
+  await page.locator("#sentToName").fill(`Signer ${id}`);
+  await page.locator("#sentToEmail").fill(`signer-${id}@example.test`);
+  await page.getByRole("button", { name: "Create signature request" }).click();
+  await expect(page.getByText(`Signer ${id}`).first()).toBeVisible();
+
+  await page.locator("#signedByName").fill(`Signer ${id}`);
+  await page.locator("#signatureImage").setInputFiles({
+    name: `signature-${id}.png`,
+    mimeType: "image/png",
+    buffer: pngBuffer,
+  });
+  await page.locator("#signedDocument").setInputFiles({
+    name: `signed-${id}.pdf`,
+    mimeType: "application/pdf",
+    buffer: pdfBuffer,
+  });
+  await page.getByRole("button", { name: "Mark signed" }).click();
+  await expect(page.getByText(/^SDOC-/)).toBeVisible();
 });
