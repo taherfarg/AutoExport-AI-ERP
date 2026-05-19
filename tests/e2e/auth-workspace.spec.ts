@@ -78,4 +78,25 @@ test("new workspace can add a branch, vehicle, and lead", async ({ page }) => {
   await page.locator("#body").fill(messageBody);
   await page.getByRole("button", { name: "Log message" }).click();
   await expect(page.getByText(messageBody)).toBeVisible();
+
+  await page.goto("/sales/quotations");
+  await expect(page.getByRole("heading", { name: "Sales Quotations" })).toBeVisible();
+  await page.locator("#notes").fill(`Quotation for ${leadName}`);
+  await page.getByRole("button", { name: "Create quotation" }).click();
+
+  await expect(page.getByText("Quotation preview")).toBeVisible();
+  await expect(page.getByText(leadName, { exact: true }).first()).toBeVisible();
+
+  await page.getByRole("button", { name: "Create reservation" }).click();
+  await expect(page.getByText("deposit")).toBeVisible();
+
+  await page.getByRole("button", { name: "Create invoice" }).click();
+  await expect(page.getByRole("button", { name: "Record payment" })).toBeVisible();
+
+  await page.getByRole("button", { name: "Record payment" }).click();
+  await expect(page.getByText(/^PAY-/)).toBeVisible();
+
+  await page.goto("/sales/invoices");
+  await expect(page.getByRole("heading", { name: "Sales Invoices" })).toBeVisible();
+  await expect(page.getByText("Paid amount", { exact: true })).toBeVisible();
 });
