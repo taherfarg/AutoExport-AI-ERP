@@ -315,3 +315,153 @@ export function getLeadPipeline(leads: LeadListRow[], statuses: readonly string[
   }));
 }
 
+export type CommunicationProviderRow = {
+  id: string;
+  company_id: string;
+  branch_id: string | null;
+  provider_type: string;
+  provider_name: string;
+  config: Record<string, unknown>;
+  is_active: boolean;
+};
+
+export type MessageTemplateRow = {
+  id: string;
+  company_id: string;
+  name: string;
+  channel: string;
+  subject: string | null;
+  body: string;
+  variables: string[];
+  language: string;
+  is_active: boolean;
+};
+
+export type CustomerConsentRow = {
+  id: string;
+  company_id: string;
+  customer_id: string | null;
+  lead_id: string | null;
+  channel: string;
+  is_granted: boolean;
+  consent_source: string;
+};
+
+export type OutboundMessageRow = {
+  id: string;
+  company_id: string;
+  branch_id: string;
+  provider_id: string | null;
+  lead_id: string | null;
+  customer_id: string | null;
+  channel: string;
+  sender_id: string | null;
+  recipient_address: string;
+  subject: string | null;
+  body: string;
+  template_id: string | null;
+  template_variables: Record<string, unknown>;
+  status: string;
+  error_message: string | null;
+  external_message_id: string | null;
+  created_at: string;
+  profiles: { full_name: string; email: string } | null;
+  message_delivery_events: Array<{
+    id: string;
+    status: string;
+    event_at: string;
+    error_code: string | null;
+    error_description: string | null;
+  }>;
+};
+
+export async function getCommunicationProviders(companyId: string): Promise<CommunicationProviderRow[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("communication_providers")
+    .select("id, company_id, branch_id, provider_type, provider_name, config, is_active")
+    .eq("company_id", companyId)
+    .is("deleted_at", null)
+    .order("provider_type", { ascending: true });
+
+  if (error) throw new Error(error.message);
+  return (data ?? []) as unknown as CommunicationProviderRow[];
+}
+
+export async function getMessageTemplates(companyId: string, channel?: string): Promise<MessageTemplateRow[]> {
+  const supabase = await createClient();
+  let query = supabase
+    .from("message_templates")
+    .select("id, company_id, name, channel, subject, body, variables, language, is_active")
+    .eq("company_id", companyId)
+    .is("deleted_at", null)
+    .order("name", { ascending: true });
+
+  if (channel && channel !== "all") {
+    query = query.eq("channel", channel);
+  }
+
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+  return (data ?? []) as unknown as MessageTemplateRow[];
+}
+
+export async function getCustomerConsents(
+  companyId: string,
+  ref: { customerId?: string; leadId?: string }
+): Promise<CustomerConsentRow[]> {
+  const supabase = await createClient();
+  let query = supabase
+    .from("customer_consents")
+    .select("id, company_id, customer_id, lead_id, channel, is_granted, consent_source")
+    .eq("company_id", companyId);
+
+  if (ref.customerId) {
+    query = query.eq("customer_id", ref.customerId);
+  } else if (ref.leadId) {
+    query = query.eq("lead_id", ref.leadId);
+  } else {
+    return [];
+  }
+
+  const { data, error } = await query;
+  if (error) throw new Error(error.message);
+  return (data ?? []) as unknown as CustomerConsentRow[];
+}
+
+export async function getOutboundMessagesTimeline(
+  companyId: string,
+  leadId: string
+): Promise<OutboundMessageRow[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("outbound_messages")
+    .select(`
+      id,
+      company_id,
+      branch_id,
+      provider_id,
+      lead_id,
+      customer_id,
+      channel,
+      sender_id,
+      recipient_address,
+      subject,
+      body,
+      template_id,
+      template_variables,
+      status,
+      error_message,
+      external_message_id,
+      created_at,
+      profiles!sender_id(full_name, email),
+      message_delivery_events(id, status, event_at, error_code, error_description)
+    `)
+    .eq("company_id", companyId)
+    .eq("lead_id", leadId)
+    .order("created_at", { ascending: false });
+
+  if (error) throw new Error(error.message);
+  return (data ?? []) as unknown as OutboundMessageRow[];
+}
+

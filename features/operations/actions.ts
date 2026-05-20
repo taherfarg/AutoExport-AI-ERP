@@ -120,6 +120,7 @@ export async function createReportExport(formData: FormData) {
   });
 
   revalidatePath("/reports");
+  return { reportExportId: data.id, success: "Report export created." };
 }
 
 export async function createReportSchedule(formData: FormData) {
@@ -172,6 +173,7 @@ export async function createReportSchedule(formData: FormData) {
   });
 
   revalidatePath("/reports");
+  return { reportScheduleId: data.id, success: "Report schedule created." };
 }
 
 export async function createAlert(formData: FormData) {
@@ -225,6 +227,7 @@ export async function createAlert(formData: FormData) {
   });
 
   revalidatePath("/operations/alerts");
+  return { alertId: data.id, success: "Alert created." };
 }
 
 export async function updateAlertStatus(formData: FormData) {
@@ -272,6 +275,7 @@ export async function updateAlertStatus(formData: FormData) {
   });
 
   revalidatePath("/operations/alerts");
+  return { alertId: data.id, success: "Alert updated." };
 }
 
 export async function createTask(formData: FormData) {
@@ -325,6 +329,7 @@ export async function createTask(formData: FormData) {
   });
 
   revalidatePath("/operations/alerts");
+  return { taskId: data.id, success: "Task created." };
 }
 
 export async function createReminder(formData: FormData) {
@@ -374,6 +379,7 @@ export async function createReminder(formData: FormData) {
   });
 
   revalidatePath("/operations/alerts");
+  return { reminderId: data.id, success: "Reminder created." };
 }
 
 export async function createChatThread(formData: FormData) {
@@ -425,6 +431,7 @@ export async function createChatThread(formData: FormData) {
   });
 
   revalidatePath("/chat");
+  return { threadId: data.id, success: "Chat thread created." };
 }
 
 export async function createChatMessage(formData: FormData) {
@@ -469,6 +476,7 @@ export async function createChatMessage(formData: FormData) {
   });
 
   revalidatePath("/chat");
+  return { messageId: data.id, success: "Chat message sent." };
 }
 
 export async function createTaskFromChat(formData: FormData) {

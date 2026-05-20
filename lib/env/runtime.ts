@@ -8,6 +8,10 @@ const runtimeEnvSchema = z.object({
   OPENAI_API_KEY: z.string().trim().min(1).optional(),
   OPENAI_MODEL: z.string().trim().min(1).optional(),
   OPENAI_BASE_URL: z.string().trim().url().optional(),
+  STRIPE_SECRET_KEY: z.string().trim().min(1).optional(),
+  STRIPE_WEBHOOK_SECRET: z.string().trim().min(1).optional(),
+  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string().trim().min(1).optional(),
+  STRIPE_LIVE_BILLING_ENABLED: z.enum(["true", "false"]).optional(),
 });
 
 export type RuntimeEnv = z.infer<typeof runtimeEnvSchema>;
@@ -55,6 +59,8 @@ export function buildHealthPayload(env: RuntimeEnvSource = process.env) {
     serviceRoleConfigured: Boolean(env.SUPABASE_SERVICE_ROLE_KEY),
     appUrlConfigured: Boolean(env.NEXT_PUBLIC_APP_URL),
     openAiConfigured: Boolean(env.OPENAI_API_KEY),
+    stripeConfigured: Boolean(env.STRIPE_SECRET_KEY),
+    stripeWebhookConfigured: Boolean(env.STRIPE_WEBHOOK_SECRET),
     timestamp: new Date().toISOString(),
   };
 }

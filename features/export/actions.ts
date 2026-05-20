@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { getCurrentWorkspace } from "@/lib/auth/current-workspace";
 import { makeExportOrderNumber, makeImportOrderNumber } from "@/lib/export/format";
 import { createClient } from "@/lib/supabase/server";
@@ -118,7 +117,7 @@ export async function createExportOrder(formData: FormData) {
   });
 
   if (!parsed.success || parsed.data.companyId !== workspace.companyId) {
-    throw new Error("Export order details are invalid.");
+    return { error: "Export order details are invalid." };
   }
 
   const supabase = await createClient();
@@ -150,7 +149,7 @@ export async function createExportOrder(formData: FormData) {
     .single();
 
   if (error || !order) {
-    throw new Error(error?.message ?? "Export order could not be created.");
+    return { error: error?.message ?? "Export order could not be created." };
   }
 
   await supabase.from("export_documents").insert(
@@ -178,7 +177,7 @@ export async function createExportOrder(formData: FormData) {
   });
 
   revalidatePath("/export/orders");
-  redirect(`/export/orders/${order.id}`);
+  return { orderId: order.id, success: "Export order created." };
 }
 
 export async function createImportOrder(formData: FormData) {
@@ -200,7 +199,7 @@ export async function createImportOrder(formData: FormData) {
   });
 
   if (!parsed.success || parsed.data.companyId !== workspace.companyId) {
-    throw new Error("Import order details are invalid.");
+    return { error: "Import order details are invalid." };
   }
 
   const supabase = await createClient();
@@ -229,7 +228,7 @@ export async function createImportOrder(formData: FormData) {
     .single();
 
   if (error || !order) {
-    throw new Error(error?.message ?? "Import order could not be created.");
+    return { error: error?.message ?? "Import order could not be created." };
   }
 
   await writeAuditLog({
@@ -243,6 +242,7 @@ export async function createImportOrder(formData: FormData) {
   });
 
   revalidatePath("/export/orders");
+  return { importOrderId: order.id, success: "Import order created." };
 }
 
 export async function addShippingEvent(formData: FormData) {

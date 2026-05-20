@@ -1,16 +1,11 @@
-import { MessageSquareText, Plus } from "lucide-react";
-import { OperationsStatusBadge } from "@/components/operations/operations-status-badge";
-import { Button } from "@/components/ui/button";
+import { MessageSquareText } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { getBranches } from "@/features/branches/queries";
-import { createChatMessage, createChatThread, createTaskFromChat } from "@/features/operations/actions";
 import { getChatDashboardData, getOperationsPermissions } from "@/features/operations/queries";
 import { getCurrentWorkspace } from "@/lib/auth/current-workspace";
 import { formatOperationsStatus } from "@/lib/operations/format";
 import { buildChatPreview } from "@/lib/operations/reports";
-import { chatThreadTypes } from "@/lib/validations/operations";
+import { ChatMessageCreateForm, ChatTaskCreateForm, ChatThreadCreateForm } from "./chat-action-forms";
 
 export default async function ChatPage() {
   const workspace = await getCurrentWorkspace();
@@ -21,24 +16,6 @@ export default async function ChatPage() {
   ]);
   const defaultBranchId = branches[0]?.id;
   const defaultThread = data.threads[0];
-
-  async function threadFromForm(formData: FormData) {
-    "use server";
-
-    await createChatThread(formData);
-  }
-
-  async function messageFromForm(formData: FormData) {
-    "use server";
-
-    await createChatMessage(formData);
-  }
-
-  async function taskFromForm(formData: FormData) {
-    "use server";
-
-    await createTaskFromChat(formData);
-  }
 
   return (
     <div className="space-y-6">
@@ -56,24 +33,7 @@ export default async function ChatPage() {
                 <CardDescription>Start a tenant-secure internal conversation.</CardDescription>
               </CardHeader>
               <CardContent>
-                <form action={threadFromForm} className="grid gap-3">
-                  <input type="hidden" name="companyId" value={workspace.companyId} />
-                  <input type="hidden" name="branchId" value={defaultBranchId ?? ""} />
-                  <div className="grid gap-2">
-                    <Label htmlFor="threadTitle">Title</Label>
-                    <Input id="threadTitle" name="title" defaultValue="Sales and export coordination" required />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="threadType">Type</Label>
-                    <select id="threadType" name="threadType" className="h-9 rounded-md border bg-white px-3 text-sm" defaultValue="internal_support">
-                      {chatThreadTypes.map((type) => <option key={type} value={type}>{formatOperationsStatus(type)}</option>)}
-                    </select>
-                  </div>
-                  <Button type="submit">
-                    <Plus className="h-4 w-4" />
-                    Create thread
-                  </Button>
-                </form>
+                <ChatThreadCreateForm branchId={defaultBranchId} companyId={workspace.companyId} />
               </CardContent>
             </Card>
           ) : null}
@@ -125,19 +85,7 @@ export default async function ChatPage() {
                 <CardDescription>Add a message to the latest thread.</CardDescription>
               </CardHeader>
               <CardContent>
-                <form action={messageFromForm} className="grid gap-3">
-                  <input type="hidden" name="companyId" value={workspace.companyId} />
-                  <input type="hidden" name="branchId" value={defaultBranchId ?? ""} />
-                  <input type="hidden" name="threadId" value={defaultThread.id} />
-                  <div className="grid gap-2">
-                    <Label htmlFor="messageBody">Message</Label>
-                    <textarea id="messageBody" name="body" rows={4} className="rounded-md border px-3 py-2 text-sm" defaultValue="Please review the export documents and customer balance before delivery." required />
-                  </div>
-                  <Button type="submit" variant="outline">
-                    <MessageSquareText className="h-4 w-4" />
-                    Send message
-                  </Button>
-                </form>
+                <ChatMessageCreateForm branchId={defaultBranchId} companyId={workspace.companyId} threadId={defaultThread.id} />
               </CardContent>
             </Card>
           ) : null}
@@ -149,19 +97,7 @@ export default async function ChatPage() {
                 <CardDescription>Turn a conversation item into a tracked operations task.</CardDescription>
               </CardHeader>
               <CardContent>
-                <form action={taskFromForm} className="grid gap-3">
-                  <input type="hidden" name="companyId" value={workspace.companyId} />
-                  <input type="hidden" name="branchId" value={defaultBranchId ?? ""} />
-                  <input type="hidden" name="priority" value="medium" />
-                  <div className="grid gap-2">
-                    <Label htmlFor="chatTaskTitle">Task title</Label>
-                    <Input id="chatTaskTitle" name="title" defaultValue="Follow up from chat" required />
-                  </div>
-                  <Button type="submit" variant="outline">
-                    <OperationsStatusBadge status="open" />
-                    Create chat task
-                  </Button>
-                </form>
+                <ChatTaskCreateForm branchId={defaultBranchId} companyId={workspace.companyId} />
               </CardContent>
             </Card>
           ) : null}

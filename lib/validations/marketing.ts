@@ -16,6 +16,10 @@ export const marketingChannelTypes = [
 export const socialPostStatuses = ["draft", "scheduled", "published", "failed", "archived"] as const;
 export const campaignStatuses = ["draft", "active", "paused", "completed", "cancelled"] as const;
 export const contentCalendarStatuses = ["planned", "scheduled", "published", "cancelled"] as const;
+export const listingSyncOperations = ["publish", "update", "unpublish", "refresh"] as const;
+export const listingSyncStatuses = ["queued", "running", "completed", "failed", "cancelled"] as const;
+export const listingSyncLogSeverities = ["debug", "info", "warning", "error"] as const;
+export const marketplaceLeadStatuses = ["new", "contacted", "converted", "lost", "spam"] as const;
 
 const optionalUuid = z.string().uuid().optional();
 const currencyCode = z.string().trim().length(3).transform((value) => value.toUpperCase());
@@ -112,4 +116,72 @@ export const upsertLeadSourceSchema = z.object({
   currencyCode: currencyCode.default("AED"),
   active: z.boolean().default(true),
   notes: z.string().trim().max(1000).optional(),
+});
+
+export const createMarketplaceChannelSchema = z.object({
+  companyId: z.string().uuid(),
+  channelKey: z.string().trim().min(2).max(80).transform((value) => value.toLowerCase().replace(/[^a-z0-9_]+/g, "_")),
+  name: z.string().trim().min(2).max(140),
+  provider: z.string().trim().min(2).max(80).default("manual"),
+  channelType: z.enum(marketingChannelTypes).default("marketplace"),
+  baseUrl: z.string().trim().url().optional(),
+  externalAccountId: z.string().trim().max(160).optional(),
+  syncEnabled: z.boolean().default(false),
+  active: z.boolean().default(true),
+});
+
+export const upsertListingPriceOverrideSchema = z.object({
+  companyId: z.string().uuid(),
+  branchId: optionalUuid,
+  listingId: z.string().uuid(),
+  marketplaceChannelId: z.string().uuid(),
+  overridePrice: z.number().min(0),
+  currencyCode: currencyCode.default("AED"),
+  reason: z.string().trim().max(240).optional(),
+  notes: z.string().trim().max(1000).optional(),
+  startsAt: z.string().date().optional(),
+  endsAt: z.string().date().optional(),
+  active: z.boolean().default(true),
+});
+
+export const queueListingSyncJobSchema = z.object({
+  companyId: z.string().uuid(),
+  branchId: optionalUuid,
+  listingId: z.string().uuid(),
+  marketplaceChannelId: z.string().uuid(),
+  operation: z.enum(listingSyncOperations).default("publish"),
+});
+
+export const createListingSyncLogSchema = z.object({
+  companyId: z.string().uuid(),
+  branchId: optionalUuid,
+  syncJobId: z.string().uuid(),
+  listingId: z.string().uuid(),
+  marketplaceChannelId: z.string().uuid(),
+  severity: z.enum(listingSyncLogSeverities).default("info"),
+  message: z.string().trim().min(2).max(1000),
+  providerCode: z.string().trim().max(120).optional(),
+  externalReference: z.string().trim().max(240).optional(),
+  jobStatus: z.enum(listingSyncStatuses).optional(),
+});
+
+export const captureMarketplaceLeadSchema = z.object({
+  companyId: z.string().uuid(),
+  branchId: optionalUuid,
+  marketplaceChannelId: optionalUuid,
+  listingId: optionalUuid,
+  vehicleId: optionalUuid,
+  sourceLeadId: z.string().trim().max(160).optional(),
+  leadName: z.string().trim().max(160).optional(),
+  phone: z.string().trim().max(80).optional(),
+  whatsapp: z.string().trim().max(80).optional(),
+  email: z.string().trim().email().optional(),
+  countryCode: z.string().trim().length(2).optional(),
+  city: z.string().trim().max(120).optional(),
+  message: z.string().trim().max(3000).optional(),
+  budget: z.number().min(0).default(0),
+  currencyCode: currencyCode.default("AED"),
+  status: z.enum(marketplaceLeadStatuses).default("new"),
+}).refine((value) => Boolean(value.phone || value.whatsapp || value.email), {
+  message: "Marketplace lead needs phone, WhatsApp, or email.",
 });

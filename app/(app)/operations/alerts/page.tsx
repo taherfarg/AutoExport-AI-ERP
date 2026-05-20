@@ -1,17 +1,15 @@
-import { Bell, Check, Clock, Plus, Siren } from "lucide-react";
+import { Bell } from "lucide-react";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { OperationsStatusBadge } from "@/components/operations/operations-status-badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { getBranches } from "@/features/branches/queries";
-import { createAlert, createReminder, createTask, markNotificationRead, updateAlertStatus } from "@/features/operations/actions";
+import { markNotificationRead } from "@/features/operations/actions";
 import { getAlertsDashboardData, getOperationsPermissions } from "@/features/operations/queries";
 import { getCompanyUsers } from "@/features/users/queries";
 import { getCurrentWorkspace } from "@/lib/auth/current-workspace";
 import { formatOperationsStatus } from "@/lib/operations/format";
-import { alertPriorities, alertTypes } from "@/lib/validations/operations";
+import { AlertCreateForm, ReminderCreateForm, ResolveAlertForm, TaskCreateForm } from "./alert-action-forms";
 
 type CompanyUserRow = {
   profiles: { id: string; full_name: string; email: string } | { id: string; full_name: string; email: string }[] | null;
@@ -36,30 +34,6 @@ export default async function AlertsPage() {
   const defaultBranchId = branches[0]?.id;
   const defaultAlert = data.alerts.find((alert) => alert.status !== "resolved") ?? data.alerts[0];
   const userOptions = (users as unknown as CompanyUserRow[]).map(profileFrom).filter(Boolean) as { id: string; full_name: string; email: string }[];
-
-  async function alertFromForm(formData: FormData) {
-    "use server";
-
-    await createAlert(formData);
-  }
-
-  async function alertStatusFromForm(formData: FormData) {
-    "use server";
-
-    await updateAlertStatus(formData);
-  }
-
-  async function taskFromForm(formData: FormData) {
-    "use server";
-
-    await createTask(formData);
-  }
-
-  async function reminderFromForm(formData: FormData) {
-    "use server";
-
-    await createReminder(formData);
-  }
 
   async function notificationFromForm(formData: FormData) {
     "use server";
@@ -103,15 +77,7 @@ export default async function AlertsPage() {
                     </div>
                   </div>
                   {permissions.canManageAlerts && alert.status !== "resolved" ? (
-                    <form action={alertStatusFromForm} className="mt-3 flex flex-wrap gap-2">
-                      <input type="hidden" name="alertId" value={alert.id} />
-                      <input type="hidden" name="status" value="resolved" />
-                      <input type="hidden" name="resolutionNotes" value="Resolved from smart alert queue." />
-                      <Button type="submit" size="sm" variant="outline">
-                        <Check className="h-4 w-4" />
-                        Resolve alert
-                      </Button>
-                    </form>
+                    <ResolveAlertForm alertId={alert.id} />
                   ) : null}
                 </div>
               ))}
@@ -170,30 +136,7 @@ export default async function AlertsPage() {
                 <CardDescription>Add a manual smart alert for follow-up.</CardDescription>
               </CardHeader>
               <CardContent>
-                <form action={alertFromForm} className="grid gap-3">
-                  <input type="hidden" name="companyId" value={workspace.companyId} />
-                  <input type="hidden" name="branchId" value={defaultBranchId ?? ""} />
-                  <div className="grid gap-2">
-                    <Label htmlFor="alertTitle">Title</Label>
-                    <Input id="alertTitle" name="title" defaultValue="Payment follow-up required" required />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="alertType">Type</Label>
-                    <select id="alertType" name="alertType" className="h-9 rounded-md border bg-white px-3 text-sm" defaultValue="customer_payment_overdue">
-                      {alertTypes.map((type) => <option key={type} value={type}>{formatOperationsStatus(type)}</option>)}
-                    </select>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="priority">Priority</Label>
-                    <select id="priority" name="priority" className="h-9 rounded-md border bg-white px-3 text-sm" defaultValue="high">
-                      {alertPriorities.map((priority) => <option key={priority} value={priority}>{formatOperationsStatus(priority)}</option>)}
-                    </select>
-                  </div>
-                  <Button type="submit">
-                    <Siren className="h-4 w-4" />
-                    Create alert
-                  </Button>
-                </form>
+                <AlertCreateForm branchId={defaultBranchId} companyId={workspace.companyId} />
               </CardContent>
             </Card>
           ) : null}
@@ -205,26 +148,13 @@ export default async function AlertsPage() {
                 <CardDescription>Assign a follow-up task from the alert queue.</CardDescription>
               </CardHeader>
               <CardContent>
-                <form action={taskFromForm} className="grid gap-3">
-                  <input type="hidden" name="companyId" value={workspace.companyId} />
-                  <input type="hidden" name="branchId" value={defaultBranchId ?? ""} />
-                  <input type="hidden" name="alertId" value={defaultAlert?.id ?? ""} />
-                  <div className="grid gap-2">
-                    <Label htmlFor="taskTitle">Title</Label>
-                    <Input id="taskTitle" name="title" defaultValue="Call customer about overdue payment" required />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="assignedTo">Assignee</Label>
-                    <select id="assignedTo" name="assignedTo" className="h-9 rounded-md border bg-white px-3 text-sm" defaultValue={workspace.profileId}>
-                      {userOptions.map((user) => <option key={user.id} value={user.id}>{user.full_name}</option>)}
-                    </select>
-                  </div>
-                  <input type="hidden" name="priority" value="medium" />
-                  <Button type="submit" variant="outline">
-                    <Plus className="h-4 w-4" />
-                    Create task
-                  </Button>
-                </form>
+                <TaskCreateForm
+                  alertId={defaultAlert?.id}
+                  branchId={defaultBranchId}
+                  companyId={workspace.companyId}
+                  profileId={workspace.profileId}
+                  users={userOptions}
+                />
               </CardContent>
             </Card>
           ) : null}
@@ -236,22 +166,11 @@ export default async function AlertsPage() {
                 <CardDescription>Schedule an operational reminder.</CardDescription>
               </CardHeader>
               <CardContent>
-                <form action={reminderFromForm} className="grid gap-3">
-                  <input type="hidden" name="companyId" value={workspace.companyId} />
-                  <input type="hidden" name="branchId" value={defaultBranchId ?? ""} />
-                  <div className="grid gap-2">
-                    <Label htmlFor="reminderTitle">Title</Label>
-                    <Input id="reminderTitle" name="title" defaultValue="Review alert queue" required />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="remindAt">Remind at</Label>
-                    <Input id="remindAt" type="datetime-local" name="remindAt" defaultValue={dateTimeIn(4)} required />
-                  </div>
-                  <Button type="submit" variant="outline">
-                    <Clock className="h-4 w-4" />
-                    Create reminder
-                  </Button>
-                </form>
+                <ReminderCreateForm
+                  branchId={defaultBranchId}
+                  companyId={workspace.companyId}
+                  defaultRemindAt={dateTimeIn(4)}
+                />
               </CardContent>
             </Card>
           ) : null}

@@ -3,6 +3,7 @@ import { calculateCampaignPerformance } from "@/lib/marketing/calculations";
 import { PERMISSIONS } from "@/lib/permissions/permissions";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
+import { summarizeSyncJobs } from "@/lib/marketing/marketplace";
 
 export type MarketingPermissions = {
   canManageMarketing: boolean;
@@ -110,6 +111,71 @@ export type LeadSourceRow = {
   active: boolean;
 };
 
+export type MarketplaceChannelRow = {
+  id: string;
+  channel_key: string;
+  name: string;
+  provider: string;
+  channel_type: string;
+  base_url: string | null;
+  sync_enabled: boolean;
+  active: boolean;
+};
+
+export type ListingPriceOverrideRow = {
+  id: string;
+  listing_id: string;
+  marketplace_channel_id: string;
+  override_price: number;
+  currency_code: string;
+  reason: string | null;
+  active: boolean;
+  marketing_listings: { listing_number: string; title: string } | null;
+  marketplace_channels: { name: string; channel_key: string } | null;
+};
+
+export type ListingSyncJobRow = {
+  id: string;
+  listing_id: string;
+  marketplace_channel_id: string;
+  operation: string;
+  status: string;
+  external_reference: string | null;
+  error_message: string | null;
+  queued_at: string;
+  completed_at: string | null;
+  marketing_listings: { listing_number: string; title: string } | null;
+  marketplace_channels: { name: string; channel_key: string } | null;
+};
+
+export type ListingSyncLogRow = {
+  id: string;
+  sync_job_id: string | null;
+  severity: string;
+  message: string;
+  provider_code: string | null;
+  external_reference: string | null;
+  created_at: string;
+  marketplace_channels: { name: string; channel_key: string } | null;
+};
+
+export type MarketplaceLeadRow = {
+  id: string;
+  listing_id: string | null;
+  vehicle_id: string | null;
+  lead_name: string | null;
+  phone: string | null;
+  whatsapp: string | null;
+  email: string | null;
+  message: string | null;
+  budget: number;
+  currency_code: string;
+  status: string;
+  captured_at: string;
+  marketing_listings: { listing_number: string; title: string } | null;
+  marketplace_channels: { name: string; channel_key: string } | null;
+};
+
 const DEFAULT_CHANNELS = [
   ["website", "Website", "website", "website"],
   ["instagram", "Instagram", "instagram", "instagram"],
@@ -131,6 +197,15 @@ const DEFAULT_LEAD_SOURCES = [
   ["referral", "Referral", "other"],
   ["showroom_visit", "Showroom Visit", "other"],
   ["export_inquiry", "Export Inquiry", "export_portal"],
+] as const;
+
+const DEFAULT_MARKETPLACE_CHANNELS = [
+  ["website_inventory", "Website Inventory", "website", "website", null, "global"],
+  ["dubizzle", "Dubizzle", "dubizzle", "marketplace", "https://dubizzle.com", "gcc"],
+  ["autotrader", "AutoTrader", "autotrader", "marketplace", "https://www.autotrader.com", "global"],
+  ["facebook_marketplace", "Facebook Marketplace", "meta", "marketplace", "https://www.facebook.com/marketplace", "global"],
+  ["instagram_shop", "Instagram Shop", "meta", "instagram", "https://www.instagram.com", "global"],
+  ["export_portal", "Export Portal", "manual_export", "export_portal", null, "global"],
 ] as const;
 
 export async function getMarketingPermissions(companyId: string): Promise<MarketingPermissions> {
@@ -170,13 +245,39 @@ export async function ensureDefaultMarketingSetup(companyId: string) {
     })),
     { onConflict: "company_id,source_key" },
   );
+
+  await supabase.from("marketplace_channels").upsert(
+    DEFAULT_MARKETPLACE_CHANNELS.map(([channelKey, name, provider, channelType, baseUrl, region]) => ({
+      company_id: companyId,
+      channel_key: channelKey,
+      name,
+      provider,
+      channel_type: channelType,
+      base_url: baseUrl,
+      settings: { mode: "manual", region },
+    })),
+    { onConflict: "company_id,channel_key" },
+  );
 }
 
 export async function getMarketingDashboardData(companyId: string) {
   await ensureDefaultMarketingSetup(companyId);
 
   const supabase = await createClient();
-  const [channelsResult, vehiclesResult, listingsResult, postsResult, campaignsResult, calendarResult, leadSourcesResult] =
+  const [
+    channelsResult,
+    vehiclesResult,
+    listingsResult,
+    postsResult,
+    campaignsResult,
+    calendarResult,
+    leadSourcesResult,
+    marketplaceChannelsResult,
+    priceOverridesResult,
+    syncJobsResult,
+    syncLogsResult,
+    marketplaceLeadsResult,
+  ] =
     await Promise.all([
       supabase
         .from("listing_channels")
@@ -228,6 +329,41 @@ export async function getMarketingDashboardData(companyId: string) {
         .eq("company_id", companyId)
         .is("deleted_at", null)
         .order("monthly_leads", { ascending: false }),
+      supabase
+        .from("marketplace_channels")
+        .select("id, channel_key, name, provider, channel_type, base_url, sync_enabled, active")
+        .eq("company_id", companyId)
+        .eq("active", true)
+        .is("deleted_at", null)
+        .order("channel_key", { ascending: true }),
+      supabase
+        .from("listing_price_overrides")
+        .select("id, listing_id, marketplace_channel_id, override_price, currency_code, reason, active, marketing_listings(listing_number, title), marketplace_channels(name, channel_key)")
+        .eq("company_id", companyId)
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false })
+        .limit(40),
+      supabase
+        .from("listing_sync_jobs")
+        .select("id, listing_id, marketplace_channel_id, operation, status, external_reference, error_message, queued_at, completed_at, marketing_listings(listing_number, title), marketplace_channels(name, channel_key)")
+        .eq("company_id", companyId)
+        .is("deleted_at", null)
+        .order("queued_at", { ascending: false })
+        .limit(40),
+      supabase
+        .from("listing_sync_logs")
+        .select("id, sync_job_id, severity, message, provider_code, external_reference, created_at, marketplace_channels(name, channel_key)")
+        .eq("company_id", companyId)
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false })
+        .limit(40),
+      supabase
+        .from("marketplace_leads")
+        .select("id, listing_id, vehicle_id, lead_name, phone, whatsapp, email, message, budget, currency_code, status, captured_at, marketing_listings(listing_number, title), marketplace_channels(name, channel_key)")
+        .eq("company_id", companyId)
+        .is("deleted_at", null)
+        .order("captured_at", { ascending: false })
+        .limit(40),
     ]);
 
   for (const result of [
@@ -238,6 +374,11 @@ export async function getMarketingDashboardData(companyId: string) {
     campaignsResult,
     calendarResult,
     leadSourcesResult,
+    marketplaceChannelsResult,
+    priceOverridesResult,
+    syncJobsResult,
+    syncLogsResult,
+    marketplaceLeadsResult,
   ]) {
     if (result.error) {
       throw new Error(result.error.message);
@@ -245,6 +386,7 @@ export async function getMarketingDashboardData(companyId: string) {
   }
 
   const campaigns = (campaignsResult.data ?? []) as unknown as CampaignRow[];
+  const syncJobs = (syncJobsResult.data ?? []) as unknown as ListingSyncJobRow[];
   const totalSpend = campaigns.reduce((sum, campaign) => sum + Number(campaign.spend), 0);
 
   return {
@@ -255,6 +397,11 @@ export async function getMarketingDashboardData(companyId: string) {
     campaigns,
     calendar: (calendarResult.data ?? []) as CalendarEntryRow[],
     leadSources: (leadSourcesResult.data ?? []) as LeadSourceRow[],
+    marketplaceChannels: (marketplaceChannelsResult.data ?? []) as MarketplaceChannelRow[],
+    priceOverrides: (priceOverridesResult.data ?? []) as unknown as ListingPriceOverrideRow[],
+    syncJobs,
+    syncLogs: (syncLogsResult.data ?? []) as unknown as ListingSyncLogRow[],
+    marketplaceLeads: (marketplaceLeadsResult.data ?? []) as unknown as MarketplaceLeadRow[],
     stats: {
       activeListings: (listingsResult.data ?? []).filter((listing) => listing.status === "active").length,
       draftPosts: (postsResult.data ?? []).filter((post) => post.status === "draft").length,
@@ -262,7 +409,11 @@ export async function getMarketingDashboardData(companyId: string) {
       activeCampaigns: campaigns.filter((campaign) => campaign.status === "active").length,
       leadSources: (leadSourcesResult.data ?? []).filter((source) => source.active).length,
       totalSpend,
+      marketplaceChannels: (marketplaceChannelsResult.data ?? []).filter((channel) => channel.active).length,
+      marketplaceLeads: (marketplaceLeadsResult.data ?? []).length,
+      failedSyncJobs: syncJobs.filter((job) => job.status === "failed").length,
     },
+    syncSummary: summarizeSyncJobs(syncJobs),
     campaignPerformance: campaigns.map((campaign) => ({
       campaignId: campaign.id,
       ...calculateCampaignPerformance({

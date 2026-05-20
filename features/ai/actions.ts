@@ -14,7 +14,11 @@ import {
   askAiSchema,
   createAiExtractionRequestSchema,
   createAiReportRequestSchema,
+  automationAgentSchema,
+  documentExtractionSchema,
+  automationProposalSchema,
 } from "@/lib/validations/ai";
+import { parseOcrFields, compileProposalPayload } from "@/lib/ai/automation-helpers";
 import { calculateVehiclePricing } from "@/lib/vehicles/pricing";
 
 type Workspace = {
@@ -752,4 +756,908 @@ export async function decideAiApproval(formData: FormData) {
   });
 
   revalidatePath("/ai");
+}
+
+async function requireManageAiAutomationPermission() {
+  const workspace = await getCurrentWorkspace();
+  const permissions = await getCurrentPermissionSet(workspace.companyId);
+
+  if (!permissions.has(PERMISSIONS.MANAGE_AI_AUTOMATION)) {
+    throw new Error("You do not have permission to manage AI automation.");
+  }
+
+  return { workspace, permissions };
+}
+
+export async function toggleAutomationAgent(formData: FormData) {
+  const { workspace } = await requireManageAiAutomationPermission();
+  const branchId = formOptional(formData.get("branchId")) || null;
+  const agentType = formData.get("agentType") as string;
+  const isEnabled = formData.get("isEnabled") === "true";
+  const configStr = formData.get("config") as string;
+  
+  let config = {};
+  if (configStr) {
+    try {
+      config = JSON.parse(configStr);
+    } catch (e) {
+      config = {};
+    }
+  }
+
+  const parsed = automationAgentSchema.safeParse({
+    companyId: workspace.companyId,
+    branchId,
+    agentType,
+    isEnabled,
+    config,
+  });
+
+  if (!parsed.success) {
+    return { error: parsed.error.message };
+  }
+
+  const supabase = createServiceRoleClient();
+  const { data: existing } = await supabase
+    .from("ai_automation_agents")
+    .select("id")
+    .eq("company_id", workspace.companyId)
+    .eq("agent_type", parsed.data.agentType)
+    .single();
+
+  let agentId: string;
+  if (existing) {
+    const { data: updated, error } = await supabase
+      .from("ai_automation_agents")
+      .update({
+        is_enabled: parsed.data.isEnabled,
+        config: parsed.data.config,
+        updated_by: workspace.profileId,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", existing.id)
+      .eq("company_id", workspace.companyId)
+      .select("id")
+      .single();
+
+    if (error || !updated) {
+      return { error: error?.message ?? "Failed to update automation agent." };
+    }
+    agentId = updated.id;
+  } else {
+    const { data: inserted, error } = await supabase
+      .from("ai_automation_agents")
+      .insert({
+        company_id: workspace.companyId,
+        branch_id: parsed.data.branchId,
+        agent_type: parsed.data.agentType,
+        is_enabled: parsed.data.isEnabled,
+        config: parsed.data.config,
+        status: "idle",
+        created_by: workspace.profileId,
+        updated_by: workspace.profileId,
+      })
+      .select("id")
+      .single();
+
+    if (error || !inserted) {
+      return { error: error?.message ?? "Failed to create automation agent." };
+    }
+    agentId = inserted.id;
+  }
+
+  revalidatePath("/ai/automation");
+  return { success: true, agentId };
+}
+
+export async function triggerAutonomousScan(formData: FormData) {
+  const { workspace } = await requireManageAiAutomationPermission();
+  const agentType = formData.get("agentType") as "crm_follow_up" | "parts_reorder" | "vehicle_marketing";
+  const branchId = formOptional(formData.get("branchId")) || null;
+
+  if (!agentType || !["crm_follow_up", "parts_reorder", "vehicle_marketing"].includes(agentType)) {
+    return { error: "Invalid agent type." };
+  }
+
+  const supabase = createServiceRoleClient();
+
+  const { data: agent, error: agentErr } = await supabase
+    .from("ai_automation_agents")
+    .select("id, is_enabled")
+    .eq("company_id", workspace.companyId)
+    .eq("agent_type", agentType)
+    .single();
+
+  if (agentErr || !agent) {
+    return { error: "AI agent not found or configured." };
+  }
+
+  await supabase
+    .from("ai_automation_agents")
+    .update({
+      status: "scanning",
+      last_scan_at: new Date().toISOString(),
+      updated_by: workspace.profileId,
+    })
+    .eq("id", agent.id);
+
+  try {
+    let title = "";
+    let description = "";
+    let justification = "";
+    let proposedPayload: Record<string, any> = {};
+
+    if (agentType === "crm_follow_up") {
+      const { data: lead } = await supabase
+        .from("leads")
+        .select("id, name, preferred_brand, preferred_model")
+        .eq("company_id", workspace.companyId)
+        .is("deleted_at", null)
+        .limit(1)
+        .single();
+
+      const leadName = lead?.name ?? "John Doe";
+      const vehicleInterest = lead ? `${lead.preferred_brand || ""} ${lead.preferred_model || ""}`.trim() : "BMW X5";
+      
+      title = `Follow up with ${leadName}`;
+      description = `Send an automated follow-up offering stock options matching ${vehicleInterest || "our latest vehicle inventory"}.`;
+      justification = `Lead has been idle with no follow-up task recorded for over 48 hours.`;
+      
+      proposedPayload = compileProposalPayload("lead_follow_up", {
+        leadId: lead?.id || "44444444-4444-4444-8444-444444444444",
+        messageBody: `Hi ${leadName}, we have a couple of outstanding options matching your interest in ${vehicleInterest || "vehicles"}. Let us know when we can connect!`,
+        messageChannel: "whatsapp",
+      });
+    } else if (agentType === "parts_reorder") {
+      const { data: part } = await supabase
+        .from("parts")
+        .select("id, part_number, name, stock_qty, min_stock_qty, default_supplier_id")
+        .eq("company_id", workspace.companyId)
+        .is("deleted_at", null)
+        .limit(1)
+        .single();
+
+      let supplierId = part?.default_supplier_id || null;
+      let supplierName = "AutoParts Depot Ltd";
+      if (supplierId) {
+        const { data: supplier } = await supabase
+          .from("part_suppliers")
+          .select("name")
+          .eq("id", supplierId)
+          .single();
+        if (supplier) {
+          supplierName = supplier.name;
+        }
+      }
+
+      const partNum = part?.part_number ?? "BP-202X";
+      const partName = part?.name ?? "Heavy-Duty Front Brake Pads";
+      const stock = part?.stock_qty ?? 3;
+      const minStock = part?.min_stock_qty ?? 10;
+
+      title = `Reorder ${partName}`;
+      description = `Draft supplier purchase order for ${partName} (${partNum}) - Quantity: 50 units.`;
+      justification = `Current stock (${stock}) is below the set threshold of ${minStock} units at this branch.`;
+
+      proposedPayload = compileProposalPayload("parts_reorder", {
+        partId: part?.id || null,
+        partNumber: partNum,
+        partName,
+        supplierId,
+        supplierName,
+        quantity: 50,
+        estimatedUnitCost: 60,
+      });
+    } else if (agentType === "vehicle_marketing") {
+      const { data: vehicle } = await supabase
+        .from("vehicles")
+        .select("id, stock_number, brand, model, year, selling_price, currency_code")
+        .eq("company_id", workspace.companyId)
+        .eq("status", "available")
+        .is("deleted_at", null)
+        .limit(1)
+        .single();
+
+      const brand = vehicle?.brand ?? "Toyota";
+      const model = vehicle?.model ?? "Camry";
+      const year = vehicle?.year ?? 2022;
+      const price = vehicle?.selling_price ?? 75000;
+      const currency = vehicle?.currency_code ?? "AED";
+
+      title = `Promote ${year} ${brand} ${model}`;
+      description = `Create and publish listing for stock #${vehicle?.stock_number ?? "T-801"} across social media and digital marketplaces.`;
+      justification = `Vehicle is marked as "available" but has no active social media or marketing posts.`;
+
+      proposedPayload = compileProposalPayload("vehicle_marketing", {
+        vehicleId: vehicle?.id || null,
+        vin: "1FTFW1EF5GFA99999",
+        platforms: ["Facebook Marketplace", "Dubizzle", "Instagram"],
+        headline: `Pre-Owned ${year} ${brand} ${model} in pristine condition!`,
+        description: `Stunning ${brand} ${model} available now for export or local sale. Fully certified and ready to drive. Contact us today!`,
+        askingPrice: price,
+        currencyCode: currency,
+      });
+    }
+
+    const proposalType = agentType === "crm_follow_up" ? "lead_follow_up" : agentType;
+
+    const { data: proposal, error: propErr } = await supabase
+      .from("ai_automation_proposals")
+      .insert({
+        company_id: workspace.companyId,
+        branch_id: branchId,
+        agent_id: agent.id,
+        proposal_type: proposalType,
+        title,
+        description,
+        justification,
+        proposed_payload: proposedPayload,
+        status: "pending",
+        created_by: workspace.profileId,
+        updated_by: workspace.profileId,
+      })
+      .select("id")
+      .single();
+
+    if (propErr || !proposal) {
+      throw new Error(propErr?.message ?? "Failed to create proposal.");
+    }
+
+    await supabase
+      .from("ai_automation_agents")
+      .update({
+        status: "idle",
+        updated_by: workspace.profileId,
+      })
+      .eq("id", agent.id);
+
+    revalidatePath("/ai/automation");
+    return { success: true, proposalId: proposal.id };
+  } catch (err: any) {
+    await supabase
+      .from("ai_automation_agents")
+      .update({
+        status: "error",
+        error_message: err?.message || "An error occurred during scan",
+        updated_by: workspace.profileId,
+      })
+      .eq("id", agent.id);
+
+    revalidatePath("/ai/automation");
+    return { error: err?.message || "Autonomous scan failed." };
+  }
+}
+
+export async function triggerDocumentOcr(formData: FormData) {
+  const { workspace } = await requireManageAiAutomationPermission();
+  const filePath = formData.get("filePath") as string || "uploads/mock_file.pdf";
+  const fileName = formData.get("fileName") as string || "mock_file.pdf";
+  const fileType = formData.get("fileType") as string || "application/pdf";
+  const documentType = formData.get("documentType") as "vehicle_title" | "supplier_invoice";
+  const branchId = formOptional(formData.get("branchId")) || null;
+  const providedRawText = formOptional(formData.get("rawText"));
+
+  if (!documentType || !["vehicle_title", "supplier_invoice"].includes(documentType)) {
+    return { error: "Invalid document type for OCR extraction." };
+  }
+
+  const parsedCheck = documentExtractionSchema.safeParse({
+    companyId: workspace.companyId,
+    branchId,
+    filePath,
+    fileName,
+    fileType,
+    documentType,
+    status: "pending",
+  });
+
+  if (!parsedCheck.success) {
+    return { error: parsedCheck.error.message };
+  }
+
+  const supabase = createServiceRoleClient();
+
+  const { data: extraction, error: insertErr } = await supabase
+    .from("ai_document_extractions")
+    .insert({
+      company_id: workspace.companyId,
+      branch_id: branchId,
+      file_path: filePath,
+      file_name: fileName,
+      file_type: fileType,
+      document_type: documentType,
+      status: "pending",
+      created_by: workspace.profileId,
+      updated_by: workspace.profileId,
+    })
+    .select("id")
+    .single();
+
+  if (insertErr || !extraction) {
+    return { error: insertErr?.message ?? "Failed to initiate document OCR." };
+  }
+
+  try {
+    let rawText = providedRawText;
+    if (!rawText) {
+      if (documentType === "vehicle_title") {
+        rawText = `
+          CERTIFICATE OF TITLE
+          TITLE NO: 987654321
+          VIN: 1FTFW1EF5GFA99999
+          YEAR: 2016
+          MAKE: FORD
+          MODEL: F-150 SUPERCREW
+          COLOR: BLACK
+        `;
+      } else {
+        rawText = `
+          INVOICE
+          SUPPLIER: AutoParts Depot Ltd
+          INVOICE #: INV-2026-0520
+          PART NUMBER: BP-202X
+          DESCRIPTION: Heavy-Duty Front Brake Pads
+          QTY: 25
+          TOTAL AMOUNT DUE: AED 3,000.00
+        `;
+      }
+    }
+
+    const extractedData = parseOcrFields(documentType, rawText);
+
+    const { error: updateErr } = await supabase
+      .from("ai_document_extractions")
+      .update({
+        status: "completed",
+        extracted_data: extractedData,
+        raw_text: rawText,
+        updated_by: workspace.profileId,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", extraction.id)
+      .eq("company_id", workspace.companyId);
+
+    if (updateErr) {
+      throw updateErr;
+    }
+
+    revalidatePath("/ai/automation");
+    return { success: true, extractionId: extraction.id, extractedData };
+  } catch (err: any) {
+    await supabase
+      .from("ai_document_extractions")
+      .update({
+        status: "failed",
+        error_message: err?.message || "OCR parsing failed.",
+        updated_by: workspace.profileId,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", extraction.id)
+      .eq("company_id", workspace.companyId);
+
+    revalidatePath("/ai/automation");
+    return { error: err?.message || "OCR extraction process failed." };
+  }
+}
+
+export async function commitDocumentOcr(formData: FormData) {
+  const { workspace } = await requireManageAiAutomationPermission();
+  const extractionId = formData.get("extractionId") as string;
+  const branchId = formOptional(formData.get("branchId")) || null;
+
+  if (!extractionId) {
+    return { error: "Extraction ID is required." };
+  }
+
+  const supabase = createServiceRoleClient();
+
+  const { data: extraction, error: fetchErr } = await supabase
+    .from("ai_document_extractions")
+    .select("*")
+    .eq("id", extractionId)
+    .eq("company_id", workspace.companyId)
+    .single();
+
+  if (fetchErr || !extraction) {
+    return { error: "OCR extraction record not found." };
+  }
+
+  const documentType = extraction.document_type;
+  const data = extraction.extracted_data as Record<string, any>;
+
+  if (documentType === "vehicle_title") {
+    const vin = (formData.get("vin") as string) || data.vin;
+    const make = (formData.get("make") as string) || data.make;
+    const model = (formData.get("model") as string) || data.model;
+    const year = Number(formData.get("year")) || data.year || new Date().getFullYear();
+    const color = (formData.get("color") as string) || data.color;
+    const purchasePrice = Number(formData.get("purchasePrice")) || 0;
+
+    if (!vin) {
+      return { error: "VIN is required to commit vehicle title." };
+    }
+
+    const { data: vehicle, error: vehicleErr } = await supabase
+      .from("vehicles")
+      .insert({
+        company_id: workspace.companyId,
+        branch_id: branchId,
+        vin,
+        brand: make || "Unknown",
+        model: model || "Unknown",
+        year,
+        exterior_color: color || "Unknown",
+        status: "available",
+        stock_number: "STK-" + Math.floor(100000 + Math.random() * 900000),
+        purchase_price: purchasePrice,
+        selling_price: purchasePrice ? Math.round(purchasePrice * 1.15) : 0,
+        currency_code: "AED",
+        created_by: workspace.profileId,
+        updated_by: workspace.profileId,
+      })
+      .select("id, stock_number")
+      .single();
+
+    if (vehicleErr) {
+      return { error: vehicleErr.message };
+    }
+
+    await supabase
+      .from("ai_document_extractions")
+      .update({
+        status: "completed",
+        updated_by: workspace.profileId,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", extractionId)
+      .eq("company_id", workspace.companyId);
+
+    await writeAuditLog({
+      companyId: workspace.companyId,
+      branchId,
+      actorProfileId: workspace.profileId,
+      action: "commit_ocr_vehicle_title",
+      entityType: "vehicle",
+      entityId: vehicle.id,
+      newValues: { vin, stockNumber: vehicle.stock_number },
+    });
+
+    revalidatePath("/ai/automation");
+    revalidatePath("/vehicles");
+    return { success: true, vehicleId: vehicle.id };
+  } else if (documentType === "supplier_invoice") {
+    const supplierName = (formData.get("supplierName") as string) || data.supplierName || "AutoParts Depot Ltd";
+    const invoiceNumber = (formData.get("invoiceNumber") as string) || data.invoiceNumber || "INV-" + Math.floor(100000 + Math.random() * 900000);
+    const amount = Number(formData.get("amount")) || data.amount || 0;
+    const partNumber = (formData.get("partNumber") as string) || data.partNumber || "BP-202X";
+    const partName = (formData.get("partName") as string) || data.partName || "Heavy-Duty Front Brake Pads";
+    const quantity = Number(formData.get("quantity")) || data.quantity || 1;
+
+    let { data: supplier } = await supabase
+      .from("part_suppliers")
+      .select("id")
+      .eq("company_id", workspace.companyId)
+      .eq("supplier_name", supplierName)
+      .limit(1)
+      .single();
+
+    if (!supplier) {
+      const { data: newSupplier, error: supErr } = await supabase
+        .from("part_suppliers")
+        .insert({
+          company_id: workspace.companyId,
+          supplier_name: supplierName,
+          status: "active",
+          created_by: workspace.profileId,
+          updated_by: workspace.profileId,
+        })
+        .select("id")
+        .single();
+      if (supErr || !newSupplier) {
+        return { error: supErr?.message ?? "Failed to create supplier." };
+      }
+      supplier = newSupplier;
+    }
+
+    let activeBranchId = branchId;
+    if (!activeBranchId) {
+      const { data: branch } = await supabase
+        .from("branches")
+        .select("id")
+        .eq("company_id", workspace.companyId)
+        .limit(1)
+        .single();
+      activeBranchId = branch?.id || null;
+    }
+
+    const { data: po, error: poErr } = await supabase
+      .from("part_purchase_orders")
+      .insert({
+        company_id: workspace.companyId,
+        branch_id: activeBranchId,
+        supplier_id: supplier.id,
+        purchase_order_number: "PPO-" + Math.floor(100000 + Math.random() * 900000),
+        status: "ordered",
+        notes: `OCR Invoice Ingest: ${invoiceNumber}`,
+        tax_amount: 0,
+        currency_code: "AED",
+        created_by: workspace.profileId,
+        updated_by: workspace.profileId,
+      })
+      .select("id, purchase_order_number")
+      .single();
+
+    if (poErr) {
+      return { error: poErr.message };
+    }
+
+    let { data: part } = await supabase
+      .from("parts")
+      .select("id")
+      .eq("company_id", workspace.companyId)
+      .eq("part_number", partNumber)
+      .limit(1)
+      .single();
+
+    const unitCost = quantity > 0 ? Math.round(amount / quantity * 100) / 100 : amount;
+
+    if (!part) {
+      const { data: newPart, error: partErr } = await supabase
+        .from("parts")
+        .insert({
+          company_id: workspace.companyId,
+          part_number: partNumber,
+          name: partName,
+          unit_cost: unitCost,
+          selling_price: Math.round(unitCost * 1.5),
+          currency_code: "AED",
+          status: "active",
+          created_by: workspace.profileId,
+          updated_by: workspace.profileId,
+        })
+        .select("id")
+        .single();
+      if (partErr || !newPart) {
+        return { error: partErr?.message ?? "Failed to create part catalog record." };
+      }
+      part = newPart;
+    }
+
+    const { data: poItem, error: poItemErr } = await supabase
+      .from("part_purchase_order_items")
+      .insert({
+        company_id: workspace.companyId,
+        purchase_order_id: po.id,
+        part_id: part.id,
+        description: partName,
+        quantity_ordered: quantity,
+        unit_cost: unitCost,
+        line_total: amount,
+        created_by: workspace.profileId,
+        updated_by: workspace.profileId,
+      })
+      .select("id")
+      .single();
+
+    if (poItemErr) {
+      return { error: poItemErr.message };
+    }
+
+    await supabase
+      .from("ai_document_extractions")
+      .update({
+        status: "completed",
+        updated_by: workspace.profileId,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", extractionId)
+      .eq("company_id", workspace.companyId);
+
+    await writeAuditLog({
+      companyId: workspace.companyId,
+      branchId: activeBranchId,
+      actorProfileId: workspace.profileId,
+      action: "commit_ocr_supplier_invoice",
+      entityType: "part_purchase_order",
+      entityId: po.id,
+      newValues: { invoiceNumber, poNumber: po.purchase_order_number },
+    });
+
+    revalidatePath("/ai/automation");
+    revalidatePath("/parts/inventory");
+    return { success: true, purchaseOrderId: po.id };
+  }
+
+  return { error: "Unknown document type." };
+}
+
+export async function resolveAiProposal(formData: FormData) {
+  const { workspace } = await requireManageAiAutomationPermission();
+  const proposalId = formData.get("proposalId") as string;
+  const decision = formData.get("decision") as "approved" | "dismissed";
+  const notes = formOptional(formData.get("notes"));
+
+  if (!proposalId || !["approved", "dismissed"].includes(decision)) {
+    return { error: "Invalid resolution request." };
+  }
+
+  const supabase = createServiceRoleClient();
+
+  const { data: proposal, error: fetchErr } = await supabase
+    .from("ai_automation_proposals")
+    .select("*")
+    .eq("id", proposalId)
+    .eq("company_id", workspace.companyId)
+    .single();
+
+  if (fetchErr || !proposal) {
+    return { error: "AI proposal not found." };
+  }
+
+  if (proposal.status !== "pending") {
+    return { error: "AI proposal is already resolved." };
+  }
+
+  if (decision === "dismissed") {
+    await supabase
+      .from("ai_automation_proposals")
+      .update({
+        status: "dismissed",
+        resolved_by: workspace.profileId,
+        resolved_at: new Date().toISOString(),
+        error_message: notes || null,
+        updated_by: workspace.profileId,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", proposalId)
+      .eq("company_id", workspace.companyId);
+
+    revalidatePath("/ai/automation");
+    return { success: true };
+  }
+
+  try {
+    const proposedPayload = proposal.proposed_payload as Record<string, any>;
+    const branchId = proposal.branch_id;
+
+    if (proposal.proposal_type === "lead_follow_up") {
+      const leadId = proposedPayload.leadId;
+      const messageBody = proposedPayload.messageBody;
+      const scheduledAt = proposedPayload.scheduledAt || new Date().toISOString();
+
+      if (!leadId) {
+        throw new Error("Lead ID is missing in proposal payload.");
+      }
+
+      const { data: followUp, error: followUpErr } = await supabase
+        .from("follow_ups")
+        .insert({
+          company_id: workspace.companyId,
+          branch_id: branchId,
+          lead_id: leadId,
+          title: "AI CRM Outbound Follow-up",
+          description: messageBody || "Autonomous lead nurturing follow-up message.",
+          status: "pending",
+          due_at: scheduledAt,
+          created_by: workspace.profileId,
+          updated_by: workspace.profileId,
+        })
+        .select("id")
+        .single();
+
+      if (followUpErr) {
+        throw followUpErr;
+      }
+
+      await writeAuditLog({
+        companyId: workspace.companyId,
+        branchId,
+        actorProfileId: workspace.profileId,
+        action: "execute_proposal_lead_follow_up",
+        entityType: "follow_up",
+        entityId: followUp.id,
+        newValues: { leadId },
+      });
+    } else if (proposal.proposal_type === "parts_reorder") {
+      const partNumber = proposedPayload.partNumber || "BP-202X";
+      const partName = proposedPayload.partName || "Heavy-Duty Front Brake Pads";
+      const supplierName = proposedPayload.supplierName || "AutoParts Depot Ltd";
+      const quantity = Number(proposedPayload.quantity) || 10;
+      const estimatedUnitCost = Number(proposedPayload.estimatedUnitCost) || 0;
+
+      let { data: supplier } = await supabase
+        .from("part_suppliers")
+        .select("id")
+        .eq("company_id", workspace.companyId)
+        .eq("supplier_name", supplierName)
+        .limit(1)
+        .single();
+
+      if (!supplier) {
+        const { data: newSupplier, error: supErr } = await supabase
+          .from("part_suppliers")
+          .insert({
+            company_id: workspace.companyId,
+            supplier_name: supplierName,
+            status: "active",
+            created_by: workspace.profileId,
+            updated_by: workspace.profileId,
+          })
+          .select("id")
+          .single();
+        if (supErr || !newSupplier) {
+          throw new Error(supErr?.message ?? "Failed to create parts supplier.");
+        }
+        supplier = newSupplier;
+      }
+
+      const { data: po, error: poErr } = await supabase
+        .from("part_purchase_orders")
+        .insert({
+          company_id: workspace.companyId,
+          branch_id: branchId,
+          supplier_id: supplier.id,
+          purchase_order_number: "PPO-" + Math.floor(100000 + Math.random() * 900000),
+          status: "ordered",
+          notes: `AI Reorder Proposal Resolution: ${partName}`,
+          tax_amount: 0,
+          currency_code: "AED",
+          created_by: workspace.profileId,
+          updated_by: workspace.profileId,
+        })
+        .select("id, purchase_order_number")
+        .single();
+
+      if (poErr) {
+        throw poErr;
+      }
+
+      let { data: part } = await supabase
+        .from("parts")
+        .select("id")
+        .eq("company_id", workspace.companyId)
+        .eq("part_number", partNumber)
+        .limit(1)
+        .single();
+
+      if (!part) {
+        const { data: newPart, error: partErr } = await supabase
+          .from("parts")
+          .insert({
+            company_id: workspace.companyId,
+            part_number: partNumber,
+            name: partName,
+            unit_cost: estimatedUnitCost,
+            selling_price: Math.round(estimatedUnitCost * 1.5),
+            currency_code: "AED",
+            status: "active",
+            created_by: workspace.profileId,
+            updated_by: workspace.profileId,
+          })
+          .select("id")
+          .single();
+        if (partErr || !newPart) {
+          throw new Error(partErr?.message ?? "Failed to create part catalog record.");
+        }
+        part = newPart;
+      }
+
+      const { error: poItemErr } = await supabase
+        .from("part_purchase_order_items")
+        .insert({
+          company_id: workspace.companyId,
+          purchase_order_id: po.id,
+          part_id: part.id,
+          description: partName,
+          quantity_ordered: quantity,
+          unit_cost: estimatedUnitCost,
+          line_total: quantity * estimatedUnitCost,
+          created_by: workspace.profileId,
+          updated_by: workspace.profileId,
+        });
+
+      if (poItemErr) {
+        throw poItemErr;
+      }
+
+      await writeAuditLog({
+        companyId: workspace.companyId,
+        branchId,
+        actorProfileId: workspace.profileId,
+        action: "execute_proposal_parts_reorder",
+        entityType: "part_purchase_order",
+        entityId: po.id,
+        newValues: { poNumber: po.purchase_order_number, partNumber },
+      });
+    } else if (proposal.proposal_type === "vehicle_marketing") {
+      const vehicleId = proposedPayload.vehicleId;
+      const headline = proposedPayload.headline;
+      const description = proposedPayload.description;
+      const askingPrice = Number(proposedPayload.askingPrice) || 0;
+      const currencyCode = proposedPayload.currencyCode || "AED";
+
+      if (!vehicleId) {
+        throw new Error("Vehicle ID is missing in proposal payload.");
+      }
+
+      const { data: vehicle, error: vehErr } = await supabase
+        .from("vehicles")
+        .select("branch_id, brand, model, year, selling_price, currency_code, export_available")
+        .eq("id", vehicleId)
+        .eq("company_id", workspace.companyId)
+        .single();
+
+      if (vehErr || !vehicle) {
+        throw new Error("Vehicle associated with proposal was not found.");
+      }
+
+      const activeBranchId = branchId || vehicle.branch_id || null;
+      const listingTitle = headline || `Listing for ${vehicle.year} ${vehicle.brand} ${vehicle.model}`;
+
+      const { data: listing, error: listingErr } = await supabase
+        .from("marketing_listings")
+        .insert({
+          company_id: workspace.companyId,
+          branch_id: activeBranchId,
+          vehicle_id: vehicleId,
+          listing_number: "LST-" + Math.floor(100000 + Math.random() * 900000),
+          title: listingTitle,
+          short_description: headline || "",
+          full_description: description || "",
+          price: askingPrice || vehicle.selling_price || 0,
+          currency_code: currencyCode,
+          export_available: vehicle.export_available ?? true,
+          status: "active",
+          published_at: new Date().toISOString(),
+          created_by: workspace.profileId,
+          updated_by: workspace.profileId,
+        })
+        .select("id, listing_number")
+        .single();
+
+      if (listingErr) {
+        throw listingErr;
+      }
+
+      await writeAuditLog({
+        companyId: workspace.companyId,
+        branchId: activeBranchId,
+        actorProfileId: workspace.profileId,
+        action: "execute_proposal_vehicle_marketing",
+        entityType: "marketing_listing",
+        entityId: listing.id,
+        newValues: { vehicleId, listingNumber: listing.listing_number },
+      });
+    }
+
+    await supabase
+      .from("ai_automation_proposals")
+      .update({
+        status: "approved",
+        resolved_by: workspace.profileId,
+        resolved_at: new Date().toISOString(),
+        error_message: notes || null,
+        updated_by: workspace.profileId,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", proposalId)
+      .eq("company_id", workspace.companyId);
+
+    revalidatePath("/ai/automation");
+    return { success: true };
+  } catch (err: any) {
+    await supabase
+      .from("ai_automation_proposals")
+      .update({
+        status: "failed",
+        error_message: err?.message || "Execution failed.",
+        updated_by: workspace.profileId,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("id", proposalId)
+      .eq("company_id", workspace.companyId);
+
+    revalidatePath("/ai/automation");
+    return { error: err?.message || "Execution of AI proposal failed." };
+  }
 }

@@ -28,12 +28,14 @@ export const messageChannels = [
   "phone",
   "whatsapp",
   "email",
+  "sms",
   "instagram",
   "facebook",
   "website",
   "showroom",
   "internal",
 ] as const;
+
 
 const optionalUuid = z.string().uuid().optional();
 
@@ -93,4 +95,63 @@ export const logLeadMessageSchema = leadIdSchema.extend({
   subject: z.string().max(160).optional(),
   body: z.string().min(2).max(3000),
 });
+
+export const providerTypes = ["whatsapp", "email", "sms"] as const;
+export const outboundMessageStatuses = [
+  "draft",
+  "pending_approval",
+  "queued",
+  "sent",
+  "delivered",
+  "read",
+  "failed",
+] as const;
+
+export const providerSchema = z.object({
+  id: z.string().uuid().optional(),
+  companyId: z.string().uuid(),
+  branchId: z.string().uuid().optional(),
+  providerType: z.enum(providerTypes),
+  providerName: z.string().min(2).max(100),
+  config: z.record(z.string(), z.unknown()),
+  isActive: z.boolean().default(true),
+});
+
+export const templateSchema = z.object({
+  id: z.string().uuid().optional(),
+  companyId: z.string().uuid(),
+  name: z.string().min(2).max(100),
+  channel: z.enum(messageChannels),
+  subject: z.string().max(200).optional(),
+  body: z.string().min(2).max(5000),
+  variables: z.array(z.string()).default([]),
+  language: z.string().min(2).max(10).default("en"),
+  isActive: z.boolean().default(true),
+});
+
+export const consentSchema = z.object({
+  companyId: z.string().uuid(),
+  customerId: z.string().uuid().optional(),
+  leadId: z.string().uuid().optional(),
+  channel: z.enum(messageChannels),
+  isGranted: z.boolean(),
+  consentSource: z.string().min(2).max(100).default("verbal"),
+});
+
+export const outboundMessageSchema = z.object({
+  id: z.string().uuid().optional(),
+  companyId: z.string().uuid(),
+  branchId: z.string().uuid(),
+  providerId: z.string().uuid().optional(),
+  leadId: z.string().uuid().optional(),
+  customerId: z.string().uuid().optional(),
+  channel: z.enum(messageChannels),
+  recipientAddress: z.string().min(2).max(200),
+  subject: z.string().max(200).optional(),
+  body: z.string().min(1),
+  templateId: z.string().uuid().optional(),
+  templateVariables: z.record(z.string(), z.unknown()).default({}),
+  status: z.enum(outboundMessageStatuses).default("draft"),
+});
+
 

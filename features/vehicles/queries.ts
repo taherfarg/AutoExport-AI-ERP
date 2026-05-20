@@ -67,6 +67,7 @@ export type VehiclePermissions = {
   canDelete: boolean;
   canUploadDocuments: boolean;
   canVerifyDocuments: boolean;
+  canManageIntelligence: boolean;
 };
 
 export type VehiclePhotoRow = {
@@ -120,6 +121,84 @@ export type VehiclePricingRow = VehicleListRow & {
     | null;
 };
 
+export type VinDecodeRequestRow = {
+  id: string;
+  vin: string;
+  provider: string;
+  status: string;
+  decoded_brand: string | null;
+  decoded_model: string | null;
+  decoded_year: number | null;
+  decoded_trim: string | null;
+  decoded_body_type: string | null;
+  decoded_engine: string | null;
+  decoded_transmission: string | null;
+  confidence_score: number | null;
+  notes: string | null;
+  created_at: string;
+};
+
+export type VehicleMarketValueRow = {
+  id: string;
+  provider: string;
+  market_country_code: string;
+  market_currency_code: string;
+  market_low: number;
+  market_average: number;
+  market_high: number;
+  recommended_price: number;
+  confidence_score: number | null;
+  sample_size: number;
+  notes: string | null;
+  created_at: string;
+};
+
+export type VehicleCompetitorPriceRow = {
+  id: string;
+  source_name: string;
+  competitor_name: string | null;
+  listing_url: string | null;
+  price: number;
+  currency_code: string;
+  mileage: number;
+  location: string | null;
+  observed_at: string;
+  notes: string | null;
+};
+
+export type VehicleHistoryReportRow = {
+  id: string;
+  provider: string;
+  provider_report_id: string | null;
+  report_url: string | null;
+  report_status: string;
+  risk_summary: string;
+  accident_count: number;
+  owner_count: number;
+  odometer_issue: boolean;
+  salvage_or_theft_flag: boolean;
+  notes: string | null;
+  created_at: string;
+};
+
+export type VehicleEnrichmentLogRow = {
+  id: string;
+  event_type: string;
+  source_table: string | null;
+  source_id: string | null;
+  title: string;
+  description: string | null;
+  created_at: string;
+};
+
+export type VehicleIntelligence = {
+  latestVinDecode: VinDecodeRequestRow | null;
+  latestMarketValue: VehicleMarketValueRow | null;
+  competitorPrices: VehicleCompetitorPriceRow[];
+  latestHistoryReport: VehicleHistoryReportRow | null;
+  enrichmentLogs: VehicleEnrichmentLogRow[];
+};
+
 export async function getVehiclePermissions(companyId: string): Promise<VehiclePermissions> {
   const permissions = await getCurrentPermissionSet(companyId);
 
@@ -131,6 +210,7 @@ export async function getVehiclePermissions(companyId: string): Promise<VehicleP
     canDelete: permissions.has(PERMISSIONS.DELETE_VEHICLE),
     canUploadDocuments: permissions.has(PERMISSIONS.UPLOAD_DOCUMENTS),
     canVerifyDocuments: permissions.has(PERMISSIONS.VERIFY_DOCUMENTS),
+    canManageIntelligence: permissions.has(PERMISSIONS.MANAGE_VEHICLE_INTELLIGENCE),
   };
 }
 
@@ -217,6 +297,98 @@ export async function getVehiclePricingRows(companyId: string) {
 export async function getVehiclePricingRow(companyId: string, vehicleId: string) {
   const rows = await getVehiclePricingRows(companyId);
   return rows.find((row) => row.id === vehicleId) ?? rows[0] ?? null;
+}
+
+export async function getVehicleIntelligence(companyId: string, vehicleId: string): Promise<VehicleIntelligence> {
+  const supabase = await createClient();
+  const [
+    vinDecodeResult,
+    marketValueResult,
+    competitorPricesResult,
+    historyReportResult,
+    enrichmentLogsResult,
+  ] = await Promise.all([
+    supabase
+      .from("vin_decode_requests")
+      .select("id, vin, provider, status, decoded_brand, decoded_model, decoded_year, decoded_trim, decoded_body_type, decoded_engine, decoded_transmission, confidence_score, notes, created_at")
+      .eq("company_id", companyId)
+      .eq("vehicle_id", vehicleId)
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false })
+      .limit(1),
+    supabase
+      .from("vehicle_market_values")
+      .select("id, provider, market_country_code, market_currency_code, market_low, market_average, market_high, recommended_price, confidence_score, sample_size, notes, created_at")
+      .eq("company_id", companyId)
+      .eq("vehicle_id", vehicleId)
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false })
+      .limit(1),
+    supabase
+      .from("vehicle_competitor_prices")
+      .select("id, source_name, competitor_name, listing_url, price, currency_code, mileage, location, observed_at, notes")
+      .eq("company_id", companyId)
+      .eq("vehicle_id", vehicleId)
+      .is("deleted_at", null)
+      .order("observed_at", { ascending: false })
+      .limit(8),
+    supabase
+      .from("vehicle_history_reports")
+      .select("id, provider, provider_report_id, report_url, report_status, risk_summary, accident_count, owner_count, odometer_issue, salvage_or_theft_flag, notes, created_at")
+      .eq("company_id", companyId)
+      .eq("vehicle_id", vehicleId)
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false })
+      .limit(1),
+    supabase
+      .from("vehicle_enrichment_logs")
+      .select("id, event_type, source_table, source_id, title, description, created_at")
+      .eq("company_id", companyId)
+      .eq("vehicle_id", vehicleId)
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false })
+      .limit(8),
+  ]);
+
+  for (const result of [vinDecodeResult, marketValueResult, competitorPricesResult, historyReportResult, enrichmentLogsResult]) {
+    if (result.error) {
+      throw new Error(result.error.message);
+    }
+  }
+
+  return {
+    latestVinDecode: ((vinDecodeResult.data ?? [])[0] ?? null) as VinDecodeRequestRow | null,
+    latestMarketValue: ((marketValueResult.data ?? [])[0] ?? null) as VehicleMarketValueRow | null,
+    competitorPrices: (competitorPricesResult.data ?? []) as VehicleCompetitorPriceRow[],
+    latestHistoryReport: ((historyReportResult.data ?? [])[0] ?? null) as VehicleHistoryReportRow | null,
+    enrichmentLogs: (enrichmentLogsResult.data ?? []) as VehicleEnrichmentLogRow[],
+  };
+}
+
+export async function getVehiclePricingIntelligence(companyId: string) {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("vehicle_market_values")
+    .select("vehicle_id, market_average, recommended_price, market_currency_code, sample_size, created_at")
+    .eq("company_id", companyId)
+    .is("deleted_at", null)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return new Map(
+    (data ?? []).map((row) => [
+      row.vehicle_id as string,
+      {
+        marketAverage: Number(row.market_average),
+        recommendedPrice: Number(row.recommended_price),
+        currencyCode: String(row.market_currency_code),
+        sampleSize: Number(row.sample_size),
+      },
+    ]),
+  );
 }
 
 export async function getVehicleStatusHistory(companyId: string, vehicleId: string) {

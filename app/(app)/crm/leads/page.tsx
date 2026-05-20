@@ -13,7 +13,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getBranches } from "@/features/branches/queries";
-import { createLead } from "@/features/crm/actions";
 import {
   getCrmPermissions,
   getLeadPipeline,
@@ -24,7 +23,8 @@ import { getCompanyUsers } from "@/features/users/queries";
 import { getCurrentWorkspace } from "@/lib/auth/current-workspace";
 import { formatCrmStatus, isFollowUpOverdue } from "@/lib/crm/format";
 import { formatMoney } from "@/lib/vehicles/format";
-import { customerTypes, leadSources, leadStatuses } from "@/lib/validations/crm";
+import { leadSources, leadStatuses } from "@/lib/validations/crm";
+import { LeadCreateForm } from "./lead-create-form";
 
 type LeadsPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -254,93 +254,13 @@ export default async function LeadsPage({ searchParams }: LeadsPageProps) {
           ) : !defaultBranchId ? (
             <p className="text-sm text-slate-500">Create a branch before adding leads.</p>
           ) : (
-            <form action={createLead} className="grid gap-4 md:grid-cols-4">
-              <input type="hidden" name="companyId" value={workspace.companyId} />
-              <div className="grid gap-2">
-                <Label htmlFor="leadBranchId">Branch</Label>
-                <select id="leadBranchId" name="branchId" defaultValue={defaultBranchId} className="h-9 rounded-md border bg-white px-3 text-sm">
-                  {branches.map((branch) => (
-                    <option key={branch.id} value={branch.id}>{branch.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="leadName">Name</Label>
-                <Input id="leadName" name="name" required />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="customerType">Type</Label>
-                <select id="customerType" name="customerType" defaultValue="individual" className="h-9 rounded-md border bg-white px-3 text-sm">
-                  {customerTypes.map((type) => (
-                    <option key={type} value={type}>{formatCrmStatus(type)}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="leadSource">Source</Label>
-                <select id="leadSource" name="leadSource" defaultValue="website" className="h-9 rounded-md border bg-white px-3 text-sm">
-                  {leadSources.map((source) => (
-                    <option key={source} value={source}>{formatCrmStatus(source)}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="phone">Phone</Label>
-                <Input id="phone" name="phone" />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="whatsapp">WhatsApp</Label>
-                <Input id="whatsapp" name="whatsapp" />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="email">Email</Label>
-                <Input id="email" name="email" type="email" />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="city">City</Label>
-                <Input id="city" name="city" />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="countryCode">Country</Label>
-                <Input id="countryCode" name="countryCode" defaultValue="AE" maxLength={2} />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="preferredBrand">Preferred brand</Label>
-                <Input id="preferredBrand" name="preferredBrand" />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="preferredModel">Preferred model</Label>
-                <Input id="preferredModel" name="preferredModel" />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="budget">Budget</Label>
-                <Input id="budget" name="budget" type="number" min="0" />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="currencyCode">Currency</Label>
-                <Input id="currencyCode" name="currencyCode" defaultValue="AED" maxLength={3} />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="language">Language</Label>
-                <Input id="language" name="language" defaultValue="en" />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="assignedSalespersonId">Owner</Label>
-                <select id="assignedSalespersonId" name="assignedSalespersonId" defaultValue={workspace.profileId} className="h-9 rounded-md border bg-white px-3 text-sm">
-                  <option value="">Unassigned</option>
-                  {userOptions.map((user) => (
-                    <option key={user.id} value={user.id}>{user.full_name}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="grid gap-2 md:col-span-4">
-                <Label htmlFor="notes">Notes</Label>
-                <textarea id="notes" name="notes" className="min-h-20 rounded-md border bg-white px-3 py-2 text-sm" />
-              </div>
-              <div className="flex items-end md:col-span-4">
-                <Button type="submit">Create lead</Button>
-              </div>
-            </form>
+            <LeadCreateForm
+              branches={branches}
+              companyId={workspace.companyId}
+              defaultBranchId={defaultBranchId}
+              profileId={workspace.profileId}
+              users={userOptions}
+            />
           )}
         </CardContent>
       </Card>

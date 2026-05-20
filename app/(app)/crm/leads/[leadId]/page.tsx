@@ -20,6 +20,9 @@ import {
   getLeadFollowUps,
   getLeadMessages,
   getMatchingVehicles,
+  getCustomerConsents,
+  getOutboundMessagesTimeline,
+  getMessageTemplates,
 } from "@/features/crm/queries";
 import { getCompanyUsers } from "@/features/users/queries";
 import { getCurrentWorkspace } from "@/lib/auth/current-workspace";
@@ -27,6 +30,8 @@ import { formatCrmStatus, isFollowUpOverdue } from "@/lib/crm/format";
 import { formatMoney } from "@/lib/vehicles/format";
 import { leadStatuses } from "@/lib/validations/crm";
 import { LeadFollowUpForm, LeadMessageForm } from "./lead-activity-forms";
+import { ConsentManager } from "@/components/crm/consent-manager";
+import { OutboundOutreach } from "@/components/crm/outbound-outreach";
 
 type LeadDetailPageProps = {
   params: Promise<{ leadId: string }>;
@@ -69,12 +74,24 @@ export default async function LeadDetailPage({ params, searchParams }: LeadDetai
     notFound();
   }
 
-  const [permissions, followUps, messages, matchingVehicles, users] = await Promise.all([
+  const [
+    permissions,
+    followUps,
+    messages,
+    matchingVehicles,
+    users,
+    consents,
+    outboundTimeline,
+    templates,
+  ] = await Promise.all([
     getCrmPermissions(workspace.companyId),
     getLeadFollowUps(workspace.companyId, leadId),
     getLeadMessages(workspace.companyId, leadId),
     getMatchingVehicles(workspace.companyId, lead),
     getCompanyUsers(workspace.companyId),
+    getCustomerConsents(workspace.companyId, { leadId }),
+    getOutboundMessagesTimeline(workspace.companyId, leadId),
+    getMessageTemplates(workspace.companyId),
   ]);
   const userOptions = (users as unknown as CompanyUserRow[])
     .map(profileFrom)
@@ -247,9 +264,23 @@ export default async function LeadDetailPage({ params, searchParams }: LeadDetai
               ) : null}
             </CardContent>
           </Card>
+
+          <OutboundOutreach
+            companyId={workspace.companyId}
+            branchId={lead.branch_id}
+            lead={lead}
+            initialMessages={outboundTimeline}
+            templates={templates}
+          />
         </div>
 
         <div className="space-y-6">
+          <ConsentManager
+            companyId={workspace.companyId}
+            leadId={lead.id}
+            initialConsents={consents}
+          />
+
           <Card>
             <CardHeader>
               <CardTitle>Follow-ups</CardTitle>

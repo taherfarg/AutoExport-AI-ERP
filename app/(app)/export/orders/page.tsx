@@ -13,7 +13,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getBranches } from "@/features/branches/queries";
-import { createExportOrder, createImportOrder } from "@/features/export/actions";
 import {
   getDestinationCountries,
   getExportDashboardStats,
@@ -26,7 +25,8 @@ import { getVehicles } from "@/features/vehicles/queries";
 import { getCurrentWorkspace } from "@/lib/auth/current-workspace";
 import { formatExportStatus } from "@/lib/export/format";
 import { formatMoney } from "@/lib/vehicles/format";
-import { shippingMethods, shippingStatuses } from "@/lib/validations/export";
+import { shippingStatuses } from "@/lib/validations/export";
+import { ExportOrderCreateForm, ImportOrderCreateForm } from "./export-action-forms";
 
 type ExportOrdersPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -242,52 +242,7 @@ export default async function ExportOrdersPage({ searchParams }: ExportOrdersPag
               )}
             </div>
             {permissions.canManageExports && defaultBranchId ? (
-              <form action={createImportOrder} className="grid gap-3 rounded-md border p-4">
-                <input type="hidden" name="companyId" value={workspace.companyId} />
-                <input type="hidden" name="branchId" value={defaultBranchId} />
-                <div className="grid gap-2">
-                  <Label htmlFor="supplierName">Supplier</Label>
-                  <Input id="supplierName" name="supplierName" defaultValue="Belgium Auto Supplier" required />
-                </div>
-                <div className="grid gap-3 md:grid-cols-2">
-                  <div className="grid gap-2">
-                    <Label htmlFor="originCountryCode">Origin</Label>
-                    <Input id="originCountryCode" name="originCountryCode" defaultValue="BE" maxLength={2} required />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="destinationCountryCodeImport">Destination</Label>
-                    <Input id="destinationCountryCodeImport" name="destinationCountryCode" defaultValue="AE" maxLength={2} required />
-                  </div>
-                </div>
-                <div className="grid gap-3 md:grid-cols-2">
-                  <div className="grid gap-2">
-                    <Label htmlFor="originPort">Origin port</Label>
-                    <Input id="originPort" name="originPort" defaultValue="Antwerp" />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="destinationPortImport">Destination port</Label>
-                    <Input id="destinationPortImport" name="destinationPort" defaultValue="Jebel Ali" />
-                  </div>
-                </div>
-                <div className="grid gap-3 md:grid-cols-2">
-                  <div className="grid gap-2">
-                    <Label htmlFor="shippingMethodImport">Method</Label>
-                    <select id="shippingMethodImport" name="shippingMethod" defaultValue="ro_ro" className="h-9 rounded-md border bg-white px-3 text-sm">
-                      {shippingMethods.map((method) => (
-                        <option key={method} value={method}>{formatExportStatus(method)}</option>
-                      ))}
-                    </select>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="vehicleCount">Vehicle count</Label>
-                    <Input id="vehicleCount" name="vehicleCount" type="number" min="1" defaultValue="1" required />
-                  </div>
-                </div>
-                <Button type="submit" variant="outline">
-                  <Plus className="h-4 w-4" />
-                  Create import order
-                </Button>
-              </form>
+              <ImportOrderCreateForm companyId={workspace.companyId} defaultBranchId={defaultBranchId} />
             ) : null}
           </div>
         </CardContent>
@@ -304,95 +259,18 @@ export default async function ExportOrdersPage({ searchParams }: ExportOrdersPag
           ) : !defaultBranchId || !defaultVehicle ? (
             <p className="text-sm text-slate-500">Add an export-available vehicle before creating export orders.</p>
           ) : (
-            <form action={createExportOrder} className="grid gap-4 md:grid-cols-4">
-              <input type="hidden" name="companyId" value={workspace.companyId} />
-              <div className="grid gap-2">
-                <Label htmlFor="branchIdForm">Branch</Label>
-                <select id="branchIdForm" name="branchId" defaultValue={defaultBranchId} className="h-9 rounded-md border bg-white px-3 text-sm">
-                  {branches.map((branch) => (
-                    <option key={branch.id} value={branch.id}>{branch.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="grid gap-2 md:col-span-2">
-                <Label htmlFor="vehicleId">Vehicle</Label>
-                <select id="vehicleId" name="vehicleId" defaultValue={defaultVehicle.id} className="h-9 rounded-md border bg-white px-3 text-sm">
-                  {vehicles.map((vehicle) => (
-                    <option key={vehicle.id} value={vehicle.id}>
-                      {vehicle.stock_number} - {vehicle.year} {vehicle.brand} {vehicle.model}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="destinationCountryCode">Destination</Label>
-                <select id="destinationCountryCode" name="destinationCountryCode" defaultValue="DZ" className="h-9 rounded-md border bg-white px-3 text-sm">
-                  {destinations.map((country) => (
-                    <option key={country.country_code} value={country.country_code}>{country.country_name}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="destinationPort">Destination port</Label>
-                <Input id="destinationPort" name="destinationPort" defaultValue="Algiers" required />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="shippingMethod">Shipping method</Label>
-                <select id="shippingMethod" name="shippingMethod" defaultValue="container" className="h-9 rounded-md border bg-white px-3 text-sm">
-                  {shippingMethods.map((method) => (
-                    <option key={method} value={method}>{formatExportStatus(method)}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="shippingCompanyId">Shipping partner</Label>
-                <select id="shippingCompanyId" name="shippingCompanyId" defaultValue={shippingPartners[0]?.id ?? ""} className="h-9 rounded-md border bg-white px-3 text-sm">
-                  <option value="">No partner</option>
-                  {shippingPartners.map((partner) => (
-                    <option key={partner.id} value={partner.id}>{partner.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="logisticsPartnerId">Customs broker</Label>
-                <select id="logisticsPartnerId" name="logisticsPartnerId" defaultValue={brokerPartners[0]?.id ?? ""} className="h-9 rounded-md border bg-white px-3 text-sm">
-                  <option value="">No broker</option>
-                  {brokerPartners.map((partner) => (
-                    <option key={partner.id} value={partner.id}>{partner.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="bookingNumber">Booking number</Label>
-                <Input id="bookingNumber" name="bookingNumber" />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="containerNumber">Container number</Label>
-                <Input id="containerNumber" name="containerNumber" />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="blNumber">BL number</Label>
-                <Input id="blNumber" name="blNumber" />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="estimatedDepartureDate">ETD</Label>
-                <Input id="estimatedDepartureDate" name="estimatedDepartureDate" type="date" defaultValue={dateIn(7)} />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="estimatedArrivalDate">ETA</Label>
-                <Input id="estimatedArrivalDate" name="estimatedArrivalDate" type="date" defaultValue={dateIn(24)} />
-              </div>
-              <div className="grid gap-2 md:col-span-3">
-                <Label htmlFor="notes">Notes</Label>
-                <Input id="notes" name="notes" placeholder="Export handling notes" />
-              </div>
-              <div className="flex items-end">
-                <Button type="submit">
-                  <Ship className="h-4 w-4" />
-                  Create order
-                </Button>
-              </div>
-            </form>
+            <ExportOrderCreateForm
+              branches={branches}
+              brokerPartners={brokerPartners}
+              companyId={workspace.companyId}
+              defaultBranchId={defaultBranchId}
+              defaultVehicleId={defaultVehicle.id}
+              destinations={destinations}
+              eta={dateIn(24)}
+              etd={dateIn(7)}
+              shippingPartners={shippingPartners}
+              vehicles={vehicles}
+            />
           )}
         </CardContent>
       </Card>

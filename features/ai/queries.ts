@@ -202,3 +202,114 @@ export async function getAiDashboardData(companyId: string) {
     },
   };
 }
+
+export type AiAutomationAgentRow = {
+  id: string;
+  company_id: string;
+  branch_id: string | null;
+  agent_type: "crm_follow_up" | "parts_reorder" | "vehicle_marketing";
+  is_enabled: boolean;
+  status: "idle" | "scanning" | "error";
+  config: Record<string, unknown>;
+  last_scan_at: string | null;
+  error_message: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AiDocumentExtractionRow = {
+  id: string;
+  company_id: string;
+  branch_id: string | null;
+  file_path: string;
+  file_name: string;
+  file_type: string;
+  document_type: string;
+  status: "pending" | "completed" | "failed";
+  extracted_data: Record<string, unknown>;
+  raw_text: string | null;
+  error_message: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type AiAutomationProposalRow = {
+  id: string;
+  company_id: string;
+  branch_id: string | null;
+  agent_id: string | null;
+  proposal_type: "lead_follow_up" | "parts_reorder" | "vehicle_marketing";
+  title: string;
+  description: string;
+  justification: string;
+  proposed_payload: Record<string, unknown>;
+  status: "pending" | "approved" | "dismissed" | "failed";
+  resolved_by: string | null;
+  resolved_at: string | null;
+  error_message: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export async function getAiAutomationAgents(companyId: string): Promise<AiAutomationAgentRow[]> {
+  const supabase = await createClient();
+  let { data, error } = await supabase
+    .from("ai_automation_agents")
+    .select("*")
+    .eq("company_id", companyId)
+    .order("agent_type", { ascending: true });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  if (!data || data.length === 0) {
+    const defaultAgents = [
+      { company_id: companyId, agent_type: "crm_follow_up", is_enabled: false, status: "idle", config: {} },
+      { company_id: companyId, agent_type: "parts_reorder", is_enabled: false, status: "idle", config: {} },
+      { company_id: companyId, agent_type: "vehicle_marketing", is_enabled: false, status: "idle", config: {} },
+    ];
+    const { data: insertedData, error: insertError } = await supabase
+      .from("ai_automation_agents")
+      .insert(defaultAgents)
+      .select();
+
+    if (insertError) {
+      console.error("Failed to seed default AI automation agents:", insertError.message);
+    } else if (insertedData) {
+      data = insertedData;
+    }
+  }
+
+  return (data ?? []) as unknown as AiAutomationAgentRow[];
+}
+
+export async function getAiDocumentExtractions(companyId: string): Promise<AiDocumentExtractionRow[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("ai_document_extractions")
+    .select("*")
+    .eq("company_id", companyId)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (data ?? []) as unknown as AiDocumentExtractionRow[];
+}
+
+export async function getAiAutomationProposals(companyId: string): Promise<AiAutomationProposalRow[]> {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("ai_automation_proposals")
+    .select("*")
+    .eq("company_id", companyId)
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    throw new Error(error.message);
+  }
+
+  return (data ?? []) as unknown as AiAutomationProposalRow[];
+}

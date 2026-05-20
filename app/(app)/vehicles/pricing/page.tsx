@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { updateVehiclePricing } from "@/features/vehicles/actions";
 import {
+  getVehiclePricingIntelligence,
   getVehiclePermissions,
   getVehiclePricingRows,
 } from "@/features/vehicles/queries";
@@ -56,8 +57,12 @@ export default async function VehiclePricingPage({ searchParams }: PricingPagePr
   }
 
   const vehicleId = firstParam(params.vehicleId);
-  const vehicles = await getVehiclePricingRows(workspace.companyId);
+  const [vehicles, pricingIntelligence] = await Promise.all([
+    getVehiclePricingRows(workspace.companyId),
+    getVehiclePricingIntelligence(workspace.companyId),
+  ]);
   const selectedVehicle = vehicles.find((vehicle) => vehicle.id === vehicleId) ?? vehicles[0] ?? null;
+  const selectedIntelligence = selectedVehicle ? pricingIntelligence.get(selectedVehicle.id) : undefined;
   const cost = selectedVehicle?.vehicle_costs?.[0];
   const selectedVehicleId = selectedVehicle?.id ?? "";
   const purchasePrice = numberParam(params.purchasePrice, Number(selectedVehicle?.purchase_price ?? 0));
@@ -72,7 +77,7 @@ export default async function VehiclePricingPage({ searchParams }: PricingPagePr
   const otherExpenses = numberParam(params.otherExpenses, Number(selectedVehicle?.other_expenses ?? 0));
   const currencyConversionRate = numberParam(params.currencyConversionRate, 1);
   const targetProfitMargin = numberParam(params.targetProfitMargin, 12);
-  const marketPrice = numberParam(params.marketPrice, Number(selectedVehicle?.selling_price ?? 0));
+  const marketPrice = numberParam(params.marketPrice, selectedIntelligence?.marketAverage ?? Number(selectedVehicle?.selling_price ?? 0));
   const competitorPrice = numberParam(params.competitorPrice, 0);
   const discount = numberParam(params.discount, 0);
   const vatTax = numberParam(params.vatTax, 0);
@@ -198,6 +203,39 @@ export default async function VehiclePricingPage({ searchParams }: PricingPagePr
         </Card>
 
         <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Market intelligence</CardTitle>
+              <CardDescription>Latest valuation record for the selected vehicle.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3 text-sm">
+              {selectedIntelligence ? (
+                <>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-muted-foreground">Market average</span>
+                    <span className="font-medium">
+                      {formatMoney(selectedIntelligence.marketAverage, selectedIntelligence.currencyCode)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-muted-foreground">Recommended price</span>
+                    <span className="font-medium">
+                      {formatMoney(selectedIntelligence.recommendedPrice, selectedIntelligence.currencyCode)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-3">
+                    <span className="text-muted-foreground">Sample size</span>
+                    <span className="font-medium">{selectedIntelligence.sampleSize}</span>
+                  </div>
+                </>
+              ) : (
+                <p className="text-muted-foreground">
+                  Add a market valuation from the vehicle detail page to enrich this scenario.
+                </p>
+              )}
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle>AI pricing recommendation</CardTitle>

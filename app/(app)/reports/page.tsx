@@ -1,17 +1,13 @@
-import { BarChart3, CalendarClock, Download } from "lucide-react";
+import { BarChart3 } from "lucide-react";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { OperationsStatusBadge } from "@/components/operations/operations-status-badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { getBranches } from "@/features/branches/queries";
-import { createReportExport, createReportSchedule } from "@/features/operations/actions";
 import { getOperationsPermissions, getReportsDashboardData } from "@/features/operations/queries";
 import { getCurrentWorkspace } from "@/lib/auth/current-workspace";
 import { formatOperationsStatus } from "@/lib/operations/format";
-import { reportExportFormats, reportScheduleFrequencies, reportTypes } from "@/lib/validations/operations";
 import { formatMoney } from "@/lib/vehicles/format";
+import { ReportExportForm, ReportScheduleForm } from "./report-action-forms";
 
 export default async function ReportsPage() {
   const workspace = await getCurrentWorkspace();
@@ -22,18 +18,6 @@ export default async function ReportsPage() {
   ]);
   const defaultBranchId = branches[0]?.id;
   const defaultReport = data.savedReports[0];
-
-  async function exportFromForm(formData: FormData) {
-    "use server";
-
-    await createReportExport(formData);
-  }
-
-  async function scheduleFromForm(formData: FormData) {
-    "use server";
-
-    await createReportSchedule(formData);
-  }
 
   return (
     <div className="space-y-6">
@@ -116,27 +100,7 @@ export default async function ReportsPage() {
                 <CardDescription>Save a report export request with filters and audit trail.</CardDescription>
               </CardHeader>
               <CardContent>
-                <form action={exportFromForm} className="grid gap-3">
-                  <input type="hidden" name="companyId" value={workspace.companyId} />
-                  <input type="hidden" name="branchId" value={defaultBranchId ?? ""} />
-                  <input type="hidden" name="savedReportId" value={defaultReport?.id ?? ""} />
-                  <div className="grid gap-2">
-                    <Label htmlFor="reportType">Report type</Label>
-                    <select id="reportType" name="reportType" className="h-9 rounded-md border bg-white px-3 text-sm" defaultValue="inventory">
-                      {reportTypes.map((type) => <option key={type} value={type}>{formatOperationsStatus(type)}</option>)}
-                    </select>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="exportFormat">Format</Label>
-                    <select id="exportFormat" name="exportFormat" className="h-9 rounded-md border bg-white px-3 text-sm" defaultValue="csv">
-                      {reportExportFormats.map((format) => <option key={format} value={format}>{format.toUpperCase()}</option>)}
-                    </select>
-                  </div>
-                  <Button type="submit">
-                    <Download className="h-4 w-4" />
-                    Create export
-                  </Button>
-                </form>
+                <ReportExportForm branchId={defaultBranchId} companyId={workspace.companyId} savedReportId={defaultReport?.id} />
               </CardContent>
             </Card>
           ) : null}
@@ -148,29 +112,12 @@ export default async function ReportsPage() {
                 <CardDescription>Create recurring report delivery metadata.</CardDescription>
               </CardHeader>
               <CardContent>
-                <form action={scheduleFromForm} className="grid gap-3">
-                  <input type="hidden" name="companyId" value={workspace.companyId} />
-                  <input type="hidden" name="branchId" value={defaultBranchId ?? ""} />
-                  <input type="hidden" name="savedReportId" value={defaultReport.id} />
-                  <div className="grid gap-2">
-                    <Label htmlFor="scheduleName">Name</Label>
-                    <Input id="scheduleName" name="name" defaultValue="Weekly inventory digest" required />
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="frequency">Frequency</Label>
-                    <select id="frequency" name="frequency" className="h-9 rounded-md border bg-white px-3 text-sm" defaultValue="weekly">
-                      {reportScheduleFrequencies.map((frequency) => <option key={frequency} value={frequency}>{formatOperationsStatus(frequency)}</option>)}
-                    </select>
-                  </div>
-                  <div className="grid gap-2">
-                    <Label htmlFor="recipients">Recipients</Label>
-                    <Input id="recipients" name="recipients" defaultValue={workspace.email} />
-                  </div>
-                  <Button type="submit" variant="outline">
-                    <CalendarClock className="h-4 w-4" />
-                    Save schedule
-                  </Button>
-                </form>
+                <ReportScheduleForm
+                  branchId={defaultBranchId}
+                  companyId={workspace.companyId}
+                  email={workspace.email}
+                  savedReportId={defaultReport.id}
+                />
               </CardContent>
             </Card>
           ) : null}

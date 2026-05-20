@@ -8,6 +8,11 @@ out/
 # production
 build/
 
+# environment
+.env
+.env.*
+!.env.example
+
 # Supabase local state
 supabase/.branches/
 supabase/.temp/

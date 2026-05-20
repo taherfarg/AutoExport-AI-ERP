@@ -25,7 +25,11 @@ test("protected app routes redirect unauthenticated visitors", async ({ page }) 
     "/vehicles",
     "/crm/leads",
     "/sales/quotations",
+    "/sales/deals",
     "/documents",
+    "/finance/accounting",
+    "/service/workshop",
+    "/parts/inventory",
     "/ai",
     "/reports",
     "/operations/alerts",
@@ -41,6 +45,9 @@ test("protected app routes redirect unauthenticated visitors", async ({ page }) 
 });
 
 test("new workspace can add a branch, vehicle, and lead", async ({ page }) => {
+  page.on("console", (msg) => console.log("BROWSER LOG:", msg.text()));
+  page.on("pageerror", (err) => console.error("BROWSER PAGE ERROR:", err.message));
+
   const id = Date.now();
   const email = `phase2a-${id}@example.test`;
   const slug = `phase2a-${id}`;
@@ -81,6 +88,12 @@ test("new workspace can add a branch, vehicle, and lead", async ({ page }) => {
   await page.getByRole("button", { name: "Add branch" }).click();
   await expect(page.getByText("Dubai Showroom")).toBeVisible();
 
+  await page.getByLabel("Name").fill("Parts Warehouse");
+  await page.getByLabel("Code").fill(`PWH-${id}`);
+  await page.getByLabel("City").fill("Dubai");
+  await page.getByRole("button", { name: "Add branch" }).click();
+  await expect(page.getByText("Parts Warehouse")).toBeVisible();
+
   await page.goto("/vehicles?create=1#add-vehicle");
   await page.locator("#stockNumber").fill(stockNumber);
   await page.locator("#vin").fill(vin);
@@ -96,14 +109,47 @@ test("new workspace can add a branch, vehicle, and lead", async ({ page }) => {
   await page.getByLabel("Export available").check();
   await page.getByRole("button", { name: "Create vehicle" }).click();
 
-  await expect(page.getByRole("heading", { name: "2026 Toyota Hilux" })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "2026 Toyota Hilux" })).toBeVisible({ timeout: 15000 });
   await expect(page.getByText(stockNumber)).toBeVisible();
   await expect(page.getByText("Total landed cost")).toBeVisible();
   await expect(page.getByText("0 of 3 required documents complete")).toBeVisible();
 
   await page.getByRole("button", { name: "Save document" }).click();
   await expect(page.getByText("Vehicle document saved.")).toBeVisible({ timeout: 15000 });
+  await page.reload();
   await expect(page.getByText("1 of 3 required documents complete")).toBeVisible();
+
+  await page.locator("#decodedBrand").fill("Toyota");
+  await page.locator("#decodedModel").fill("Hilux");
+  await page.locator("#decodedYear").fill("2026");
+  await page.getByRole("button", { name: "Save VIN decode" }).click();
+  await expect(page.getByText("VIN intelligence saved.")).toBeVisible({ timeout: 15000 });
+  await page.reload();
+  await expect(page.getByText("VIN decoded", { exact: true })).toBeVisible();
+
+  await page.locator("#marketAverage").fill("145000");
+  await page.locator("#recommendedPrice").fill("146000");
+  await page.getByRole("button", { name: "Save valuation" }).click();
+  await expect(page.getByText("Market valuation saved.")).toBeVisible({ timeout: 15000 });
+  await page.reload();
+  await expect(page.getByText("Recommended market price AED 146,000")).toBeVisible();
+
+  await page.locator("#sourceName").fill(`Dubizzle ${id}`);
+  await page.locator("#competitorPrice").fill("144000");
+  await page.getByRole("button", { name: "Save competitor price" }).click();
+  await expect(page.getByText("Competitor price saved.")).toBeVisible({ timeout: 15000 });
+  await page.reload();
+  await expect(page.getByText(`Dubizzle ${id}`)).toBeVisible();
+
+  await page.locator("#historyRiskSummary").selectOption("low");
+  await page.getByRole("button", { name: "Save history report" }).click();
+  await expect(page.getByText("Vehicle history report saved.")).toBeVisible({ timeout: 15000 });
+  await page.reload();
+  await expect(page.getByText("History risk: low")).toBeVisible();
+
+  await page.goto("/vehicles/pricing");
+  await expect(page.getByText("Market intelligence").first()).toBeVisible();
+  await expect(page.getByText("AED 146,000").first()).toBeVisible();
 
   await page.goto("/crm/leads");
   await expect(page.getByRole("heading", { name: "Sales CRM" })).toBeVisible();
@@ -125,6 +171,48 @@ test("new workspace can add a branch, vehicle, and lead", async ({ page }) => {
   await page.locator("#body").fill(messageBody);
   await page.getByRole("button", { name: "Log message" }).click();
   await expect(page.getByText(messageBody)).toBeVisible();
+
+  // --- CRM Communications Phase 14 E2E Test Blocks ---
+  const leadPageUrl = page.url();
+
+  // Test Consent Manager E2E - Grant consent for SMS (index 2)
+  await page.locator('button:has-text("Grant Consent")').nth(2).click();
+  await expect(page.getByText("Consent updated for SMS.")).toBeVisible();
+
+  // Navigate to communications settings page
+  await page.goto("/settings/communication");
+  await expect(page.getByRole("heading", { name: "Communications Channel Manager" })).toBeVisible();
+
+  // Configure SMS provider settings
+  await page.locator("#twilioAccountSid").fill("TEST_ACCOUNT_ID_PLACEHOLDER");
+  await page.locator("#twilioAuthToken").fill("TEST_AUTH_TOKEN_PLACEHOLDER");
+  await page.locator("#twilioPhoneNumber").fill("+1234567890");
+  await page.locator("#sms-provider-form").getByRole("button", { name: "Save Settings" }).click();
+  await expect(page.getByText("SMS settings saved successfully.")).toBeVisible();
+
+  // Create message template
+  await page.getByRole("button", { name: "Add Template" }).click();
+  await page.locator("#name").fill("E2E Test Template");
+  await page.locator("#channel").selectOption("sms");
+  await page.locator("#body").fill("Hello {{customer_name}}, check out our new arrivals!");
+  await page.getByRole("button", { name: "Save Template" }).click();
+  await expect(page.getByText("Template saved successfully.")).toBeVisible();
+
+  // Return to lead profile page
+  await page.goto(leadPageUrl);
+
+  // Draft and dispatch message using template
+  await page.getByRole("button", { name: "Create Outreach" }).click();
+  await page.locator("#templateSelect").selectOption({ label: "E2E Test Template (sms)" });
+  await page.locator("#var-customer_name").fill(leadName);
+  await page.getByRole("button", { name: "Save Draft" }).click();
+  await expect(page.getByText("Outbound message draft saved successfully.")).toBeVisible();
+
+  // Expand the draft card and approve/send
+  await page.getByRole("button", { name: "Toggle details" }).first().click();
+  await page.getByRole("button", { name: "Approve & Dispatch" }).click();
+  await expect(page.getByText("Message dispatched and acknowledged.")).toBeVisible();
+  // --- End Communications E2E ---
 
   await page.goto("/sales/quotations");
   await expect(page.getByRole("heading", { name: "Sales Quotations" })).toBeVisible();
@@ -151,6 +239,34 @@ test("new workspace can add a branch, vehicle, and lead", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Sales Invoices" })).toBeVisible();
   await expect(page.getByText("Paid amount", { exact: true })).toBeVisible();
 
+  await page.goto("/sales/deals");
+  await expect(page.getByRole("heading", { name: "F&I Deal Desk" })).toBeVisible();
+  await page.locator("#productTotal").fill("8000");
+  await page.locator("#downPayment").fill("30000");
+  await page.locator("#annualInterestRate").fill("4.5");
+  await page.getByRole("button", { name: "Create deal" }).click();
+  await expect(page.getByText("Deal structure saved.")).toBeVisible();
+
+  await page.locator("#name").fill(`GCC Auto Finance ${id}`);
+  await page.locator("#baseRate").fill("4.25");
+  await page.getByRole("button", { name: "Save lender" }).click();
+  await expect(page.getByText("Lender saved.")).toBeVisible();
+
+  await page.getByRole("button", { name: "Add deal product" }).click();
+  await expect(page.getByText("Deal product added.")).toBeVisible();
+
+  await page.getByRole("button", { name: "Submit finance application" }).click();
+  await expect(page.getByText("Finance application submitted.")).toBeVisible();
+
+  await page.getByRole("button", { name: "Send lender submission" }).click();
+  await expect(page.getByText("Lender submission sent.")).toBeVisible();
+
+  await page.getByRole("button", { name: "Request approval" }).click();
+  await expect(page.getByText("Approval requested.")).toBeVisible();
+
+  await page.getByRole("button", { name: "Approve pending deal" }).click();
+  await expect(page.getByText("Deal approved.")).toBeVisible();
+
   await page.goto("/finance");
   await expect(page.getByRole("heading", { name: "Finance Lite" })).toBeVisible();
   await page.locator("#description").fill(`Preparation expense ${id}`);
@@ -175,6 +291,134 @@ test("new workspace can add a branch, vehicle, and lead", async ({ page }) => {
   await page.reload();
   await expect(page.getByText(/^COM-/)).toBeVisible();
 
+  await page.goto("/finance/accounting");
+  await expect(page.getByRole("heading", { name: "Full Accounting" })).toBeVisible();
+  await expect(page.getByRole("cell", { name: /Vehicle Inventory/ }).first()).toBeVisible();
+
+  await page.locator("#memo").fill(`Opening inventory accounting entry ${id}`);
+  await page.locator("#journalAmount").fill("25000");
+  await page.getByRole("button", { name: "Create journal entry" }).click();
+  await expect(page.getByText("Journal entry created.")).toBeVisible({ timeout: 15000 });
+  await page.reload();
+  await expect(page.getByText(`Opening inventory accounting entry ${id}`)).toBeVisible();
+
+  await page.getByRole("button", { name: "Post journal entry" }).first().click();
+  await expect(page.getByText("Journal entry posted.")).toBeVisible({ timeout: 15000 });
+  await page.reload();
+  await expect(page.getByText("Posted").first()).toBeVisible();
+
+  await page.locator("#accountCode").fill(`61${String(id).slice(-3)}`);
+  await page.locator("#accountName").fill(`Workshop Supplies Expense ${id}`);
+  await page.getByRole("button", { name: "Create GL account" }).click();
+  await expect(page.getByText("GL account created.")).toBeVisible({ timeout: 15000 });
+  await page.reload();
+  await expect(page.getByRole("cell", { name: `Workshop Supplies Expense ${id}` })).toBeVisible();
+
+  await page.locator("#taxName").fill(`Reduced VAT ${id}`);
+  await page.getByRole("button", { name: "Create tax rate" }).click();
+  await expect(page.getByText("Tax rate created.")).toBeVisible({ timeout: 15000 });
+
+  await page.getByRole("button", { name: "Create tax report" }).click();
+  await expect(page.getByText("Tax report created.")).toBeVisible({ timeout: 15000 });
+
+  await page.getByRole("button", { name: "Create bank transaction" }).click();
+  await expect(page.getByText("Bank transaction created.")).toBeVisible({ timeout: 15000 });
+
+  await page.getByRole("button", { name: "Create bank reconciliation" }).click();
+  await expect(page.getByText("Bank reconciliation created.")).toBeVisible({ timeout: 15000 });
+
+  await page.getByRole("button", { name: "Queue accounting export" }).click();
+  await expect(page.getByText("Accounting export queued.")).toBeVisible({ timeout: 15000 });
+
+  await page.goto("/service/workshop");
+  await expect(page.getByRole("heading", { name: "Service Workshop" })).toBeVisible();
+
+  await page.locator("#displayName").fill(`Senior Technician ${id}`);
+  await page.getByRole("button", { name: "Create technician" }).click();
+  await expect(page.getByText("Technician created.")).toBeVisible({ timeout: 15000 });
+  await page.reload();
+  await expect(page.getByText(`Senior Technician ${id}`).first()).toBeVisible();
+
+  await page.locator("#appointmentTitle").fill(`Service appointment ${id}`);
+  await page.getByRole("button", { name: "Create appointment" }).click();
+  await expect(page.getByText("Service appointment created.")).toBeVisible({ timeout: 15000 });
+  await page.reload();
+  await expect(page.getByText(`Service appointment ${id}`).first()).toBeVisible();
+
+  await page.locator("#serviceTitle").fill(`Brake service order ${id}`);
+  await page.locator("#complaint").fill(`Brake vibration complaint ${id}`);
+  await page.getByRole("button", { name: "Create service order" }).click();
+  await expect(page.getByText("Service order created.")).toBeVisible({ timeout: 15000 });
+  await page.reload();
+  await expect(page.getByText(`Brake service order ${id}`).first()).toBeVisible();
+
+  await page.locator("#jobTitle").fill(`Brake diagnosis job ${id}`);
+  await page.getByRole("button", { name: "Create service job" }).click();
+  await expect(page.getByText("Service job created.")).toBeVisible({ timeout: 15000 });
+  await page.reload();
+  await expect(page.getByText(`Brake diagnosis job ${id}`).first()).toBeVisible();
+
+  await page.locator("#laborDescription").fill(`Initial brake diagnosis labor ${id}`);
+  await page.getByRole("button", { name: "Create labor line" }).click();
+  await expect(page.getByText("Labor line created.")).toBeVisible({ timeout: 15000 });
+  await page.reload();
+  await expect(page.getByText(`Initial brake diagnosis labor ${id}`).first()).toBeVisible();
+
+  await page.getByRole("button", { name: "Create inspection result" }).click();
+  await expect(page.getByText("Inspection result created.")).toBeVisible({ timeout: 15000 });
+  await page.reload();
+  await expect(page.getByText(/^INSP-/)).toBeVisible();
+
+  await page.locator("#providerName").fill(`Factory Warranty ${id}`);
+  await page.getByRole("button", { name: "Create warranty claim" }).click();
+  await expect(page.getByText("Warranty claim created.")).toBeVisible({ timeout: 15000 });
+  await page.reload();
+  await expect(page.getByText(`Factory Warranty ${id}`).first()).toBeVisible();
+
+  await page.goto("/parts/inventory");
+  await expect(page.getByRole("heading", { name: "Parts Inventory" })).toBeVisible();
+
+  const partNumber = `FILTER-${id}`;
+  await page.getByLabel("Part number").fill(partNumber);
+  await page.getByLabel("Part name").fill(`LX oil filter ${id}`);
+  await page.getByRole("button", { name: "Create part" }).click();
+  await expect(page.getByText("Part created.")).toBeVisible({ timeout: 15000 });
+  await page.reload();
+  await expect(page.getByText(partNumber).first()).toBeVisible();
+
+  await page.getByLabel("Supplier name").fill(`Parts Supplier ${id}`);
+  await page.getByRole("button", { name: "Create supplier" }).click();
+  await expect(page.getByText("Parts supplier created.")).toBeVisible({ timeout: 15000 });
+  await page.reload();
+  await expect(page.getByText(`Parts Supplier ${id}`).first()).toBeVisible();
+
+  await page.getByRole("button", { name: "Create purchase order" }).click();
+  await expect(page.getByText("Parts purchase order created.")).toBeVisible({ timeout: 15000 });
+  await page.reload();
+  await expect(page.locator("p").filter({ hasText: /^PPO-/ }).first()).toBeVisible();
+
+  await page.getByLabel("Quantity ordered").fill("5");
+  await page.getByRole("button", { name: "Add PO item" }).click();
+  await expect(page.getByText("Purchase order item created.")).toBeVisible({ timeout: 15000 });
+  await page.reload();
+
+  await page.getByLabel("Quantity received").fill("5");
+  await page.getByRole("button", { name: "Post receipt" }).click();
+  await expect(page.getByText("Parts receipt posted.")).toBeVisible({ timeout: 15000 });
+  await page.reload();
+  await expect(page.locator("p").filter({ hasText: /^PRC-/ }).first()).toBeVisible();
+
+  await page.getByRole("button", { name: "Create transfer" }).click();
+  await expect(page.getByText("Parts transfer created.")).toBeVisible({ timeout: 15000 });
+  await page.reload();
+  await expect(page.locator("p").filter({ hasText: /^PTR-/ }).first()).toBeVisible();
+
+  await page.getByLabel("Service part description").fill(`Service oil filter ${id}`);
+  await page.getByRole("button", { name: "Add service part" }).click();
+  await expect(page.getByText("Service part line created.")).toBeVisible({ timeout: 15000 });
+  await page.reload();
+  await expect(page.getByText(`Service oil filter ${id}`).first()).toBeVisible();
+
   await page.goto("/export/orders");
   await expect(page.getByRole("heading", { name: "Import & Export Operations" })).toBeVisible();
   await page.locator("#destinationPort").fill("Algiers");
@@ -185,8 +429,10 @@ test("new workspace can add a branch, vehicle, and lead", async ({ page }) => {
   await page.waitForTimeout(1000);
   if (!/\/export\/orders\/[^/]+$/.test(new URL(page.url()).pathname)) {
     await page.reload();
-    await page.locator("tr").filter({ hasText: stockNumber }).getByRole("link").click();
-    await page.waitForURL("**/export/orders/*", { timeout: 30000 });
+    const exportOrderLink = page.locator("tr").filter({ hasText: stockNumber }).getByRole("link").first();
+    const exportOrderHref = await exportOrderLink.getAttribute("href");
+    expect(exportOrderHref).toMatch(/^\/export\/orders\/[^/]+$/);
+    await page.goto(exportOrderHref!);
   }
 
   await expect(page.getByText("Export overview")).toBeVisible();
@@ -274,7 +520,32 @@ test("new workspace can add a branch, vehicle, and lead", async ({ page }) => {
   await page.getByRole("button", { name: "Create listing" }).click();
   await page.waitForTimeout(1000);
   await page.reload();
-  await expect(page.getByText(marketingListingTitle)).toBeVisible();
+  await expect(page.locator("tr").filter({ hasText: marketingListingTitle })).toBeVisible();
+
+  await page.locator("#overridePrice").fill("148500");
+  await page.getByRole("button", { name: "Save price override" }).click();
+  await page.waitForTimeout(1000);
+  await page.reload();
+  await expect(page.getByText("Marketplace campaign price")).toBeVisible();
+
+  await page.locator("#syncOperation").selectOption("publish");
+  await page.getByRole("button", { name: "Queue sync job" }).click();
+  await page.waitForTimeout(1000);
+  await page.reload();
+  await expect(page.getByText("Queued").first()).toBeVisible();
+
+  await page.locator("#syncMessage").fill(`Provider accepted listing ${id}`);
+  await page.getByRole("button", { name: "Add sync log" }).click();
+  await page.waitForTimeout(1000);
+  await page.reload();
+  await expect(page.getByText(`Provider accepted listing ${id}`)).toBeVisible();
+
+  await page.locator("#marketplaceLeadName").fill(`Marketplace Buyer ${id}`);
+  await page.locator("#marketplaceLeadPhone").fill("+971511111111");
+  await page.getByRole("button", { name: "Capture marketplace lead" }).click();
+  await page.waitForTimeout(1000);
+  await page.reload();
+  await expect(page.getByText(`Marketplace Buyer ${id}`)).toBeVisible();
 
   await page.locator("#caption").fill(`Instagram launch caption ${id}`);
   await page.getByRole("button", { name: "Create social draft" }).click();
@@ -333,6 +604,41 @@ test("new workspace can add a branch, vehicle, and lead", async ({ page }) => {
   await page.reload();
   await expect(page.getByText(/^AIX-/)).toBeVisible();
 
+  // Phase 20: Advanced AI Automation
+  await page.goto("/ai/automation");
+  await expect(page.getByRole("heading", { name: "Advanced AI Automation" })).toBeVisible();
+
+  // 1. Toggle agent on
+  await page.locator("#parts_reorder-toggle-btn").click();
+  await expect(page.getByText("Successfully toggled Smart Parts Reorder Agent!")).toBeVisible({ timeout: 15000 });
+
+  // 2. OCR Intake document trigger and simulated verify
+  await page.locator("#documentType").selectOption("supplier_invoice");
+  await page.locator("#documentFile").setInputFiles({
+    name: `invoice-${id}.pdf`,
+    mimeType: "application/pdf",
+    buffer: pdfBuffer,
+  });
+  await page.locator("#customOcrText").fill("INVOICE\nSUPPLIER: AutoParts Depot Ltd\nINVOICE #: INV-2026-0520\nPART NUMBER: BP-202X\nQTY: 25\nTOTAL AMOUNT DUE: AED 3,000.00");
+  await page.locator("#ocrSubmitButton").click();
+  await expect(page.getByText("Document parsed successfully!")).toBeVisible({ timeout: 15000 });
+
+  // 3. Inspect parsed values
+  await expect(page.locator("#ocrCommitForm")).toBeVisible();
+  await expect(page.locator("#partNumber")).toHaveValue("BP-202X");
+
+  // 4. Commit OCR extraction
+  await page.locator("#ocrCommitButton").click();
+  await expect(page.getByText("Extracted fields committed perfectly!")).toBeVisible({ timeout: 15000 });
+
+  // 5. Trigger crm lead follow up agent scan to generate proposal
+  await page.locator("#crm_follow_up-scan-btn").click();
+  await expect(page.getByText("Autonomous scan finished!")).toBeVisible({ timeout: 15000 });
+
+  // 6. Approve proposal in Manager Approval Feed
+  await page.getByRole("button", { name: "Approve & Execute" }).first().click();
+  await expect(page.getByText("Proposal resolved perfectly!")).toBeVisible({ timeout: 15000 });
+
   await page.goto("/reports");
   await expect(page.getByRole("heading", { name: "Reports" })).toBeVisible();
   await page.locator("#reportType").selectOption("inventory");
@@ -373,6 +679,23 @@ test("new workspace can add a branch, vehicle, and lead", async ({ page }) => {
     page.getByRole("button", { name: "Create chat task" }).click(),
   ]);
   await expect(page.getByText(`Chat task ${id}`)).toBeVisible();
+
+  await page.goto("/subscriptions");
+  await expect(page.getByRole("heading", { name: "Subscription & Billing" })).toBeVisible();
+  await page.locator("#billingName").fill(`Billing Contact ${id}`);
+  await page.locator("#billingEmail").fill(`billing-${id}@example.test`);
+  await page.locator("#defaultCurrencyCode").fill("USD");
+  await page.getByRole("button", { name: "Save billing customer" }).click();
+  await expect(page.getByText(/billing customer saved/i)).toBeVisible();
+
+  await page.getByRole("button", { name: "Refresh usage" }).click();
+  await expect(page.getByText(/Usage counters refreshed|Usage refreshed with/i)).toBeVisible();
+
+  await page.getByRole("button", { name: /Upgrade to Enterprise/ }).click();
+  await expect(page.getByText(/checkout session created/i)).toBeVisible();
+
+  await page.getByRole("button", { name: "Open billing portal" }).click();
+  await expect(page.getByText(/billing portal session created/i)).toBeVisible();
 
   await page.goto("/settings/audit-logs");
   await expect(page.getByRole("heading", { name: "Audit Logs" })).toBeVisible();

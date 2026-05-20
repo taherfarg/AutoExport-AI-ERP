@@ -39,3 +39,39 @@ export const aiApprovalDecisionSchema = z.object({
   decision: z.enum(["approved", "rejected"]),
   notes: z.string().trim().max(1000).optional(),
 });
+
+export const automationAgentSchema = z.object({
+  companyId: z.string().uuid(),
+  branchId: z.string().uuid().optional().nullable(),
+  agentType: z.enum(["crm_follow_up", "parts_reorder", "vehicle_marketing"]),
+  isEnabled: z.boolean().default(false),
+  config: z.record(z.string(), z.unknown()).default({}),
+});
+
+export const documentExtractionSchema = z.object({
+  companyId: z.string().uuid(),
+  branchId: z.string().uuid().optional().nullable(),
+  filePath: z.string().trim().min(1),
+  fileName: z.string().trim().min(1),
+  fileType: z.string().trim().min(1),
+  documentType: z.string().trim().min(1),
+  status: z.enum(["pending", "completed", "failed"]).default("pending"),
+  extractedData: z.record(z.string(), z.unknown()).default({}),
+  rawText: z.string().optional().nullable(),
+  errorMessage: z.string().optional().nullable(),
+});
+
+export const automationProposalSchema = z.object({
+  companyId: z.string().uuid(),
+  branchId: z.string().uuid().optional().nullable(),
+  agentId: z.string().uuid().optional().nullable(),
+  proposalType: z.enum(["lead_follow_up", "parts_reorder", "vehicle_marketing"]),
+  title: z.string().trim().min(3).max(255),
+  description: z.string().trim().min(3),
+  justification: z.string().trim().min(3),
+  proposedPayload: z.record(z.string(), z.unknown()).default({}),
+  status: z.enum(["pending", "approved", "dismissed", "failed"]).default("pending"),
+  resolvedBy: z.string().uuid().optional().nullable(),
+  resolvedAt: z.string().optional().nullable(),
+  errorMessage: z.string().optional().nullable(),
+});

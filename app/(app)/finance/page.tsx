@@ -1,4 +1,5 @@
 import { Landmark } from "lucide-react";
+import Link from "next/link";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { FinanceStatusBadge } from "@/components/finance/finance-status-badge";
 import {
@@ -58,6 +59,10 @@ export default async function FinancePage() {
             Vehicle trading finance: receivables, payables, expenses, profit, and salesperson commission.
           </p>
         </div>
+        <Link href="/finance/accounting" className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50">
+          <Landmark className="h-4 w-4" />
+          Open accounting
+        </Link>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-7">

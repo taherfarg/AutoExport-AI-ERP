@@ -14,6 +14,9 @@ const completeEnv = {
   OPENAI_API_KEY: "openai-secret",
   OPENAI_MODEL: "gpt-test",
   OPENAI_BASE_URL: "https://api.openai.com/v1",
+  STRIPE_SECRET_KEY: "stripe-secret",
+  STRIPE_WEBHOOK_SECRET: "stripe-webhook-secret",
+  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: "stripe-publishable",
 };
 
 describe("runtime environment validation", () => {
@@ -54,7 +57,9 @@ describe("runtime environment validation", () => {
     expect(payload.status).toBe("ok");
     expect(payload.supabaseUrlConfigured).toBe(true);
     expect(payload.serviceRoleConfigured).toBe(true);
+    expect(payload.stripeConfigured).toBe(true);
     expect(JSON.stringify(payload)).not.toContain("service-role-secret");
     expect(JSON.stringify(payload)).not.toContain("openai-secret");
+    expect(JSON.stringify(payload)).not.toContain("stripe-secret");
   });
 });

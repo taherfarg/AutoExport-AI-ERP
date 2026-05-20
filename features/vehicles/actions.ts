@@ -8,12 +8,17 @@ import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import {
   addVehicleDocumentSchema,
   addVehiclePhotoSchema,
+  createVehicleCompetitorPriceSchema,
+  createVehicleHistoryReportSchema,
+  createVehicleMarketValueSchema,
   createVehicleSchema,
+  createVinDecodeRequestSchema,
   moveVehicleBranchSchema,
   updateVehiclePricingSchema,
   updateVehicleStatusSchema,
   vehicleIdSchema,
 } from "@/lib/validations/vehicle";
+import { calculateValuationRecommendation } from "@/lib/vehicles/intelligence";
 
 function formNumber(value: FormDataEntryValue | null) {
   return typeof value === "string" && value.length > 0 ? value : 0;
@@ -35,7 +40,7 @@ async function ensureVehicleInWorkspace(vehicleId: string, companyId: string) {
   const supabase = createServiceRoleClient();
   const { data: vehicle, error } = await supabase
     .from("vehicles")
-    .select("id, company_id")
+    .select("id, company_id, branch_id, selling_price, currency_code")
     .eq("id", vehicleId)
     .eq("company_id", companyId)
     .is("deleted_at", null)
@@ -46,6 +51,74 @@ async function ensureVehicleInWorkspace(vehicleId: string, companyId: string) {
   }
 
   return vehicle;
+}
+
+async function writeAuditLog({
+  companyId,
+  branchId,
+  actorProfileId,
+  action,
+  entityType,
+  entityId,
+  newValues,
+}: {
+  companyId: string;
+  branchId?: string | null;
+  actorProfileId: string;
+  action: string;
+  entityType: string;
+  entityId?: string | null;
+  newValues?: Record<string, unknown>;
+}) {
+  const supabase = createServiceRoleClient();
+  await supabase.from("audit_logs").insert({
+    company_id: companyId,
+    branch_id: branchId,
+    actor_profile_id: actorProfileId,
+    action,
+    entity_type: entityType,
+    entity_id: entityId,
+    severity: "info",
+    new_values: newValues ?? null,
+  });
+}
+
+async function writeEnrichmentLog({
+  companyId,
+  branchId,
+  vehicleId,
+  eventType,
+  sourceTable,
+  sourceId,
+  title,
+  description,
+  createdBy,
+  payload,
+}: {
+  companyId: string;
+  branchId: string | null;
+  vehicleId: string;
+  eventType: string;
+  sourceTable: string;
+  sourceId: string;
+  title: string;
+  description?: string;
+  createdBy: string;
+  payload?: Record<string, unknown>;
+}) {
+  const supabase = createServiceRoleClient();
+  await supabase.from("vehicle_enrichment_logs").insert({
+    company_id: companyId,
+    branch_id: branchId,
+    vehicle_id: vehicleId,
+    event_type: eventType,
+    source_table: sourceTable,
+    source_id: sourceId,
+    title,
+    description,
+    payload: payload ?? {},
+    created_by: createdBy,
+  });
 }
 
 export async function createVehicle(formData: FormData) {
@@ -468,4 +541,298 @@ export async function addVehicleDocument(formData: FormData) {
 
   revalidatePath(`/vehicles/${parsed.data.vehicleId}`);
   return { success: "Vehicle document saved." };
+}
+
+export async function createVinDecodeRequest(formData: FormData) {
+  const workspace = await getCurrentWorkspace();
+  const parsed = createVinDecodeRequestSchema.safeParse({
+    vehicleId: formData.get("vehicleId"),
+    vin: formData.get("vin"),
+    provider: formData.get("provider") || "manual",
+    providerRequestId: formOptional(formData.get("providerRequestId")),
+    status: formData.get("status") || "completed",
+    decodedBrand: formOptional(formData.get("decodedBrand")),
+    decodedModel: formOptional(formData.get("decodedModel")),
+    decodedYear: formOptional(formData.get("decodedYear")),
+    decodedTrim: formOptional(formData.get("decodedTrim")),
+    decodedBodyType: formOptional(formData.get("decodedBodyType")),
+    decodedEngine: formOptional(formData.get("decodedEngine")),
+    decodedTransmission: formOptional(formData.get("decodedTransmission")),
+    confidenceScore: formOptional(formData.get("confidenceScore")),
+    notes: formOptional(formData.get("notes")),
+  });
+
+  if (!parsed.success) {
+    return { error: "VIN decode details are invalid." };
+  }
+
+  const vehicle = await ensureVehicleInWorkspace(parsed.data.vehicleId, workspace.companyId);
+  const supabase = createServiceRoleClient();
+  const { data, error } = await supabase
+    .from("vin_decode_requests")
+    .insert({
+      company_id: workspace.companyId,
+      branch_id: vehicle.branch_id,
+      vehicle_id: vehicle.id,
+      vin: parsed.data.vin,
+      provider: parsed.data.provider,
+      provider_request_id: parsed.data.providerRequestId,
+      status: parsed.data.status,
+      decoded_brand: parsed.data.decodedBrand,
+      decoded_model: parsed.data.decodedModel,
+      decoded_year: parsed.data.decodedYear,
+      decoded_trim: parsed.data.decodedTrim,
+      decoded_body_type: parsed.data.decodedBodyType,
+      decoded_engine: parsed.data.decodedEngine,
+      decoded_transmission: parsed.data.decodedTransmission,
+      confidence_score: parsed.data.confidenceScore,
+      notes: parsed.data.notes,
+      requested_by: workspace.profileId,
+      created_by: workspace.profileId,
+      updated_by: workspace.profileId,
+    })
+    .select("id")
+    .single();
+
+  if (error || !data) {
+    return { error: error?.message ?? "VIN decode request could not be saved." };
+  }
+
+  await writeEnrichmentLog({
+    companyId: workspace.companyId,
+    branchId: vehicle.branch_id,
+    vehicleId: vehicle.id,
+    eventType: "vin_decode",
+    sourceTable: "vin_decode_requests",
+    sourceId: data.id,
+    title: "VIN decode saved",
+    description: `${parsed.data.provider} decode recorded for ${parsed.data.vin}.`,
+    createdBy: workspace.profileId,
+    payload: { status: parsed.data.status },
+  });
+  await writeAuditLog({
+    companyId: workspace.companyId,
+    branchId: vehicle.branch_id,
+    actorProfileId: workspace.profileId,
+    action: "create_vin_decode_request",
+    entityType: "vehicle",
+    entityId: vehicle.id,
+    newValues: { provider: parsed.data.provider, vin: parsed.data.vin },
+  });
+
+  revalidatePath(`/vehicles/${vehicle.id}`);
+  return { success: "VIN intelligence saved." };
+}
+
+export async function createVehicleMarketValue(formData: FormData) {
+  const workspace = await getCurrentWorkspace();
+  const parsed = createVehicleMarketValueSchema.safeParse({
+    vehicleId: formData.get("vehicleId"),
+    provider: formData.get("provider") || "manual",
+    marketCountryCode: formData.get("marketCountryCode") || "AE",
+    marketCurrencyCode: formData.get("marketCurrencyCode") || "AED",
+    marketLow: formNumber(formData.get("marketLow")),
+    marketAverage: formNumber(formData.get("marketAverage")),
+    marketHigh: formNumber(formData.get("marketHigh")),
+    recommendedPrice: formNumber(formData.get("recommendedPrice")),
+    confidenceScore: formOptional(formData.get("confidenceScore")),
+    sampleSize: formNumber(formData.get("sampleSize")),
+    notes: formOptional(formData.get("notes")),
+  });
+
+  if (!parsed.success) {
+    return { error: "Market valuation details are invalid." };
+  }
+
+  const vehicle = await ensureVehicleInWorkspace(parsed.data.vehicleId, workspace.companyId);
+  const recommendation = calculateValuationRecommendation({
+    marketLow: parsed.data.marketLow,
+    marketAverage: parsed.data.marketAverage,
+    marketHigh: parsed.data.marketHigh,
+    targetMarginPrice: Number(vehicle.selling_price ?? 0),
+    currencyCode: parsed.data.marketCurrencyCode,
+  });
+  const recommendedPrice = parsed.data.recommendedPrice > 0
+    ? parsed.data.recommendedPrice
+    : recommendation.recommendedPrice;
+  const supabase = createServiceRoleClient();
+  const { data, error } = await supabase
+    .from("vehicle_market_values")
+    .insert({
+      company_id: workspace.companyId,
+      branch_id: vehicle.branch_id,
+      vehicle_id: vehicle.id,
+      provider: parsed.data.provider,
+      market_country_code: parsed.data.marketCountryCode,
+      market_currency_code: parsed.data.marketCurrencyCode,
+      market_low: parsed.data.marketLow,
+      market_average: parsed.data.marketAverage,
+      market_high: parsed.data.marketHigh,
+      recommended_price: recommendedPrice,
+      confidence_score: parsed.data.confidenceScore,
+      sample_size: parsed.data.sampleSize,
+      notes: parsed.data.notes,
+      created_by: workspace.profileId,
+      updated_by: workspace.profileId,
+    })
+    .select("id")
+    .single();
+
+  if (error || !data) {
+    return { error: error?.message ?? "Market valuation could not be saved." };
+  }
+
+  await writeEnrichmentLog({
+    companyId: workspace.companyId,
+    branchId: vehicle.branch_id,
+    vehicleId: vehicle.id,
+    eventType: "market_valuation",
+    sourceTable: "vehicle_market_values",
+    sourceId: data.id,
+    title: "Market valuation saved",
+    description: `Recommended price ${parsed.data.marketCurrencyCode} ${recommendedPrice}.`,
+    createdBy: workspace.profileId,
+    payload: { recommendation: recommendation.recommendation },
+  });
+  await writeAuditLog({
+    companyId: workspace.companyId,
+    branchId: vehicle.branch_id,
+    actorProfileId: workspace.profileId,
+    action: "create_vehicle_market_value",
+    entityType: "vehicle",
+    entityId: vehicle.id,
+    newValues: { recommendedPrice, provider: parsed.data.provider },
+  });
+
+  revalidatePath(`/vehicles/${vehicle.id}`);
+  revalidatePath("/vehicles/pricing");
+  return { success: "Market valuation saved." };
+}
+
+export async function createVehicleCompetitorPrice(formData: FormData) {
+  const workspace = await getCurrentWorkspace();
+  const parsed = createVehicleCompetitorPriceSchema.safeParse({
+    vehicleId: formData.get("vehicleId"),
+    sourceName: formData.get("sourceName"),
+    competitorName: formOptional(formData.get("competitorName")),
+    listingUrl: formOptional(formData.get("listingUrl")),
+    price: formNumber(formData.get("price")),
+    currencyCode: formData.get("currencyCode") || "AED",
+    mileage: formNumber(formData.get("mileage")),
+    location: formOptional(formData.get("location")),
+    observedAt: formData.get("observedAt"),
+    notes: formOptional(formData.get("notes")),
+  });
+
+  if (!parsed.success) {
+    return { error: "Competitor price details are invalid." };
+  }
+
+  const vehicle = await ensureVehicleInWorkspace(parsed.data.vehicleId, workspace.companyId);
+  const supabase = createServiceRoleClient();
+  const { data, error } = await supabase
+    .from("vehicle_competitor_prices")
+    .insert({
+      company_id: workspace.companyId,
+      branch_id: vehicle.branch_id,
+      vehicle_id: vehicle.id,
+      source_name: parsed.data.sourceName,
+      competitor_name: parsed.data.competitorName,
+      listing_url: parsed.data.listingUrl,
+      price: parsed.data.price,
+      currency_code: parsed.data.currencyCode,
+      mileage: parsed.data.mileage,
+      location: parsed.data.location,
+      observed_at: parsed.data.observedAt,
+      notes: parsed.data.notes,
+      created_by: workspace.profileId,
+      updated_by: workspace.profileId,
+    })
+    .select("id")
+    .single();
+
+  if (error || !data) {
+    return { error: error?.message ?? "Competitor price could not be saved." };
+  }
+
+  await writeEnrichmentLog({
+    companyId: workspace.companyId,
+    branchId: vehicle.branch_id,
+    vehicleId: vehicle.id,
+    eventType: "competitor_price",
+    sourceTable: "vehicle_competitor_prices",
+    sourceId: data.id,
+    title: "Competitor price tracked",
+    description: `${parsed.data.sourceName} price ${parsed.data.currencyCode} ${parsed.data.price}.`,
+    createdBy: workspace.profileId,
+  });
+
+  revalidatePath(`/vehicles/${vehicle.id}`);
+  revalidatePath("/vehicles/pricing");
+  return { success: "Competitor price saved." };
+}
+
+export async function createVehicleHistoryReport(formData: FormData) {
+  const workspace = await getCurrentWorkspace();
+  const parsed = createVehicleHistoryReportSchema.safeParse({
+    vehicleId: formData.get("vehicleId"),
+    provider: formData.get("provider") || "manual",
+    providerReportId: formOptional(formData.get("providerReportId")),
+    reportUrl: formOptional(formData.get("reportUrl")),
+    reportStatus: formData.get("reportStatus") || "completed",
+    riskSummary: formData.get("riskSummary") || "unknown",
+    accidentCount: formNumber(formData.get("accidentCount")),
+    ownerCount: formNumber(formData.get("ownerCount")),
+    odometerIssue: formData.get("odometerIssue") === "on",
+    salvageOrTheftFlag: formData.get("salvageOrTheftFlag") === "on",
+    notes: formOptional(formData.get("notes")),
+  });
+
+  if (!parsed.success) {
+    return { error: "Vehicle history report details are invalid." };
+  }
+
+  const vehicle = await ensureVehicleInWorkspace(parsed.data.vehicleId, workspace.companyId);
+  const supabase = createServiceRoleClient();
+  const { data, error } = await supabase
+    .from("vehicle_history_reports")
+    .insert({
+      company_id: workspace.companyId,
+      branch_id: vehicle.branch_id,
+      vehicle_id: vehicle.id,
+      provider: parsed.data.provider,
+      provider_report_id: parsed.data.providerReportId,
+      report_url: parsed.data.reportUrl,
+      report_status: parsed.data.reportStatus,
+      risk_summary: parsed.data.riskSummary,
+      accident_count: parsed.data.accidentCount,
+      owner_count: parsed.data.ownerCount,
+      odometer_issue: parsed.data.odometerIssue,
+      salvage_or_theft_flag: parsed.data.salvageOrTheftFlag,
+      notes: parsed.data.notes,
+      requested_by: workspace.profileId,
+      created_by: workspace.profileId,
+      updated_by: workspace.profileId,
+    })
+    .select("id")
+    .single();
+
+  if (error || !data) {
+    return { error: error?.message ?? "Vehicle history report could not be saved." };
+  }
+
+  await writeEnrichmentLog({
+    companyId: workspace.companyId,
+    branchId: vehicle.branch_id,
+    vehicleId: vehicle.id,
+    eventType: "history_report",
+    sourceTable: "vehicle_history_reports",
+    sourceId: data.id,
+    title: "History report saved",
+    description: `Risk summary: ${parsed.data.riskSummary}.`,
+    createdBy: workspace.profileId,
+  });
+
+  revalidatePath(`/vehicles/${vehicle.id}`);
+  return { success: "Vehicle history report saved." };
 }

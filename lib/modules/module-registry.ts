@@ -15,6 +15,10 @@ import {
   Siren,
   Users,
   WalletCards,
+  Handshake,
+  Landmark,
+  Package,
+  Wrench,
 } from "lucide-react";
 
 export const MODULE_REGISTRY = [
@@ -25,11 +29,16 @@ export const MODULE_REGISTRY = [
   { key: "crm", label: "Sales CRM", href: "/crm/leads", icon: ClipboardList },
   { key: "crm_customers", gateKey: "crm", label: "Customers", href: "/crm/customers", icon: Users },
   { key: "sales", label: "Sales", href: "/sales/quotations", icon: Receipt },
+  { key: "deal_desk", label: "Deal Desk", href: "/sales/deals", icon: Handshake },
   { key: "export", label: "Import & Export", href: "/export/orders", icon: Ship },
   { key: "documents", label: "Documents", href: "/documents", icon: FileText },
   { key: "finance", label: "Finance Lite", href: "/finance", icon: WalletCards },
+  { key: "accounting", gateKey: "finance", label: "Accounting", href: "/finance/accounting", icon: Landmark },
+  { key: "service", label: "Service Workshop", href: "/service/workshop", icon: Wrench },
+  { key: "parts", label: "Parts Inventory", href: "/parts/inventory", icon: Package },
   { key: "marketing", label: "Marketing", href: "/marketing/listings", icon: Megaphone },
   { key: "ai", label: "AI Intelligence", href: "/ai", icon: Bot },
+  { key: "ai_automation", gateKey: "ai", label: "Advanced AI", href: "/ai/automation", icon: Bot },
   { key: "reports", label: "Reports", href: "/reports", icon: BarChart3 },
   { key: "alerts", label: "Smart Alerts", href: "/operations/alerts", icon: Siren },
   { key: "chat", label: "Chat Center", href: "/chat", icon: MessageSquareText },
