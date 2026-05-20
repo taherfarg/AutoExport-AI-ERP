@@ -5,14 +5,11 @@ import {
   Bot, 
   Sparkles, 
   FileText, 
-  Settings2, 
   Check, 
-  X, 
   Play, 
   UploadCloud, 
   AlertCircle,
   FileCheck,
-  Send,
   Workflow
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -26,6 +23,25 @@ import {
   commitDocumentOcr, 
   resolveAiProposal 
 } from "@/features/ai/actions";
+import type { AiAutomationAgentRow, AiAutomationProposalRow } from "@/features/ai/queries";
+
+type OcrExtractionResult = {
+  id: string;
+  documentType: "vehicle_title" | "supplier_invoice";
+  data: Record<string, unknown>;
+};
+
+function errorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
+
+function fieldValue(value: unknown, fallback = "") {
+  if (value === null || value === undefined) {
+    return fallback;
+  }
+
+  return String(value);
+}
 
 // Helpers for formatted display
 function formatAgentName(type: string) {
@@ -37,11 +53,9 @@ function formatAgentName(type: string) {
 
 export function AgentSwitchboard({ 
   agents, 
-  companyId,
   defaultBranchId
 }: { 
-  agents: any[]; 
-  companyId: string;
+  agents: AiAutomationAgentRow[];
   defaultBranchId?: string;
 }) {
   const [loadingAgentId, setLoadingAgentId] = useState<string | null>(null);
@@ -49,7 +63,7 @@ export function AgentSwitchboard({
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  async function handleToggle(agent: any) {
+  async function handleToggle(agent: AiAutomationAgentRow) {
     setLoadingAgentId(agent.id);
     setSuccessMsg(null);
     setErrorMsg(null);
@@ -66,8 +80,8 @@ export function AgentSwitchboard({
       } else {
         setSuccessMsg(`Successfully toggled ${formatAgentName(agent.agent_type)}!`);
       }
-    } catch (e: any) {
-      setErrorMsg(e.message || "An unexpected error occurred.");
+    } catch (e: unknown) {
+      setErrorMsg(errorMessage(e, "An unexpected error occurred."));
     } finally {
       setLoadingAgentId(null);
     }
@@ -88,8 +102,8 @@ export function AgentSwitchboard({
       } else {
         setSuccessMsg(`Autonomous scan finished! Generated proposal draft.`);
       }
-    } catch (e: any) {
-      setErrorMsg(e.message || "Autonomous scan failed.");
+    } catch (e: unknown) {
+      setErrorMsg(errorMessage(e, "Autonomous scan failed."));
     } finally {
       setScanningAgentType(null);
     }
@@ -223,7 +237,7 @@ export function OcrDocumentIntake({
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
-  const [extractionResult, setExtractionResult] = useState<any | null>(null);
+  const [extractionResult, setExtractionResult] = useState<OcrExtractionResult | null>(null);
 
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const files = e.target.files;
@@ -272,11 +286,11 @@ export function OcrDocumentIntake({
         setExtractionResult({
           id: res.extractionId,
           documentType,
-          data: res.extractedData
+          data: res.extractedData ?? {},
         });
       }
-    } catch (e: any) {
-      setErrorMsg(e.message || "OCR parsing request failed.");
+    } catch (e: unknown) {
+      setErrorMsg(errorMessage(e, "OCR parsing request failed."));
     } finally {
       setParsing(false);
     }
@@ -307,8 +321,8 @@ export function OcrDocumentIntake({
         setCustomOcrText("");
         setFileSelected(null);
       }
-    } catch (e: any) {
-      setErrorMsg(e.message || "Failed to commit document data.");
+    } catch (e: unknown) {
+      setErrorMsg(errorMessage(e, "Failed to commit document data."));
     } finally {
       setCommitting(false);
     }
@@ -352,7 +366,7 @@ export function OcrDocumentIntake({
                 id="documentType"
                 name="documentType"
                 value={documentType}
-                onChange={(e) => setDocumentType(e.target.value as any)}
+                onChange={(e) => setDocumentType(e.target.value as "vehicle_title" | "supplier_invoice")}
                 className="h-10 rounded-lg border border-slate-800 bg-slate-950 px-3 py-2 text-sm text-slate-200 focus:outline-none focus:ring-1 focus:ring-indigo-500"
               >
                 <option value="vehicle_title">Vehicle Title Certificate (.pdf / .png)</option>
@@ -442,7 +456,7 @@ export function OcrDocumentIntake({
                       <Input 
                         id="vin" 
                         name="vin" 
-                        defaultValue={extractionResult.data.vin || ""} 
+                        defaultValue={fieldValue(extractionResult.data.vin)}
                         className="h-9 border-slate-800 bg-slate-950 text-slate-200 text-xs"
                       />
                     </div>
@@ -451,7 +465,7 @@ export function OcrDocumentIntake({
                       <Input 
                         id="make" 
                         name="make" 
-                        defaultValue={extractionResult.data.make || ""} 
+                        defaultValue={fieldValue(extractionResult.data.make)}
                         className="h-9 border-slate-800 bg-slate-950 text-slate-200 text-xs"
                       />
                     </div>
@@ -460,7 +474,7 @@ export function OcrDocumentIntake({
                       <Input 
                         id="model" 
                         name="model" 
-                        defaultValue={extractionResult.data.model || ""} 
+                        defaultValue={fieldValue(extractionResult.data.model)}
                         className="h-9 border-slate-800 bg-slate-950 text-slate-200 text-xs"
                       />
                     </div>
@@ -470,7 +484,7 @@ export function OcrDocumentIntake({
                         id="year" 
                         name="year" 
                         type="number" 
-                        defaultValue={extractionResult.data.year || new Date().getFullYear()} 
+                        defaultValue={fieldValue(extractionResult.data.year, String(new Date().getFullYear()))}
                         className="h-9 border-slate-800 bg-slate-950 text-slate-200 text-xs"
                       />
                     </div>
@@ -479,7 +493,7 @@ export function OcrDocumentIntake({
                       <Input 
                         id="color" 
                         name="color" 
-                        defaultValue={extractionResult.data.color || ""} 
+                        defaultValue={fieldValue(extractionResult.data.color)}
                         className="h-9 border-slate-800 bg-slate-950 text-slate-200 text-xs"
                       />
                     </div>
@@ -501,7 +515,7 @@ export function OcrDocumentIntake({
                       <Input 
                         id="supplierName" 
                         name="supplierName" 
-                        defaultValue={extractionResult.data.supplierName || ""} 
+                        defaultValue={fieldValue(extractionResult.data.supplierName)}
                         className="h-9 border-slate-800 bg-slate-950 text-slate-200 text-xs"
                       />
                     </div>
@@ -510,7 +524,7 @@ export function OcrDocumentIntake({
                       <Input 
                         id="invoiceNumber" 
                         name="invoiceNumber" 
-                        defaultValue={extractionResult.data.invoiceNumber || ""} 
+                        defaultValue={fieldValue(extractionResult.data.invoiceNumber)}
                         className="h-9 border-slate-800 bg-slate-950 text-slate-200 text-xs"
                       />
                     </div>
@@ -519,7 +533,7 @@ export function OcrDocumentIntake({
                       <Input 
                         id="partNumber" 
                         name="partNumber" 
-                        defaultValue={extractionResult.data.partNumber || ""} 
+                        defaultValue={fieldValue(extractionResult.data.partNumber)}
                         className="h-9 border-slate-800 bg-slate-950 text-slate-200 text-xs"
                       />
                     </div>
@@ -528,7 +542,7 @@ export function OcrDocumentIntake({
                       <Input 
                         id="partName" 
                         name="partName" 
-                        defaultValue={extractionResult.data.partName || ""} 
+                        defaultValue={fieldValue(extractionResult.data.partName)}
                         className="h-9 border-slate-800 bg-slate-950 text-slate-200 text-xs"
                       />
                     </div>
@@ -538,7 +552,7 @@ export function OcrDocumentIntake({
                         id="quantity" 
                         name="quantity" 
                         type="number" 
-                        defaultValue={extractionResult.data.quantity || 1} 
+                        defaultValue={fieldValue(extractionResult.data.quantity, "1")}
                         className="h-9 border-slate-800 bg-slate-950 text-slate-200 text-xs"
                       />
                     </div>
@@ -548,7 +562,7 @@ export function OcrDocumentIntake({
                         id="amount" 
                         name="amount" 
                         type="number" 
-                        defaultValue={extractionResult.data.amount || 0} 
+                        defaultValue={fieldValue(extractionResult.data.amount, "0")}
                         className="h-9 border-slate-800 bg-slate-950 text-slate-200 text-xs"
                       />
                     </div>
@@ -583,7 +597,7 @@ export function OcrDocumentIntake({
 export function ProposalsApprovalFeed({ 
   proposals 
 }: { 
-  proposals: any[]; 
+  proposals: AiAutomationProposalRow[];
 }) {
   const [resolvingId, setResolvingId] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -606,8 +620,8 @@ export function ProposalsApprovalFeed({
       } else {
         setSuccessMsg(`Proposal resolved perfectly! ${decision === "approved" ? "Executed autonomous pipeline." : "Dismissed proposal successfully."}`);
       }
-    } catch (e: any) {
-      setErrorMsg(e.message || "Failed to resolve proposal.");
+    } catch (e: unknown) {
+      setErrorMsg(errorMessage(e, "Failed to resolve proposal."));
     } finally {
       setResolvingId(null);
     }
@@ -669,7 +683,7 @@ export function ProposalsApprovalFeed({
 
                     <div className="rounded-lg bg-slate-950/70 p-3.5 border border-slate-900 text-xs space-y-2">
                       <p className="text-slate-400 font-semibold">Justification / Audit Context:</p>
-                      <p className="text-slate-300 italic leading-relaxed font-serif">"{proposal.justification}"</p>
+                      <p className="text-slate-300 italic leading-relaxed font-serif">&ldquo;{proposal.justification}&rdquo;</p>
                     </div>
 
                     {/* Payload Details */}
@@ -679,33 +693,33 @@ export function ProposalsApprovalFeed({
                         {proposal.proposal_type === "lead_follow_up" && (
                           <>
                             <span className="rounded bg-slate-850 px-2 py-1 text-slate-300 border border-slate-800">
-                              Channel: {payload.messageChannel || "WhatsApp"}
+                              Channel: {fieldValue(payload.messageChannel, "WhatsApp")}
                             </span>
                             <span className="rounded bg-slate-850 px-2 py-1 text-slate-300 border border-slate-800 line-clamp-1">
-                              Message: {payload.messageBody}
+                              Message: {fieldValue(payload.messageBody)}
                             </span>
                           </>
                         )}
                         {proposal.proposal_type === "parts_reorder" && (
                           <>
                             <span className="rounded bg-slate-850 px-2 py-1 text-slate-300 border border-slate-800">
-                              Part: {payload.partName || payload.partNumber}
+                              Part: {fieldValue(payload.partName || payload.partNumber)}
                             </span>
                             <span className="rounded bg-slate-850 px-2 py-1 text-slate-300 border border-slate-800">
-                              Qty: {payload.quantity}
+                              Qty: {fieldValue(payload.quantity)}
                             </span>
                             <span className="rounded bg-slate-850 px-2 py-1 text-slate-300 border border-slate-800">
-                              Est Cost: {payload.estimatedUnitCost} {payload.currencyCode || "AED"}
+                              Est Cost: {fieldValue(payload.estimatedUnitCost)} {fieldValue(payload.currencyCode, "AED")}
                             </span>
                           </>
                         )}
                         {proposal.proposal_type === "vehicle_marketing" && (
                           <>
                             <span className="rounded bg-slate-850 px-2 py-1 text-slate-300 border border-slate-800">
-                              Market: {payload.askingPrice} {payload.currencyCode || "AED"}
+                              Market: {fieldValue(payload.askingPrice)} {fieldValue(payload.currencyCode, "AED")}
                             </span>
                             <span className="rounded bg-slate-850 px-2 py-1 text-slate-300 border border-slate-800 line-clamp-1">
-                              Headline: {payload.headline}
+                              Headline: {fieldValue(payload.headline)}
                             </span>
                           </>
                         )}

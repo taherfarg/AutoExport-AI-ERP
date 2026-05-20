@@ -253,7 +253,7 @@ export type AiAutomationProposalRow = {
 
 export async function getAiAutomationAgents(companyId: string): Promise<AiAutomationAgentRow[]> {
   const supabase = await createClient();
-  let { data, error } = await supabase
+  const { data: agentData, error } = await supabase
     .from("ai_automation_agents")
     .select("*")
     .eq("company_id", companyId)
@@ -262,6 +262,8 @@ export async function getAiAutomationAgents(companyId: string): Promise<AiAutoma
   if (error) {
     throw new Error(error.message);
   }
+
+  let data = agentData;
 
   if (!data || data.length === 0) {
     const defaultAgents = [

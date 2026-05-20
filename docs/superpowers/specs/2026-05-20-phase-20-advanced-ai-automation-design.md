@@ -24,11 +24,11 @@ We will add a new migration `supabase/migrations/<timestamp>_phase_20_advanced_a
 
 ### 2.1 Enums
 
-- `public.ai_agent_type` (`'lead_followup'`, `'parts_reorder'`, `'social_listing'`)
-- `public.ai_agent_status` (`'active'`, `'inactive'`)
-- `public.ai_extraction_status` (`'pending_review'`, `'committed'`, `'dismissed'`)
-- `public.ai_proposal_type` (`'outbound_message'`, `'parts_purchase_order'`, `'marketing_listing'`)
-- `public.ai_proposal_status` (`'pending_approval'`, `'approved'`, `'dismissed'`)
+- `public.ai_agent_type` (`'crm_follow_up'`, `'parts_reorder'`, `'vehicle_marketing'`)
+- `public.ai_agent_status` (`'idle'`, `'scanning'`, `'error'`)
+- `public.ai_extraction_status` (`'pending'`, `'completed'`, `'failed'`)
+- `public.ai_proposal_type` (`'lead_follow_up'`, `'parts_reorder'`, `'vehicle_marketing'`)
+- `public.ai_proposal_status` (`'pending'`, `'approved'`, `'dismissed'`, `'failed'`)
 
 ### 2.2 Tables
 
@@ -37,10 +37,11 @@ We will add a new migration `supabase/migrations/<timestamp>_phase_20_advanced_a
 - Fields:
   - `id uuid primary key`
   - `company_id uuid references companies(id)`
-  - `type ai_agent_type`
-  - `status ai_agent_status default 'inactive'`
-  - `settings jsonb default '{}'`
-  - `last_run_at timestamptz`
+  - `agent_type ai_agent_type`
+  - `is_enabled boolean default false`
+  - `status ai_agent_status default 'idle'`
+  - `config jsonb default '{}'`
+  - `last_scan_at timestamptz`
   - shared auditing columns
 
 #### `public.ai_document_extractions`
@@ -48,11 +49,15 @@ We will add a new migration `supabase/migrations/<timestamp>_phase_20_advanced_a
 - Fields:
   - `id uuid primary key`
   - `company_id uuid references companies(id)`
-  - `document_id uuid references documents(id)`
-  - `status ai_extraction_status default 'pending_review'`
+  - `branch_id uuid references branches(id)`
+  - `file_path text`
+  - `file_name text`
+  - `file_type text`
+  - `document_type text`
+  - `status ai_extraction_status default 'pending'`
   - `extracted_data jsonb default '{}'`
-  - `committed_entity_type varchar` (e.g., `'vehicle'`, `'part_purchase_order'`)
-  - `committed_entity_id uuid`
+  - `raw_text text`
+  - `error_message text`
   - shared auditing columns
 
 #### `public.ai_automation_proposals`
@@ -61,13 +66,16 @@ We will add a new migration `supabase/migrations/<timestamp>_phase_20_advanced_a
   - `id uuid primary key`
   - `company_id uuid references companies(id)`
   - `branch_id uuid references branches(id)`
-  - `type ai_proposal_type`
-  - `status ai_proposal_status default 'pending_approval'`
+  - `agent_id uuid references ai_automation_agents(id)`
+  - `proposal_type ai_proposal_type`
+  - `status ai_proposal_status default 'pending'`
   - `title varchar`
   - `description text`
+  - `justification text`
   - `proposed_payload jsonb default '{}'`
-  - `reviewed_by uuid references profiles(id)`
-  - `reviewed_at timestamptz`
+  - `resolved_by uuid references profiles(id)`
+  - `resolved_at timestamptz`
+  - `error_message text`
   - shared auditing columns
 
 ---
@@ -85,8 +93,8 @@ We will add a new migration `supabase/migrations/<timestamp>_phase_20_advanced_a
 ## 4. Domain & Backend Logic
 
 - `lib/ai/automation-helpers.ts`:
-  - `parseOcrFields(docType: string, text: string): Record<string, any>`: Heuristics to parse VINs, prices, and suppliers.
-  - `compileProposalPayload(type: string, data: Record<string, any>): Record<string, any>`: Formats autonomous actions into validated structures.
+  - `parseOcrFields(docType: string, text: string): Record<string, unknown>`: Heuristics to parse VINs, prices, and suppliers.
+  - `compileProposalPayload(type: string, data: Record<string, unknown>): Record<string, unknown>`: Formats autonomous actions into validated structures.
 - `features/ai/queries.ts` & `actions.ts`:
   - `getAiAutomationAgents(companyId: string)`
   - `getAiDocumentExtractions(companyId: string)`

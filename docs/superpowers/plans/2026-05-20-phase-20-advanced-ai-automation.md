@@ -43,63 +43,66 @@
 
 ## Task 2: Database, RLS, and pgTAP
 
-- [ ] Run `npx supabase migration new phase_20_advanced_ai_automation`.
-- [ ] Add enums: `ai_agent_type`, `ai_agent_status`, `ai_extraction_status`, `ai_proposal_type`, `ai_proposal_status`.
-- [ ] Seed permissions: `view_ai_automation`, `manage_ai_automation`.
-- [ ] Add tables: `ai_automation_agents`, `ai_document_extractions`, `ai_automation_proposals`.
-- [ ] Add trigger `trg_audit_ai_automation` to log changes in `audit_logs`.
-- [ ] Enable RLS and authenticated grants on all new tables.
-- [ ] Add seed records for default agents and pending proposals.
-- [ ] Create `supabase/tests/phase_20_advanced_ai_automation.sql` verifying schema constraints, RLS tenant isolation, and proposal commits.
+- [x] Run `npx supabase migration new phase_20_advanced_ai_automation`.
+- [x] Add enums: `ai_agent_type`, `ai_agent_status`, `ai_extraction_status`, `ai_proposal_type`, `ai_proposal_status`.
+- [x] Seed permissions: `view_ai_automation`, `manage_ai_automation`.
+- [x] Add tables: `ai_automation_agents`, `ai_document_extractions`, `ai_automation_proposals`.
+- [x] Add audit triggers for AI automation records to log changes in `audit_logs`.
+- [x] Enable RLS and authenticated grants on all new tables.
+- [x] Add seed records for default agents.
+- [x] Create `supabase/tests/phase_20_advanced_ai_automation.sql` verifying schema constraints, RLS tenant isolation, and proposal commits.
 
 ---
 
 ## Task 3: Business Heuristics and Validation
 
-- [ ] Write failing unit tests in `tests/unit/ai-automation.test.ts` for:
+- [x] Write failing unit tests in `tests/unit/ai-automation.test.ts` for:
   - OCR regex parsing logic,
   - Proposal payload formatters,
   - Zod schemas validation rules.
-- [ ] Implement `lib/ai/automation-helpers.ts` and `lib/validations/ai.ts`.
-- [ ] Run `npm run test -- tests/unit/ai-automation.test.ts` and verify it passes.
+- [x] Implement `lib/ai/automation-helpers.ts` and `lib/validations/ai.ts`.
+- [x] Run `npm run test -- tests/unit/ai-automation.test.ts` and verify it passes.
 
 ---
 
 ## Task 4: Queries, Actions, and Downstream Triggers
 
-- [ ] Implement query helpers in `features/ai/queries.ts`.
-- [ ] Implement server actions in `features/ai/actions.ts`:
+- [x] Implement query helpers in `features/ai/queries.ts`.
+- [x] Implement server actions in `features/ai/actions.ts`:
   - `toggleAutomationAgent`,
   - `triggerAutonomousScan`,
   - `triggerDocumentOcr`,
   - `commitDocumentOcr`,
   - `resolveAiProposal`.
-- [ ] Enforce company and branch scope checks and RLS.
-- [ ] Write audit logs for document extraction commits and proposal approvals.
+- [x] Enforce company and branch scope checks and RLS.
+- [x] Write audit logs for document extraction commits and proposal approvals.
 
 ---
 
 ## Task 5: UI & Navigation Integration
 
-- [ ] Add `view_ai_automation` and `manage_ai_automation` in `lib/permissions/permissions.ts`.
-- [ ] Register `Advanced AI` in `lib/modules/module-registry.ts`.
-- [ ] Build `/app/(app)/ai/automation/page.tsx` with premium dashboard cards, switches, Side-by-side parsed forms, and approval queue cards.
-- [ ] Build `/app/(app)/ai/automation/action-panels.tsx` client interactive forms with live user progress feedback.
+- [x] Add `view_ai_automation` and `manage_ai_automation` in `lib/permissions/permissions.ts`.
+- [x] Register `Advanced AI` in `lib/modules/module-registry.ts`.
+- [x] Build `/app/(app)/ai/automation/page.tsx` with premium dashboard cards, switches, Side-by-side parsed forms, and approval queue cards.
+- [x] Build `/app/(app)/ai/automation/action-panels.tsx` client interactive forms with live user progress feedback.
 
 ---
 
 ## Task 6: E2E and Docs
 
-- [ ] Protect `/ai/automation` in Route checks.
-- [ ] Update `tests/e2e/auth-workspace.spec.ts` with autonomous scanner triggers, OCR file uploads, and approval resolutions.
-- [ ] Create `docs/phase-20-advanced-ai-automation.md`.
-- [ ] Update `README.md`.
+- [x] Protect `/ai/automation` in Route checks.
+- [x] Update `tests/e2e/auth-workspace.spec.ts` with autonomous scanner triggers, OCR file uploads, and approval resolutions.
+- [x] Create `docs/phase-20-advanced-ai-automation.md`.
+- [x] Update `README.md`.
 
 ---
 
 ## Task 7: Verification and Commit
 
 - [ ] Run lint, unit test, build, migration test, and E2E suites.
+- [x] Verified `npm run lint`, `npx tsc --noEmit`, `npm run test`, `npm run test -- tests/unit/ai-automation.test.ts`, `npm run build`, and `git diff --check`.
+- [ ] `npx supabase test db` is pending because Docker/Supabase local database was not reachable on `127.0.0.1:55432`.
+- [ ] `npm run test:e2e` is pending because `.env.local` is missing the required Supabase and app URL environment variables.
 - [ ] Commit all code changes with:
   ```bash
   git add .

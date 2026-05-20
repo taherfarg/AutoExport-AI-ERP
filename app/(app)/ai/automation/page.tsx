@@ -21,7 +21,6 @@ export default async function AiAutomationPage() {
 
   // Secure path access by checking permissions
   const canView = permissions.has(PERMISSIONS.VIEW_AI_AUTOMATION);
-  const canManage = permissions.has(PERMISSIONS.MANAGE_AI_AUTOMATION);
 
   if (!canView) {
     return (
@@ -90,7 +89,6 @@ export default async function AiAutomationPage() {
         </div>
         <AgentSwitchboard 
           agents={agents} 
-          companyId={workspace.companyId}
           defaultBranchId={defaultBranchId}
         />
       </section>

@@ -90,7 +90,7 @@ create trigger ai_document_extractions_set_updated_at before update on public.ai
 create trigger ai_automation_proposals_set_updated_at before update on public.ai_automation_proposals for each row execute function public.set_updated_at();
 
 -- Create audit log function for agents
-create or replace function public.log_ai_agent_audit()
+create or replace function app_private.log_ai_agent_audit()
 returns trigger as $$
 begin
   if TG_OP = 'UPDATE' and OLD.is_enabled <> NEW.is_enabled then
@@ -118,10 +118,10 @@ begin
   end if;
   return NEW;
 end;
-$$ security definer language plpgsql;
+$$ language plpgsql security definer set search_path = pg_catalog, public;
 
 -- Create audit log function for proposals
-create or replace function public.log_ai_proposal_audit()
+create or replace function app_private.log_ai_proposal_audit()
 returns trigger as $$
 begin
   if TG_OP = 'UPDATE' and OLD.status <> NEW.status then
@@ -149,10 +149,10 @@ begin
   end if;
   return NEW;
 end;
-$$ security definer language plpgsql;
+$$ language plpgsql security definer set search_path = pg_catalog, public;
 
 -- Create audit log function for document extractions
-create or replace function public.log_ai_document_extraction_audit()
+create or replace function app_private.log_ai_document_extraction_audit()
 returns trigger as $$
 begin
   if TG_OP = 'UPDATE' and OLD.status <> NEW.status then
@@ -180,20 +180,24 @@ begin
   end if;
   return NEW;
 end;
-$$ security definer language plpgsql;
+$$ language plpgsql security definer set search_path = pg_catalog, public;
+
+revoke execute on function app_private.log_ai_agent_audit() from public, anon, authenticated;
+revoke execute on function app_private.log_ai_proposal_audit() from public, anon, authenticated;
+revoke execute on function app_private.log_ai_document_extraction_audit() from public, anon, authenticated;
 
 -- Bind audit triggers
 create trigger trg_audit_ai_agents
   after update on public.ai_automation_agents
-  for each row execute function public.log_ai_agent_audit();
+  for each row execute function app_private.log_ai_agent_audit();
 
 create trigger trg_audit_ai_proposals
   after update on public.ai_automation_proposals
-  for each row execute function public.log_ai_proposal_audit();
+  for each row execute function app_private.log_ai_proposal_audit();
 
 create trigger trg_audit_ai_document_extractions
   after update on public.ai_document_extractions
-  for each row execute function public.log_ai_document_extraction_audit();
+  for each row execute function app_private.log_ai_document_extraction_audit();
 
 -- Indexes
 create index ai_automation_agents_company_type_idx on public.ai_automation_agents(company_id, agent_type);

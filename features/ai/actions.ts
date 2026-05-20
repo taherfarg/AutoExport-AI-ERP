@@ -16,15 +16,29 @@ import {
   createAiReportRequestSchema,
   automationAgentSchema,
   documentExtractionSchema,
-  automationProposalSchema,
 } from "@/lib/validations/ai";
 import { parseOcrFields, compileProposalPayload } from "@/lib/ai/automation-helpers";
 import { calculateVehiclePricing } from "@/lib/vehicles/pricing";
+
+type JsonRecord = Record<string, unknown>;
 
 type Workspace = {
   companyId: string;
   profileId: string;
 };
+
+function caughtMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
+
+function stringValue(value: unknown, fallback = "") {
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : fallback;
+}
+
+function numberValue(value: unknown, fallback = 0) {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) ? parsed : fallback;
+}
 
 function formOptional(value: FormDataEntryValue | null) {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
@@ -776,11 +790,11 @@ export async function toggleAutomationAgent(formData: FormData) {
   const isEnabled = formData.get("isEnabled") === "true";
   const configStr = formData.get("config") as string;
   
-  let config = {};
+  let config: JsonRecord = {};
   if (configStr) {
     try {
       config = JSON.parse(configStr);
-    } catch (e) {
+    } catch {
       config = {};
     }
   }
@@ -885,7 +899,7 @@ export async function triggerAutonomousScan(formData: FormData) {
     let title = "";
     let description = "";
     let justification = "";
-    let proposedPayload: Record<string, any> = {};
+    let proposedPayload: JsonRecord = {};
 
     if (agentType === "crm_follow_up") {
       const { data: lead } = await supabase
@@ -917,7 +931,7 @@ export async function triggerAutonomousScan(formData: FormData) {
         .limit(1)
         .single();
 
-      let supplierId = part?.default_supplier_id || null;
+      const supplierId = part?.default_supplier_id || null;
       let supplierName = "AutoParts Depot Ltd";
       if (supplierId) {
         const { data: supplier } = await supabase
@@ -1013,18 +1027,19 @@ export async function triggerAutonomousScan(formData: FormData) {
 
     revalidatePath("/ai/automation");
     return { success: true, proposalId: proposal.id };
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const message = caughtMessage(err, "An error occurred during scan");
     await supabase
       .from("ai_automation_agents")
       .update({
         status: "error",
-        error_message: err?.message || "An error occurred during scan",
+        error_message: message,
         updated_by: workspace.profileId,
       })
       .eq("id", agent.id);
 
     revalidatePath("/ai/automation");
-    return { error: err?.message || "Autonomous scan failed." };
+    return { error: message || "Autonomous scan failed." };
   }
 }
 
@@ -1123,12 +1138,13 @@ export async function triggerDocumentOcr(formData: FormData) {
 
     revalidatePath("/ai/automation");
     return { success: true, extractionId: extraction.id, extractedData };
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const message = caughtMessage(err, "OCR parsing failed.");
     await supabase
       .from("ai_document_extractions")
       .update({
         status: "failed",
-        error_message: err?.message || "OCR parsing failed.",
+        error_message: message,
         updated_by: workspace.profileId,
         updated_at: new Date().toISOString(),
       })
@@ -1136,7 +1152,7 @@ export async function triggerDocumentOcr(formData: FormData) {
       .eq("company_id", workspace.companyId);
 
     revalidatePath("/ai/automation");
-    return { error: err?.message || "OCR extraction process failed." };
+    return { error: message || "OCR extraction process failed." };
   }
 }
 
@@ -1163,14 +1179,14 @@ export async function commitDocumentOcr(formData: FormData) {
   }
 
   const documentType = extraction.document_type;
-  const data = extraction.extracted_data as Record<string, any>;
+  const data = extraction.extracted_data as JsonRecord;
 
   if (documentType === "vehicle_title") {
-    const vin = (formData.get("vin") as string) || data.vin;
-    const make = (formData.get("make") as string) || data.make;
-    const model = (formData.get("model") as string) || data.model;
-    const year = Number(formData.get("year")) || data.year || new Date().getFullYear();
-    const color = (formData.get("color") as string) || data.color;
+    const vin = stringValue(formData.get("vin"), stringValue(data.vin));
+    const make = stringValue(formData.get("make"), stringValue(data.make));
+    const model = stringValue(formData.get("model"), stringValue(data.model));
+    const year = numberValue(formData.get("year"), numberValue(data.year, new Date().getFullYear()));
+    const color = stringValue(formData.get("color"), stringValue(data.color));
     const purchasePrice = Number(formData.get("purchasePrice")) || 0;
 
     if (!vin) {
@@ -1226,12 +1242,15 @@ export async function commitDocumentOcr(formData: FormData) {
     revalidatePath("/vehicles");
     return { success: true, vehicleId: vehicle.id };
   } else if (documentType === "supplier_invoice") {
-    const supplierName = (formData.get("supplierName") as string) || data.supplierName || "AutoParts Depot Ltd";
-    const invoiceNumber = (formData.get("invoiceNumber") as string) || data.invoiceNumber || "INV-" + Math.floor(100000 + Math.random() * 900000);
-    const amount = Number(formData.get("amount")) || data.amount || 0;
-    const partNumber = (formData.get("partNumber") as string) || data.partNumber || "BP-202X";
-    const partName = (formData.get("partName") as string) || data.partName || "Heavy-Duty Front Brake Pads";
-    const quantity = Number(formData.get("quantity")) || data.quantity || 1;
+    const supplierName = stringValue(formData.get("supplierName"), stringValue(data.supplierName, "AutoParts Depot Ltd"));
+    const invoiceNumber = stringValue(
+      formData.get("invoiceNumber"),
+      stringValue(data.invoiceNumber, "INV-" + Math.floor(100000 + Math.random() * 900000)),
+    );
+    const amount = numberValue(formData.get("amount"), numberValue(data.amount));
+    const partNumber = stringValue(formData.get("partNumber"), stringValue(data.partNumber, "BP-202X"));
+    const partName = stringValue(formData.get("partName"), stringValue(data.partName, "Heavy-Duty Front Brake Pads"));
+    const quantity = numberValue(formData.get("quantity"), numberValue(data.quantity, 1));
 
     let { data: supplier } = await supabase
       .from("part_suppliers")
@@ -1323,7 +1342,7 @@ export async function commitDocumentOcr(formData: FormData) {
       part = newPart;
     }
 
-    const { data: poItem, error: poItemErr } = await supabase
+    const { error: poItemErr } = await supabase
       .from("part_purchase_order_items")
       .insert({
         company_id: workspace.companyId,
@@ -1335,9 +1354,7 @@ export async function commitDocumentOcr(formData: FormData) {
         line_total: amount,
         created_by: workspace.profileId,
         updated_by: workspace.profileId,
-      })
-      .select("id")
-      .single();
+      });
 
     if (poItemErr) {
       return { error: poItemErr.message };
@@ -1417,13 +1434,13 @@ export async function resolveAiProposal(formData: FormData) {
   }
 
   try {
-    const proposedPayload = proposal.proposed_payload as Record<string, any>;
+    const proposedPayload = proposal.proposed_payload as JsonRecord;
     const branchId = proposal.branch_id;
 
     if (proposal.proposal_type === "lead_follow_up") {
-      const leadId = proposedPayload.leadId;
-      const messageBody = proposedPayload.messageBody;
-      const scheduledAt = proposedPayload.scheduledAt || new Date().toISOString();
+      const leadId = stringValue(proposedPayload.leadId);
+      const messageBody = stringValue(proposedPayload.messageBody, "Autonomous lead nurturing follow-up message.");
+      const scheduledAt = stringValue(proposedPayload.scheduledAt, new Date().toISOString());
 
       if (!leadId) {
         throw new Error("Lead ID is missing in proposal payload.");
@@ -1436,7 +1453,7 @@ export async function resolveAiProposal(formData: FormData) {
           branch_id: branchId,
           lead_id: leadId,
           title: "AI CRM Outbound Follow-up",
-          description: messageBody || "Autonomous lead nurturing follow-up message.",
+          description: messageBody,
           status: "pending",
           due_at: scheduledAt,
           created_by: workspace.profileId,
@@ -1459,11 +1476,11 @@ export async function resolveAiProposal(formData: FormData) {
         newValues: { leadId },
       });
     } else if (proposal.proposal_type === "parts_reorder") {
-      const partNumber = proposedPayload.partNumber || "BP-202X";
-      const partName = proposedPayload.partName || "Heavy-Duty Front Brake Pads";
-      const supplierName = proposedPayload.supplierName || "AutoParts Depot Ltd";
-      const quantity = Number(proposedPayload.quantity) || 10;
-      const estimatedUnitCost = Number(proposedPayload.estimatedUnitCost) || 0;
+      const partNumber = stringValue(proposedPayload.partNumber, "BP-202X");
+      const partName = stringValue(proposedPayload.partName, "Heavy-Duty Front Brake Pads");
+      const supplierName = stringValue(proposedPayload.supplierName, "AutoParts Depot Ltd");
+      const quantity = numberValue(proposedPayload.quantity, 10);
+      const estimatedUnitCost = numberValue(proposedPayload.estimatedUnitCost);
 
       let { data: supplier } = await supabase
         .from("part_suppliers")
@@ -1570,11 +1587,11 @@ export async function resolveAiProposal(formData: FormData) {
         newValues: { poNumber: po.purchase_order_number, partNumber },
       });
     } else if (proposal.proposal_type === "vehicle_marketing") {
-      const vehicleId = proposedPayload.vehicleId;
-      const headline = proposedPayload.headline;
-      const description = proposedPayload.description;
-      const askingPrice = Number(proposedPayload.askingPrice) || 0;
-      const currencyCode = proposedPayload.currencyCode || "AED";
+      const vehicleId = stringValue(proposedPayload.vehicleId);
+      const headline = stringValue(proposedPayload.headline);
+      const description = stringValue(proposedPayload.description);
+      const askingPrice = numberValue(proposedPayload.askingPrice);
+      const currencyCode = stringValue(proposedPayload.currencyCode, "AED");
 
       if (!vehicleId) {
         throw new Error("Vehicle ID is missing in proposal payload.");
@@ -1645,12 +1662,13 @@ export async function resolveAiProposal(formData: FormData) {
 
     revalidatePath("/ai/automation");
     return { success: true };
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const message = caughtMessage(err, "Execution failed.");
     await supabase
       .from("ai_automation_proposals")
       .update({
         status: "failed",
-        error_message: err?.message || "Execution failed.",
+        error_message: message,
         updated_by: workspace.profileId,
         updated_at: new Date().toISOString(),
       })
@@ -1658,6 +1676,6 @@ export async function resolveAiProposal(formData: FormData) {
       .eq("company_id", workspace.companyId);
 
     revalidatePath("/ai/automation");
-    return { error: err?.message || "Execution of AI proposal failed." };
+    return { error: message || "Execution of AI proposal failed." };
   }
 }

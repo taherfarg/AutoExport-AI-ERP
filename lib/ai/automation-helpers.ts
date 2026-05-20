@@ -22,7 +22,7 @@ export interface ParsedSupplierInvoice {
 /**
  * Extracts key fields from raw OCR text using regex heuristics.
  */
-export function parseOcrFields(docType: string, contentText: string): Record<string, any> {
+export function parseOcrFields(docType: string, contentText: string): Record<string, unknown> {
   const text = contentText || "";
   
   if (docType === "vehicle_title") {
@@ -72,7 +72,7 @@ export function parseOcrFields(docType: string, contentText: string): Record<str
       }
     }
 
-    return { vin, make, model, year, color } as ParsedVehicleTitle;
+    return { vin, make, model, year, color };
   }
 
   if (docType === "supplier_invoice") {
@@ -118,7 +118,7 @@ export function parseOcrFields(docType: string, contentText: string): Record<str
       quantity = parseInt(qtyMatch[1], 10);
     }
 
-    return { supplierName, invoiceNumber, amount, partNumber, partName, quantity } as ParsedSupplierInvoice;
+    return { supplierName, invoiceNumber, amount, partNumber, partName, quantity };
   }
 
   return {};
@@ -127,7 +127,7 @@ export function parseOcrFields(docType: string, contentText: string): Record<str
 /**
  * Standardizes payloads for various automation proposals before queuing them.
  */
-export function compileProposalPayload(type: string, data: Record<string, any>): Record<string, any> {
+export function compileProposalPayload(type: string, data: Record<string, unknown>): Record<string, unknown> {
   if (type === "lead_follow_up") {
     return {
       leadId: data.leadId || null,
