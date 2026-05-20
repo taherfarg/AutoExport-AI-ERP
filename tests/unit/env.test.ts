@@ -35,6 +35,21 @@ describe("runtime environment validation", () => {
     );
   });
 
+  it("allows optional provider variables to be empty in local env files", () => {
+    const env = validateRuntimeEnv({
+      ...completeEnv,
+      OPENAI_API_KEY: "",
+      STRIPE_SECRET_KEY: "",
+      STRIPE_WEBHOOK_SECRET: "",
+      NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: "",
+    });
+
+    expect(env.OPENAI_API_KEY).toBeUndefined();
+    expect(env.STRIPE_SECRET_KEY).toBeUndefined();
+    expect(env.STRIPE_WEBHOOK_SECRET).toBeUndefined();
+    expect(env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY).toBeUndefined();
+  });
+
   it("returns only public Supabase configuration for browser clients", () => {
     const publicEnv = getPublicSupabaseEnv(completeEnv);
 

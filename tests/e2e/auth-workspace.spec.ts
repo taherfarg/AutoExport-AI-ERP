@@ -1,4 +1,22 @@
 import { expect, test } from "@playwright/test";
+import { createClient } from "@supabase/supabase-js";
+import { existsSync, readFileSync } from "node:fs";
+
+function getEnvValue(key: string) {
+  if (process.env[key]) {
+    return process.env[key]!;
+  }
+
+  if (!existsSync(".env.local")) {
+    return "";
+  }
+
+  const line = readFileSync(".env.local", "utf8")
+    .split(/\r?\n/)
+    .find((entry) => entry.startsWith(`${key}=`));
+
+  return line?.slice(key.length + 1).trim() ?? "";
+}
 
 test.describe.configure({ timeout: 180_000 });
 
@@ -49,7 +67,8 @@ test("new workspace can add a branch, vehicle, and lead", async ({ page }) => {
   page.on("pageerror", (err) => console.error("BROWSER PAGE ERROR:", err.message));
 
   const id = Date.now();
-  const email = `phase2a-${id}@example.test`;
+  const email = `phase2a-${id}@gmail.com`;
+  const password = "Password123!";
   const slug = `phase2a-${id}`;
   const stockNumber = `E2E-${id}`;
   const vin = `E2EVIN${id}`;
@@ -67,10 +86,22 @@ test("new workspace can add a branch, vehicle, and lead", async ({ page }) => {
     "base64",
   );
 
-  await page.goto("/signup");
+  const supabaseAdmin = createClient(
+    getEnvValue("NEXT_PUBLIC_SUPABASE_URL"),
+    getEnvValue("SUPABASE_SERVICE_ROLE_KEY"),
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  );
+  const { error: adminCreateError } = await supabaseAdmin.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+  });
+  expect(adminCreateError).toBeNull();
+
+  await page.goto("/login");
   await page.getByLabel("Email").fill(email);
-  await page.getByLabel("Password").fill("Password123!");
-  await page.getByRole("button", { name: "Create account" }).click();
+  await page.getByLabel("Password").fill(password);
+  await page.getByRole("button", { name: "Sign in" }).click();
 
   await expect(page.getByText("Create dealership workspace")).toBeVisible();
   await page.getByLabel("Company name").fill(`Phase 2A Motors ${id}`);
@@ -492,7 +523,7 @@ test("new workspace can add a branch, vehicle, and lead", async ({ page }) => {
 
   await page.locator("#signatureTitle").fill(signatureTitle);
   await page.locator("#sentToName").fill(`Signer ${id}`);
-  await page.locator("#sentToEmail").fill(`signer-${id}@example.test`);
+  await page.locator("#sentToEmail").fill(`signer-${id}@example.com`);
   await page.getByRole("button", { name: "Create signature request" }).click();
   await page.waitForTimeout(1000);
   await page.reload();

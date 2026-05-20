@@ -1,6 +1,7 @@
 "use server";
 
 import { requireUser } from "@/lib/auth/require-user";
+import { ensureProfileForUser } from "@/lib/auth/profiles";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import { createCompanySchema } from "@/lib/validations/company";
 
@@ -20,14 +21,11 @@ export async function createCompany(formData: FormData) {
 
   const supabase = createServiceRoleClient();
 
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("id")
-    .eq("auth_user_id", user.id)
-    .single();
-
-  if (profileError || !profile) {
-    return { error: "Profile was not found for the signed-in user." };
+  let profile;
+  try {
+    profile = await ensureProfileForUser(user);
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Profile could not be prepared for the signed-in user." };
   }
 
   const { data: starterPackage, error: packageError } = await supabase

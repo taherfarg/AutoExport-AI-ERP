@@ -1,13 +1,9 @@
 import { requireUser } from "@/lib/auth/require-user";
+import { ensureProfileForUser } from "@/lib/auth/profiles";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 
 type MembershipRow = {
   company_id: string;
-};
-
-type ProfileRow = {
-  id: string;
-  email: string;
 };
 
 type PermissionRow = {
@@ -32,22 +28,12 @@ type PermissionRow = {
 export async function getCurrentWorkspace() {
   const user = await requireUser();
   const supabase = createServiceRoleClient();
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("id, email")
-    .eq("auth_user_id", user.id)
-    .single();
-
-  const typedProfile = profile as ProfileRow | null;
-
-  if (profileError || !typedProfile) {
-    throw new Error("Current workspace was not found.");
-  }
+  const profile = await ensureProfileForUser(user);
 
   const { data: membership, error: membershipError } = await supabase
     .from("company_memberships")
     .select("company_id")
-    .eq("profile_id", typedProfile.id)
+    .eq("profile_id", profile.id)
     .eq("status", "active")
     .order("created_at", { ascending: true })
     .limit(1)
@@ -60,8 +46,8 @@ export async function getCurrentWorkspace() {
   }
 
   return {
-    profileId: typedProfile.id,
-    email: typedProfile.email,
+    profileId: profile.id,
+    email: profile.email,
     companyId: typedMembership.company_id,
   };
 }

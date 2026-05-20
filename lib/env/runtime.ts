@@ -1,17 +1,32 @@
 import { z } from "zod";
 
+const optionalNonEmptyString = z.preprocess(
+  (value) => (typeof value === "string" && value.trim().length === 0 ? undefined : value),
+  z.string().trim().min(1).optional(),
+);
+
+const optionalUrl = z.preprocess(
+  (value) => (typeof value === "string" && value.trim().length === 0 ? undefined : value),
+  z.string().trim().url().optional(),
+);
+
+const optionalBooleanString = z.preprocess(
+  (value) => (typeof value === "string" && value.trim().length === 0 ? undefined : value),
+  z.enum(["true", "false"]).optional(),
+);
+
 const runtimeEnvSchema = z.object({
   NEXT_PUBLIC_SUPABASE_URL: z.string().trim().url(),
   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: z.string().trim().min(1),
   SUPABASE_SERVICE_ROLE_KEY: z.string().trim().min(1),
   NEXT_PUBLIC_APP_URL: z.string().trim().url(),
-  OPENAI_API_KEY: z.string().trim().min(1).optional(),
-  OPENAI_MODEL: z.string().trim().min(1).optional(),
-  OPENAI_BASE_URL: z.string().trim().url().optional(),
-  STRIPE_SECRET_KEY: z.string().trim().min(1).optional(),
-  STRIPE_WEBHOOK_SECRET: z.string().trim().min(1).optional(),
-  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: z.string().trim().min(1).optional(),
-  STRIPE_LIVE_BILLING_ENABLED: z.enum(["true", "false"]).optional(),
+  OPENAI_API_KEY: optionalNonEmptyString,
+  OPENAI_MODEL: optionalNonEmptyString,
+  OPENAI_BASE_URL: optionalUrl,
+  STRIPE_SECRET_KEY: optionalNonEmptyString,
+  STRIPE_WEBHOOK_SECRET: optionalNonEmptyString,
+  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: optionalNonEmptyString,
+  STRIPE_LIVE_BILLING_ENABLED: optionalBooleanString,
 });
 
 export type RuntimeEnv = z.infer<typeof runtimeEnvSchema>;
