@@ -24,12 +24,12 @@ export default async function AiAutomationPage() {
 
   if (!canView) {
     return (
-      <div className="flex h-[400px] flex-col items-center justify-center rounded-2xl border border-slate-800 bg-slate-900/60 p-8 text-center backdrop-blur-md">
-        <div className="rounded-full bg-rose-500/10 p-4 border border-rose-500/20 text-rose-400 mb-4 animate-pulse">
+      <div className="flex h-[400px] flex-col items-center justify-center rounded-xl border border-slate-200 bg-white p-8 text-center shadow-sm">
+        <div className="mb-4 rounded-full border border-rose-200 bg-rose-50 p-4 text-rose-600">
           <ShieldAlert className="h-8 w-8" />
         </div>
-        <h3 className="text-lg font-bold text-slate-100">Access Restricted</h3>
-        <p className="mt-2 text-sm text-slate-400 max-w-md leading-relaxed">
+        <h3 className="text-lg font-bold text-slate-950">Access Restricted</h3>
+        <p className="mt-2 max-w-md text-sm leading-relaxed text-slate-600">
           You do not have the required permissions (`view_ai_automation`) to view the Advanced AI Automation control board. Contact your system administrator for authorization.
         </p>
       </div>
@@ -44,48 +44,56 @@ export default async function AiAutomationPage() {
   ]);
 
   const defaultBranchId = branches[0]?.id;
+  const pendingProposalCount = proposals.filter((p) => p.status === "pending").length;
 
   return (
-    <div className="space-y-8 pb-10">
-      {/* Premium Header */}
-      <div className="relative overflow-hidden rounded-2xl border border-slate-850 bg-gradient-to-r from-slate-950 via-indigo-950/20 to-slate-950 p-6 md:p-8">
-        <div className="absolute right-0 top-0 h-64 w-64 rounded-full bg-indigo-500/10 blur-3xl" />
-        <div className="absolute left-1/3 bottom-0 h-48 w-48 rounded-full bg-purple-500/5 blur-3xl" />
-        
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-6">
-          <div className="space-y-2.5">
-            <div className="flex items-center gap-2">
-              <span className="rounded-md bg-indigo-500/15 border border-indigo-500/30 px-2.5 py-0.5 text-xs font-semibold text-indigo-400 flex items-center gap-1.5 shadow-sm">
-                <Sparkles className="h-3 w-3" />
-                Advanced Intelligence
-              </span>
-            </div>
-            <h1 className="text-3xl font-extrabold tracking-tight text-slate-50 font-sans">
+    <div className="space-y-7 pb-10">
+      <div className="relative overflow-hidden rounded-xl border border-slate-200 bg-white p-5 shadow-sm md:p-6">
+        <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-indigo-500 via-sky-500 to-orange-500" />
+
+        <div className="flex flex-col gap-5 lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0 space-y-3">
+            <span className="inline-flex items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50 px-3 py-1 text-xs font-semibold text-indigo-700">
+              <Sparkles className="h-3.5 w-3.5" />
+              Advanced Intelligence
+            </span>
+            <div className="space-y-2">
+              <h1 className="text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl">
               Advanced AI Automation
-            </h1>
-            <p className="text-sm text-slate-400 max-w-2xl leading-relaxed">
-              Supercharge business logic using self-executing AI agents and rapid OCR document indexing. AutoSphere CRM, parts procurement, and listing campaigns execute safely under manager approval.
-            </p>
+              </h1>
+              <p className="max-w-3xl text-sm leading-6 text-slate-600">
+                Control autonomous agents, OCR document intake, and approval-safe AI actions for CRM, parts procurement, and marketplace operations.
+              </p>
+            </div>
           </div>
 
-          <div className="flex items-center gap-4 border border-slate-800 bg-slate-900/60 rounded-xl px-5 py-3.5 backdrop-blur-md">
-            <Cpu className="h-8 w-8 text-indigo-400 shrink-0" />
-            <div className="text-xs">
-              <p className="font-semibold text-slate-300">Human-in-the-Loop Mode</p>
-              <p className="text-slate-500 mt-0.5">Sensitive write operations require approval</p>
+          <div className="grid min-w-0 gap-3 sm:grid-cols-3 lg:w-[520px]">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 p-3">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">Agents</p>
+              <p className="mt-1 text-xl font-bold text-slate-950">{agents.length}</p>
+            </div>
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3">
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-amber-700">Pending</p>
+              <p className="mt-1 text-xl font-bold text-amber-900">{pendingProposalCount}</p>
+            </div>
+            <div className="rounded-lg border border-indigo-200 bg-indigo-50 p-3">
+              <div className="flex items-center gap-2">
+                <Cpu className="h-4 w-4 text-indigo-700" />
+                <p className="text-[11px] font-semibold uppercase tracking-wide text-indigo-700">Approval Mode</p>
+              </div>
+              <p className="mt-1 text-sm font-semibold text-indigo-950">Human checked</p>
             </div>
           </div>
         </div>
       </div>
 
-      {/* Background Agents Switchboard */}
       <section className="space-y-4">
         <div>
-          <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2">
-            <Bot className="h-5 w-5 text-indigo-400" />
+          <h2 className="flex items-center gap-2 text-lg font-bold text-slate-950">
+            <Bot className="h-5 w-5 text-indigo-600" />
             Autonomous Background Agents
           </h2>
-          <p className="text-xs text-slate-400 mt-1">Configure active intervals and trigger on-demand audits</p>
+          <p className="mt-1 text-sm text-slate-600">Configure active intervals and trigger on-demand audits.</p>
         </div>
         <AgentSwitchboard 
           agents={agents} 
@@ -93,14 +101,13 @@ export default async function AiAutomationPage() {
         />
       </section>
 
-      {/* OCR Document Ingestion Control */}
       <section className="space-y-4 pt-2">
         <div>
-          <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2">
-            <Cpu className="h-5 w-5 text-indigo-400" />
+          <h2 className="flex items-center gap-2 text-lg font-bold text-slate-950">
+            <Cpu className="h-5 w-5 text-indigo-600" />
             Smart OCR Document Intake
           </h2>
-          <p className="text-xs text-slate-400 mt-1">Directly transform invoice PDFs or title sheets into vehicles or parts purchase orders</p>
+          <p className="mt-1 text-sm text-slate-600">Transform invoice PDFs or title sheets into controlled draft records.</p>
         </div>
         <OcrDocumentIntake 
           companyId={workspace.companyId} 
@@ -108,18 +115,17 @@ export default async function AiAutomationPage() {
         />
       </section>
 
-      {/* Manager Approvals Feed */}
       <section className="space-y-4 pt-2">
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2">
-              <UserCheck className="h-5 w-5 text-indigo-400" />
+            <h2 className="flex items-center gap-2 text-lg font-bold text-slate-950">
+              <UserCheck className="h-5 w-5 text-indigo-600" />
               Manager Approval Console
             </h2>
-            <p className="text-xs text-slate-400 mt-1">Review drafted recommendations and verify justification before locking in updates</p>
+            <p className="mt-1 text-sm text-slate-600">Review drafted recommendations before any sensitive system update.</p>
           </div>
-          <Badge className="border border-amber-500/20 bg-amber-500/10 text-amber-400 font-semibold px-2.5 py-0.5">
-            {proposals.filter((p) => p.status === "pending").length} Pending
+          <Badge className="w-fit border border-amber-200 bg-amber-50 px-3 py-1 text-sm font-semibold text-amber-800">
+            {pendingProposalCount} Pending
           </Badge>
         </div>
         <ProposalsApprovalFeed proposals={proposals} />
