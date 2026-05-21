@@ -2,7 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
-import { getCurrentWorkspace } from "@/lib/auth/current-workspace";
+import { getCurrentPermissionSet, getCurrentWorkspace } from "@/lib/auth/current-workspace";
+import { PERMISSIONS } from "@/lib/permissions/permissions";
 import { createClient } from "@/lib/supabase/server";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import {
@@ -393,24 +394,57 @@ export async function archiveVehicle(formData: FormData) {
   });
 
   if (!parsed.success) {
-    throw new Error("Vehicle id is invalid.");
+    redirect("/vehicles?error=Vehicle%20id%20is%20invalid.");
   }
 
-  const supabase = await createClient();
-  const { error } = await supabase
+  const detailUrl = `/vehicles/${parsed.data.vehicleId}`;
+  const permissions = await getCurrentPermissionSet(workspace.companyId);
+  if (!permissions.has(PERMISSIONS.DELETE_VEHICLE)) {
+    redirect(`${detailUrl}?error=${encodeURIComponent("You do not have permission to archive vehicles.")}`);
+  }
+
+  const userScopedClient = await createClient();
+  const { data: visibleVehicle, error: visibleError } = await userScopedClient
+    .from("vehicles")
+    .select("id")
+    .eq("id", parsed.data.vehicleId)
+    .eq("company_id", workspace.companyId)
+    .is("deleted_at", null)
+    .single();
+
+  if (visibleError || !visibleVehicle) {
+    redirect(`${detailUrl}?error=${encodeURIComponent("Vehicle was not found or is outside your branch access.")}`);
+  }
+
+  const supabase = createServiceRoleClient();
+  const { data: archivedVehicle, error } = await supabase
     .from("vehicles")
     .update({
       deleted_at: new Date().toISOString(),
       updated_by: workspace.profileId,
     })
     .eq("id", parsed.data.vehicleId)
-    .eq("company_id", workspace.companyId);
+    .eq("company_id", workspace.companyId)
+    .is("deleted_at", null)
+    .select("id, branch_id, stock_number")
+    .single();
 
-  if (error) {
-    throw new Error(error.message);
+  if (error || !archivedVehicle) {
+    redirect(`${detailUrl}?error=${encodeURIComponent(error?.message ?? "Vehicle could not be archived.")}`);
   }
 
+  await writeAuditLog({
+    companyId: workspace.companyId,
+    branchId: archivedVehicle.branch_id,
+    actorProfileId: workspace.profileId,
+    action: "archive_vehicle",
+    entityType: "vehicle",
+    entityId: archivedVehicle.id,
+    newValues: { stockNumber: archivedVehicle.stock_number },
+  });
+
   revalidatePath("/vehicles");
+  revalidatePath(detailUrl);
   redirect("/vehicles");
 }
 
