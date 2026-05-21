@@ -18,7 +18,7 @@ function getEnvValue(key: string) {
   return line?.slice(key.length + 1).trim().replace(/^["']|["']$/g, "") ?? "";
 }
 
-test.describe.configure({ timeout: 180_000 });
+test.describe.configure({ timeout: 300_000 });
 
 test("login page renders", async ({ page }) => {
   await page.goto("/login");

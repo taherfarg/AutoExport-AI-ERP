@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { 
   Bot, 
   Sparkles, 
@@ -58,6 +59,7 @@ export function AgentSwitchboard({
   agents: AiAutomationAgentRow[];
   defaultBranchId?: string;
 }) {
+  const router = useRouter();
   const [loadingAgentId, setLoadingAgentId] = useState<string | null>(null);
   const [scanningAgentType, setScanningAgentType] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -79,6 +81,7 @@ export function AgentSwitchboard({
         setErrorMsg(res.error);
       } else {
         setSuccessMsg(`Successfully toggled ${formatAgentName(agent.agent_type)}!`);
+        router.refresh();
       }
     } catch (e: unknown) {
       setErrorMsg(errorMessage(e, "An unexpected error occurred."));
@@ -101,6 +104,7 @@ export function AgentSwitchboard({
         setErrorMsg(res.error);
       } else {
         setSuccessMsg(`Autonomous scan finished! Generated proposal draft.`);
+        router.refresh();
       }
     } catch (e: unknown) {
       setErrorMsg(errorMessage(e, "Autonomous scan failed."));
@@ -599,6 +603,7 @@ export function ProposalsApprovalFeed({
 }: { 
   proposals: AiAutomationProposalRow[];
 }) {
+  const router = useRouter();
   const [resolvingId, setResolvingId] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -619,6 +624,7 @@ export function ProposalsApprovalFeed({
         setErrorMsg(res.error);
       } else {
         setSuccessMsg(`Proposal resolved perfectly! ${decision === "approved" ? "Executed autonomous pipeline." : "Dismissed proposal successfully."}`);
+        router.refresh();
       }
     } catch (e: unknown) {
       setErrorMsg(errorMessage(e, "Failed to resolve proposal."));

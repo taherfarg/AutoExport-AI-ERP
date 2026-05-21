@@ -151,6 +151,14 @@ npx supabase test db
 npm run test:e2e
 ```
 
+For one-command automated QA with a generated report:
+
+```powershell
+npm run qa:full
+```
+
+The report is written to `qa-reports/latest.md`. See `docs/automated-testing.md`.
+
 ## Deployment
 
 - Frontend: Vercel

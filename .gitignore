@@ -21,6 +21,7 @@ supabase/.temp/
 coverage/
 playwright-report/
 test-results/
+qa-reports/
 tsconfig.tsbuildinfo
 
 # debug logs

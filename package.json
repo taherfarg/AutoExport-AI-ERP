@@ -9,7 +9,9 @@
     "lint": "eslint app components features lib tests next.config.ts proxy.ts tailwind.config.ts postcss.config.mjs vitest.config.ts playwright.config.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "qa:full": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/qa/full-test.ps1",
+    "qa:full:keepdb": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/qa/full-test.ps1 -SkipDbReset"
   },
   "overrides": {
     "postcss": "^8.5.14"
