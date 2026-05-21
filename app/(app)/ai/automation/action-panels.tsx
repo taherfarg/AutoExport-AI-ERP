@@ -62,6 +62,14 @@ function formatAgentName(type: string) {
   return type;
 }
 
+function formatStableDate(value: string | null) {
+  if (!value) return "Never";
+  return new Intl.DateTimeFormat("en", {
+    dateStyle: "medium",
+    timeZone: "UTC",
+  }).format(new Date(value));
+}
+
 function SuccessNotice({ message }: { message: string }) {
   return (
     <div className="flex items-start gap-3 rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-emerald-800">
@@ -224,9 +232,7 @@ export function AgentSwitchboard({
                   </div>
                   <div className="text-right">
                     <p className="font-semibold uppercase tracking-wide text-slate-500">Last run</p>
-                    <p className="mt-1 font-bold text-slate-950">
-                      {agent.last_scan_at ? new Date(agent.last_scan_at).toLocaleDateString() : "Never"}
-                    </p>
+                    <p className="mt-1 font-bold text-slate-950">{formatStableDate(agent.last_scan_at)}</p>
                   </div>
                 </div>
 
@@ -830,7 +836,7 @@ export function ProposalsApprovalFeed({
                         {proposal.proposal_type.replace("_", " ")}
                       </Badge>
                       <span className="text-xs text-slate-500">
-                        Generated {new Date(proposal.created_at).toLocaleDateString()}
+                        Generated {formatStableDate(proposal.created_at)}
                       </span>
                     </div>
 
