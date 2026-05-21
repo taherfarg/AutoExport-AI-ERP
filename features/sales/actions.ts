@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { getCurrentWorkspace } from "@/lib/auth/current-workspace";
 import { makeDocumentNumber } from "@/lib/sales/format";
 import { createClient } from "@/lib/supabase/server";
@@ -78,7 +77,7 @@ export async function createQuotation(formData: FormData) {
   });
 
   if (!parsed.success || parsed.data.companyId !== workspace.companyId) {
-    throw new Error("Quotation details are invalid.");
+    return { error: "Quotation details are invalid." };
   }
 
   const supabase = await createClient();
@@ -106,7 +105,7 @@ export async function createQuotation(formData: FormData) {
     .single();
 
   if (error || !quotation) {
-    throw new Error(error?.message ?? "Quotation could not be created.");
+    return { error: error?.message ?? "Quotation could not be created." };
   }
 
   await supabase.from("quotation_items").insert({
@@ -121,7 +120,7 @@ export async function createQuotation(formData: FormData) {
   });
 
   revalidatePath("/sales/quotations");
-  redirect(`/sales/quotations/${quotation.id}`);
+  return { quotationId: quotation.id };
 }
 
 export async function createReservationFromQuotation(formData: FormData) {

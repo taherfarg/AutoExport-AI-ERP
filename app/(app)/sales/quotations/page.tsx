@@ -14,7 +14,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getBranches } from "@/features/branches/queries";
 import { getLeads } from "@/features/crm/queries";
-import { createQuotation } from "@/features/sales/actions";
 import {
   getQuotationReservations,
   getQuotations,
@@ -27,6 +26,7 @@ import { getCurrentWorkspace } from "@/lib/auth/current-workspace";
 import { formatSalesStatus } from "@/lib/sales/format";
 import { formatMoney } from "@/lib/vehicles/format";
 import { quotationStatuses } from "@/lib/validations/sales";
+import { QuotationCreateForm } from "./quotation-create-form";
 
 type QuotationsPageProps = {
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -206,75 +206,19 @@ export default async function QuotationsPage({ searchParams }: QuotationsPagePro
           ) : !defaultBranchId || !defaultVehicle ? (
             <p className="text-sm text-slate-500">Create a branch and an available vehicle before adding quotations.</p>
           ) : (
-            <form action={createQuotation} className="grid gap-4 md:grid-cols-4">
-              <input type="hidden" name="companyId" value={workspace.companyId} />
-              <div className="grid gap-2">
-                <Label htmlFor="quotationBranchId">Branch</Label>
-                <select id="quotationBranchId" name="branchId" defaultValue={defaultBranchId} className="h-9 rounded-md border bg-white px-3 text-sm">
-                  {branches.map((branch) => (
-                    <option key={branch.id} value={branch.id}>{branch.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="leadId">Lead</Label>
-                <select id="leadId" name="leadId" defaultValue={leads[0]?.id ?? ""} className="h-9 rounded-md border bg-white px-3 text-sm">
-                  <option value="">No lead</option>
-                  {leads.map((lead) => (
-                    <option key={lead.id} value={lead.id}>{lead.name}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="grid gap-2 md:col-span-2">
-                <Label htmlFor="vehicleId">Vehicle</Label>
-                <select id="vehicleId" name="vehicleId" defaultValue={defaultVehicle.id} className="h-9 rounded-md border bg-white px-3 text-sm">
-                  {vehicles.map((vehicle) => (
-                    <option key={vehicle.id} value={vehicle.id}>
-                      {vehicle.stock_number} - {vehicle.year} {vehicle.brand} {vehicle.model}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="price">Price</Label>
-                <Input id="price" name="price" type="number" min="0" defaultValue={defaultVehicle.selling_price} required />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="discount">Discount</Label>
-                <Input id="discount" name="discount" type="number" min="0" defaultValue="0" />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="tax">Tax</Label>
-                <Input id="tax" name="tax" type="number" min="0" defaultValue="0" />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="currencyCode">Currency</Label>
-                <Input id="currencyCode" name="currencyCode" defaultValue={defaultVehicle.currency_code} maxLength={3} />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="validUntil">Valid until</Label>
-                <Input id="validUntil" name="validUntil" type="date" defaultValue={defaultValidUntil()} required />
-              </div>
-              <div className="grid gap-2">
-                <Label htmlFor="salespersonId">Salesperson</Label>
-                <select id="salespersonId" name="salespersonId" defaultValue={workspace.profileId} className="h-9 rounded-md border bg-white px-3 text-sm">
-                  {userOptions.map((user) => (
-                    <option key={user.id} value={user.id}>{user.full_name}</option>
-                  ))}
-                </select>
-              </div>
-              <div className="grid gap-2 md:col-span-2">
-                <Label htmlFor="notes">Notes</Label>
-                <Input id="notes" name="notes" placeholder="Export price valid for seven days" />
-              </div>
-              <div className="flex items-end md:col-span-4">
-                <Button type="submit">Create quotation</Button>
-              </div>
-            </form>
+            <QuotationCreateForm
+              branches={branches}
+              companyId={workspace.companyId}
+              defaultBranchId={defaultBranchId}
+              defaultValidUntil={defaultValidUntil()}
+              defaultVehicle={defaultVehicle}
+              leads={leads}
+              profileId={workspace.profileId}
+              users={userOptions}
+            />
           )}
         </CardContent>
       </Card>
     </div>
   );
 }
-

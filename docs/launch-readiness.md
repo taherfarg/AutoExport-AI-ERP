@@ -26,6 +26,10 @@ NEXT_PUBLIC_APP_URL=
 Optional:
 
 ```env
+AI_PROVIDER=gemini
+GEMINI_API_KEY=
+GEMINI_MODEL=gemini-3.1-flash-lite
+GEMINI_BASE_URL=https://generativelanguage.googleapis.com/v1beta
 OPENAI_API_KEY=
 OPENAI_MODEL=gpt-5-mini
 OPENAI_BASE_URL=https://api.openai.com/v1
@@ -36,7 +40,7 @@ NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY=
 
 Rules:
 
-- `SUPABASE_SERVICE_ROLE_KEY`, `OPENAI_API_KEY`, `STRIPE_SECRET_KEY`, and webhook secrets must never use `NEXT_PUBLIC_`.
+- `SUPABASE_SERVICE_ROLE_KEY`, `GEMINI_API_KEY`, `OPENAI_API_KEY`, `STRIPE_SECRET_KEY`, and webhook secrets must never use `NEXT_PUBLIC_`.
 - Browser-safe values may use `NEXT_PUBLIC_`.
 - `/api/health` reports configured booleans only and must not expose secret values.
 
@@ -97,7 +101,7 @@ npm run test:e2e
 
 Production provider work can now be added behind the existing module boundaries:
 
-- OpenAI-compatible provider call path behind AI server actions is implemented; configure `OPENAI_API_KEY` to enable live model routing/refinement.
+- Gemini and OpenAI-compatible provider call paths behind AI server actions are implemented; configure the matching server-side key to enable live model routing/refinement.
 - Stripe subscriptions behind package/subscription tables.
 - Email provider for notifications and reports.
 - WhatsApp/Meta provider for customer messaging drafts.

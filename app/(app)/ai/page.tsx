@@ -1,4 +1,4 @@
-import { Bot, Check, FileSearch, MessageSquareText, ShieldCheck, Sparkles, X } from "lucide-react";
+import { Bot, Check, FileSearch, MessageSquareText, ShieldCheck, X } from "lucide-react";
 import { AiStatusBadge } from "@/components/ai/ai-status-badge";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { Button } from "@/components/ui/button";
@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { getBranches } from "@/features/branches/queries";
 import {
-  askAiAssistant,
   createAiExtractionRequest,
   createAiReportRequest,
   decideAiApproval,
@@ -15,6 +14,7 @@ import {
 import { getAiDashboardData, getAiPermissions } from "@/features/ai/queries";
 import { getCurrentWorkspace } from "@/lib/auth/current-workspace";
 import { formatAiStatus } from "@/lib/ai/format";
+import { AiAskForm } from "./ai-ask-form";
 
 function formatDate(value: string | null) {
   if (!value) {
@@ -34,12 +34,6 @@ export default async function AiPage() {
   const defaultBranchId = branches[0]?.id;
   const latestRequest = data.requests[0];
   const defaultDocument = data.documents[0];
-
-  async function askFromForm(formData: FormData) {
-    "use server";
-
-    await askAiAssistant(formData);
-  }
 
   async function reportFromForm(formData: FormData) {
     "use server";
@@ -88,36 +82,7 @@ export default async function AiPage() {
             </CardHeader>
             <CardContent>
               {permissions.canUseAi ? (
-                <form action={askFromForm} className="grid gap-3">
-                  <input type="hidden" name="companyId" value={workspace.companyId} />
-                  <input type="hidden" name="branchId" value={defaultBranchId ?? ""} />
-                  <div className="grid gap-2">
-                    <Label htmlFor="prompt">Question</Label>
-                    <textarea
-                      id="prompt"
-                      name="prompt"
-                      rows={4}
-                      className="rounded-md border px-3 py-2 text-sm"
-                      defaultValue="How many cars are available?"
-                      required
-                    />
-                  </div>
-                  <div className="flex flex-wrap gap-2 text-xs text-slate-500">
-                    {[
-                      "Which Toyota cars are available?",
-                      "Which leads need follow-up today?",
-                      "Show pending customer payments.",
-                      "What documents are missing?",
-                      "Create social media caption for this vehicle.",
-                    ].map((example) => (
-                      <span key={example} className="rounded-full border bg-slate-50 px-2 py-1">{example}</span>
-                    ))}
-                  </div>
-                  <Button type="submit">
-                    <Sparkles className="h-4 w-4" />
-                    Ask AI
-                  </Button>
-                </form>
+                <AiAskForm companyId={workspace.companyId} branchId={defaultBranchId} />
               ) : (
                 <p className="text-sm text-slate-500">Your role does not include AI assistant access.</p>
               )}

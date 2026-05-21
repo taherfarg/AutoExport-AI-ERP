@@ -12,7 +12,7 @@ Phase 9 adds the production AI safety and assistant foundation for AutoSphere ER
 - AI document extraction request records.
 - Server-side AI tool registry with permission filtering.
 - Deterministic business tools for stock, vehicle details, leads, payments, documents, pricing, marketing drafts, quotation drafts, follow-up drafts, and report drafts.
-- OpenAI-compatible Responses API provider path for model-assisted tool routing and answer refinement when `OPENAI_API_KEY` exists.
+- Gemini `generateContent` and OpenAI-compatible Responses API provider paths for model-assisted tool routing and answer refinement when a provider key exists.
 - Deterministic local fallback when no provider key is configured or the provider fails.
 
 ## Safety Notes
@@ -30,6 +30,10 @@ Phase 9 adds the production AI safety and assistant foundation for AutoSphere ER
 Optional:
 
 ```env
+AI_PROVIDER=gemini
+GEMINI_API_KEY=
+GEMINI_MODEL=gemini-3.1-flash-lite
+GEMINI_BASE_URL=https://generativelanguage.googleapis.com/v1beta
 OPENAI_API_KEY=
 OPENAI_MODEL=gpt-5-mini
 OPENAI_BASE_URL=https://api.openai.com/v1

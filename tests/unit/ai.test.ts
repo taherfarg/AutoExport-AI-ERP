@@ -176,4 +176,66 @@ describe("AI technical intelligence", () => {
     expect(result.answerPayload.suggestedActions).toEqual(["Open payments"]);
     expect(fetcher).toHaveBeenCalledTimes(2);
   });
+
+  test("routes and refines through Gemini generateContent provider", async () => {
+    const fetcher = vi.fn(async (input: string | URL, init?: RequestInit) => {
+      expect(String(input)).toContain("/models/gemini-test:generateContent");
+      const body = JSON.parse(String(init?.body)) as {
+        systemInstruction?: { parts?: Array<{ text: string }> };
+        contents: Array<{ parts: Array<{ text: string }> }>;
+      };
+      const promptText = [
+        body.systemInstruction?.parts?.[0]?.text ?? "",
+        body.contents[0]?.parts[0]?.text ?? "",
+      ].join("\n");
+      const outputText = promptText.includes("route")
+        ? "{\"toolName\":\"getLeadsDueToday\"}"
+        : "{\"directAnswer\":\"3 leads need follow-up today.\",\"suggestedActions\":[\"Open follow-ups\"]}";
+
+      return new Response(JSON.stringify({
+        candidates: [
+          {
+            content: {
+              parts: [{ text: outputText }],
+            },
+          },
+        ],
+      }), { status: 200 });
+    });
+
+    const env = {
+      AI_PROVIDER: "gemini",
+      GEMINI_API_KEY: "gemini-secret",
+      GEMINI_MODEL: "gemini-test",
+      GEMINI_BASE_URL: "https://generativelanguage.googleapis.com/v1beta",
+    };
+    const selection = await selectAiToolWithProvider({
+      prompt: "Which leads need follow-up today?",
+      fallbackToolName: "getAvailableStock",
+      allowedTools: getAiToolRegistry(),
+      env,
+      fetcher,
+    });
+
+    expect(selection).toMatchObject({
+      toolName: "getLeadsDueToday",
+      provider: "gemini",
+      model: "gemini-test",
+    });
+
+    const result = await refineAiAnswerWithProvider({
+      prompt: "Which leads need follow-up today?",
+      toolName: "getLeadsDueToday",
+      answerPayload: buildAiAnswerPayload({ directAnswer: "There are leads due today." }),
+      sensitive: false,
+      requiresApproval: false,
+      env,
+      fetcher,
+    });
+
+    expect(result.provider).toBe("gemini");
+    expect(result.answerPayload.directAnswer).toBe("3 leads need follow-up today.");
+    expect(result.answerPayload.suggestedActions).toEqual(["Open follow-ups"]);
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
 });

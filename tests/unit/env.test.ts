@@ -11,6 +11,10 @@ const completeEnv = {
   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: "publishable-key",
   SUPABASE_SERVICE_ROLE_KEY: "service-role-secret",
   NEXT_PUBLIC_APP_URL: "http://localhost:3000",
+  AI_PROVIDER: "gemini",
+  GEMINI_API_KEY: "gemini-secret",
+  GEMINI_MODEL: "gemini-test",
+  GEMINI_BASE_URL: "https://generativelanguage.googleapis.com/v1beta",
   OPENAI_API_KEY: "openai-secret",
   OPENAI_MODEL: "gpt-test",
   OPENAI_BASE_URL: "https://api.openai.com/v1",
@@ -25,6 +29,8 @@ describe("runtime environment validation", () => {
 
     expect(env.NEXT_PUBLIC_SUPABASE_URL).toBe("http://127.0.0.1:54321");
     expect(env.SUPABASE_SERVICE_ROLE_KEY).toBe("service-role-secret");
+    expect(env.AI_PROVIDER).toBe("gemini");
+    expect(env.GEMINI_MODEL).toBe("gemini-test");
     expect(env.OPENAI_MODEL).toBe("gpt-test");
     expect(env.OPENAI_BASE_URL).toBe("https://api.openai.com/v1");
   });
@@ -39,12 +45,14 @@ describe("runtime environment validation", () => {
     const env = validateRuntimeEnv({
       ...completeEnv,
       OPENAI_API_KEY: "",
+      GEMINI_API_KEY: "",
       STRIPE_SECRET_KEY: "",
       STRIPE_WEBHOOK_SECRET: "",
       NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: "",
     });
 
     expect(env.OPENAI_API_KEY).toBeUndefined();
+    expect(env.GEMINI_API_KEY).toBeUndefined();
     expect(env.STRIPE_SECRET_KEY).toBeUndefined();
     expect(env.STRIPE_WEBHOOK_SECRET).toBeUndefined();
     expect(env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY).toBeUndefined();
@@ -73,8 +81,11 @@ describe("runtime environment validation", () => {
     expect(payload.supabaseUrlConfigured).toBe(true);
     expect(payload.serviceRoleConfigured).toBe(true);
     expect(payload.stripeConfigured).toBe(true);
+    expect(payload.aiProvider).toBe("gemini");
+    expect(payload.geminiConfigured).toBe(true);
     expect(JSON.stringify(payload)).not.toContain("service-role-secret");
     expect(JSON.stringify(payload)).not.toContain("openai-secret");
+    expect(JSON.stringify(payload)).not.toContain("gemini-secret");
     expect(JSON.stringify(payload)).not.toContain("stripe-secret");
   });
 });

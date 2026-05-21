@@ -642,6 +642,7 @@ export async function askAiAssistant(formData: FormData) {
   });
 
   revalidatePath("/ai");
+  return { success: true };
 }
 
 export async function createAiReportRequest(formData: FormData) {
@@ -1453,8 +1454,8 @@ export async function resolveAiProposal(formData: FormData) {
           branch_id: branchId,
           lead_id: leadId,
           title: "AI CRM Outbound Follow-up",
-          description: messageBody,
-          status: "pending",
+          notes: messageBody,
+          status: "open",
           due_at: scheduledAt,
           created_by: workspace.profileId,
           updated_by: workspace.profileId,

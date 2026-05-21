@@ -59,6 +59,10 @@ NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
 NEXT_PUBLIC_APP_URL=http://localhost:3000
+AI_PROVIDER=gemini
+GEMINI_API_KEY=
+GEMINI_MODEL=gemini-3.1-flash-lite
+GEMINI_BASE_URL=https://generativelanguage.googleapis.com/v1beta
 OPENAI_API_KEY=
 OPENAI_MODEL=gpt-5-mini
 OPENAI_BASE_URL=https://api.openai.com/v1
@@ -118,7 +122,7 @@ Phase 1 roles are tenant-scoped. Company onboarding creates a `Company Owner` ro
 
 AI is implemented as a permission-aware server-side layer. AI requests, generated actions, messages, approvals, report requests, and extraction jobs are stored and audited. Sensitive actions create approval records instead of mutating business data directly.
 
-When `OPENAI_API_KEY` is configured, the assistant uses the OpenAI-compatible Responses API path for tool routing and answer refinement while keeping all ERP data access inside permission-checked server tools. Without a key, the same tools run through the deterministic local fallback. `OPENAI_BASE_URL` allows a compatible provider endpoint. AI tools are filtered by the current user's permissions, so finance, profit, documents, sales drafts, and reports cannot be exposed through AI unless the same user can access that data through the product.
+When `AI_PROVIDER=gemini` and `GEMINI_API_KEY` are configured, the assistant uses Gemini `generateContent` for tool routing and answer refinement while keeping all ERP data access inside permission-checked server tools. `AI_PROVIDER=openai` keeps the OpenAI-compatible Responses API path available. Without a configured key, the same tools run through the deterministic local fallback. AI tools are filtered by the current user's permissions, so finance, profit, documents, sales drafts, and reports cannot be exposed through AI unless the same user can access that data through the product.
 
 ## Payment Architecture
 
@@ -169,7 +173,7 @@ npm run test:e2e
 - Phase 18 implements Service Workshop records, job cards, labor lines, inspections, warranty claims, and appointments.
 - Phase 19 implements Parts Inventory with catalog parts, suppliers, branch stock, purchase orders, receipts, transfers, service consumption, reorder alerts, and parts profitability.
 - Phase 20 implements Advanced AI Automation with agent controls, OCR document intake, proposal queues, manager approval execution, and audit trails.
-- OpenAI-compatible AI provider calls are implemented, but live AI responses require server-side `OPENAI_API_KEY` configuration.
+- Gemini and OpenAI-compatible AI provider calls are implemented, but live AI responses require a server-side provider API key.
 - External digital signature providers, payment, messaging, and logistics integrations are architecture-ready but not integrated yet.
 
 ## Future Roadmap

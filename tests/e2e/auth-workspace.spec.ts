@@ -15,7 +15,7 @@ function getEnvValue(key: string) {
     .split(/\r?\n/)
     .find((entry) => entry.startsWith(`${key}=`));
 
-  return line?.slice(key.length + 1).trim() ?? "";
+  return line?.slice(key.length + 1).trim().replace(/^["']|["']$/g, "") ?? "";
 }
 
 test.describe.configure({ timeout: 180_000 });
@@ -608,15 +608,11 @@ test("new workspace can add a branch, vehicle, and lead", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "AI Technical Intelligence" })).toBeVisible();
   await page.locator("#prompt").fill("Which Toyota cars are available?");
   await page.getByRole("button", { name: "Ask AI" }).click();
-  await page.waitForTimeout(1000);
-  await page.reload();
-  await expect(page.getByText("Found", { exact: false }).first()).toBeVisible();
+  await expect(page.getByText("Matches").first()).toBeVisible({ timeout: 30000 });
 
   await page.locator("#prompt").fill("Create quotation draft for this customer.");
   await page.getByRole("button", { name: "Ask AI" }).click();
-  await page.waitForTimeout(1000);
-  await page.reload();
-  await expect(page.getByText("Approval queue")).toBeVisible();
+  await expect(page.getByRole("button", { name: "Approve" }).first()).toBeVisible({ timeout: 30000 });
   await page.getByRole("button", { name: "Approve" }).first().click();
   await page.waitForTimeout(1000);
   await page.reload();

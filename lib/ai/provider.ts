@@ -3,18 +3,26 @@ import type { AiToolDefinition } from "@/lib/ai/tools";
 
 const DEFAULT_OPENAI_MODEL = "gpt-5-mini";
 const DEFAULT_OPENAI_BASE_URL = "https://api.openai.com/v1";
+const DEFAULT_GEMINI_MODEL = "gemini-3.1-flash-lite";
+const DEFAULT_GEMINI_BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
 
 type EnvLike = {
   [key: string]: string | undefined;
+  AI_PROVIDER?: string;
+  GEMINI_API_KEY?: string;
+  GEMINI_MODEL?: string;
+  GEMINI_BASE_URL?: string;
   OPENAI_API_KEY?: string;
   OPENAI_MODEL?: string;
   OPENAI_BASE_URL?: string;
 };
 
 type ProviderFetch = (input: string | URL, init?: RequestInit) => Promise<Response>;
+type LiveAiProvider = "openai" | "gemini";
+type AiProvider = "local" | LiveAiProvider;
 
 type ProviderResult = {
-  provider: "local" | "openai";
+  provider: AiProvider;
   model: string;
   answerPayload: AiAnswerPayload;
   responseText: string;
@@ -23,21 +31,46 @@ type ProviderResult = {
 
 export type AiToolSelectionResult = {
   toolName: string;
-  provider: "local" | "openai";
+  provider: AiProvider;
   model: string;
   errorMessage?: string;
 };
 
-function modelFromEnv(env: EnvLike) {
+function requestedProviderFromEnv(env: EnvLike): LiveAiProvider | undefined {
+  const requested = env.AI_PROVIDER?.trim().toLowerCase();
+  return requested === "gemini" || requested === "openai" ? requested : undefined;
+}
+
+function configuredProviderFromEnv(env: EnvLike): LiveAiProvider | undefined {
+  const requested = requestedProviderFromEnv(env);
+
+  if (requested === "gemini") {
+    return env.GEMINI_API_KEY?.trim() ? "gemini" : undefined;
+  }
+
+  if (requested === "openai") {
+    return env.OPENAI_API_KEY?.trim() ? "openai" : undefined;
+  }
+
+  if (env.GEMINI_API_KEY?.trim()) return "gemini";
+  if (env.OPENAI_API_KEY?.trim()) return "openai";
+  return undefined;
+}
+
+function modelFromEnv(env: EnvLike, provider: LiveAiProvider) {
+  if (provider === "gemini") {
+    return env.GEMINI_MODEL?.trim() || DEFAULT_GEMINI_MODEL;
+  }
+
   return env.OPENAI_MODEL?.trim() || DEFAULT_OPENAI_MODEL;
 }
 
-function baseUrlFromEnv(env: EnvLike) {
+function openAiBaseUrlFromEnv(env: EnvLike) {
   return (env.OPENAI_BASE_URL?.trim() || DEFAULT_OPENAI_BASE_URL).replace(/\/+$/, "");
 }
 
-function isOpenAiConfigured(env: EnvLike) {
-  return Boolean(env.OPENAI_API_KEY?.trim());
+function geminiBaseUrlFromEnv(env: EnvLike) {
+  return (env.GEMINI_BASE_URL?.trim() || DEFAULT_GEMINI_BASE_URL).replace(/\/+$/, "");
 }
 
 function textFromResponseBody(body: unknown): string | undefined {
@@ -71,6 +104,29 @@ function textFromResponseBody(body: unknown): string | undefined {
 
         if ("type" in contentItem && contentItem.type === "output_text" && "text" in contentItem && typeof contentItem.text === "string") {
           return [contentItem.text];
+        }
+
+        return [];
+      });
+    })
+    .join("\n")
+    .trim();
+}
+
+function textFromGeminiResponseBody(body: unknown): string | undefined {
+  if (!body || typeof body !== "object" || !("candidates" in body) || !Array.isArray(body.candidates)) {
+    return undefined;
+  }
+
+  return body.candidates
+    .flatMap((candidate) => {
+      if (!candidate || typeof candidate !== "object" || !("content" in candidate)) return [];
+      const content = candidate.content;
+      if (!content || typeof content !== "object" || !("parts" in content) || !Array.isArray(content.parts)) return [];
+
+      return content.parts.flatMap((part: unknown) => {
+        if (part && typeof part === "object" && "text" in part && typeof part.text === "string") {
+          return [part.text];
         }
 
         return [];
@@ -114,8 +170,8 @@ async function callResponsesApi({
     throw new Error("OPENAI_API_KEY is not configured.");
   }
 
-  const model = modelFromEnv(env);
-  const response = await fetcher(`${baseUrlFromEnv(env)}/responses`, {
+  const model = modelFromEnv(env, "openai");
+  const response = await fetcher(`${openAiBaseUrlFromEnv(env)}/responses`, {
     method: "POST",
     headers: {
       "Authorization": `Bearer ${apiKey}`,
@@ -139,6 +195,80 @@ async function callResponsesApi({
   return textFromResponseBody(body) ?? "";
 }
 
+async function callGeminiGenerateContent({
+  env,
+  fetcher,
+  instructions,
+  input,
+  maxOutputTokens = 700,
+}: {
+  env: EnvLike;
+  fetcher: ProviderFetch;
+  instructions: string;
+  input: unknown;
+  maxOutputTokens?: number;
+}) {
+  const apiKey = env.GEMINI_API_KEY?.trim();
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY is not configured.");
+  }
+
+  const model = modelFromEnv(env, "gemini").replace(/^models\//, "");
+  const endpoint = `${geminiBaseUrlFromEnv(env)}/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  const response = await fetcher(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      systemInstruction: {
+        parts: [{ text: instructions }],
+      },
+      contents: [
+        {
+          role: "user",
+          parts: [{ text: typeof input === "string" ? input : JSON.stringify(input) }],
+        },
+      ],
+      generationConfig: {
+        maxOutputTokens,
+        temperature: 0.1,
+        responseMimeType: "application/json",
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Gemini provider failed with ${response.status}: ${errorText.slice(0, 240)}`);
+  }
+
+  const body = await response.json() as unknown;
+  return textFromGeminiResponseBody(body) ?? "";
+}
+
+async function callLiveProvider({
+  provider,
+  env,
+  fetcher,
+  instructions,
+  input,
+  maxOutputTokens,
+}: {
+  provider: LiveAiProvider;
+  env: EnvLike;
+  fetcher: ProviderFetch;
+  instructions: string;
+  input: unknown;
+  maxOutputTokens?: number;
+}) {
+  if (provider === "gemini") {
+    return callGeminiGenerateContent({ env, fetcher, instructions, input, maxOutputTokens });
+  }
+
+  return callResponsesApi({ env, fetcher, instructions, input, maxOutputTokens });
+}
+
 export async function selectAiToolWithProvider({
   prompt,
   fallbackToolName,
@@ -152,14 +282,17 @@ export async function selectAiToolWithProvider({
   env?: EnvLike;
   fetcher?: ProviderFetch;
 }): Promise<AiToolSelectionResult> {
-  const model = modelFromEnv(env);
+  const provider = configuredProviderFromEnv(env);
 
-  if (!isOpenAiConfigured(env) || allowedTools.length === 0) {
+  if (!provider || allowedTools.length === 0) {
     return { toolName: fallbackToolName, provider: "local", model: "deterministic" };
   }
 
+  const model = modelFromEnv(env, provider);
+
   try {
-    const text = await callResponsesApi({
+    const text = await callLiveProvider({
+      provider,
       env,
       fetcher,
       maxOutputTokens: 120,
@@ -181,16 +314,16 @@ export async function selectAiToolWithProvider({
 
     return {
       toolName: allowed ? selected : fallbackToolName,
-      provider: "openai",
+      provider,
       model,
       errorMessage: allowed ? undefined : `Provider selected unavailable tool: ${selected}`,
     };
   } catch (error) {
     return {
       toolName: fallbackToolName,
-      provider: "openai",
+      provider,
       model,
-      errorMessage: error instanceof Error ? error.message : "OpenAI tool selection failed.",
+      errorMessage: error instanceof Error ? error.message : "AI provider tool selection failed.",
     };
   }
 }
@@ -214,7 +347,9 @@ export async function refineAiAnswerWithProvider({
   env?: EnvLike;
   fetcher?: ProviderFetch;
 }): Promise<ProviderResult> {
-  if (!isOpenAiConfigured(env)) {
+  const provider = configuredProviderFromEnv(env);
+
+  if (!provider) {
     return {
       provider: "local",
       model: "deterministic",
@@ -223,10 +358,11 @@ export async function refineAiAnswerWithProvider({
     };
   }
 
-  const model = modelFromEnv(env);
+  const model = modelFromEnv(env, provider);
 
   try {
-    const text = await callResponsesApi({
+    const text = await callLiveProvider({
+      provider,
       env,
       fetcher,
       instructions:
@@ -251,18 +387,18 @@ export async function refineAiAnswerWithProvider({
     };
 
     return {
-      provider: "openai",
+      provider,
       model,
       answerPayload: refinedPayload,
       responseText: refinedPayload.directAnswer,
     };
   } catch (error) {
     return {
-      provider: "openai",
+      provider,
       model,
       answerPayload,
       responseText: answerPayload.directAnswer,
-      errorMessage: error instanceof Error ? error.message : "OpenAI response generation failed.",
+      errorMessage: error instanceof Error ? error.message : "AI provider response generation failed.",
     };
   }
 }
