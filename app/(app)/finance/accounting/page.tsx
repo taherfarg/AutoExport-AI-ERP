@@ -1,3 +1,10 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Accounting Dashboard | AutoSphere ERP",
+  description: "General ledger, journals, VAT/tax snapshots, bank reconciliation, and export-ready accounting records.",
+};
+
 import Link from "next/link";
 import { ArrowLeft, BookOpenCheck, FileDown, Landmark } from "lucide-react";
 import { KpiCard } from "@/components/dashboard/kpi-card";

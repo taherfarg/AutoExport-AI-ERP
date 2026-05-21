@@ -37,10 +37,27 @@ export function AppSidebar({ enabledModuleKeys }: AppSidebarProps) {
         {modules.map((module) => {
           const Icon = module.icon;
           const href = module.unlocked ? module.href : "/subscriptions";
-          const isActive =
-            module.unlocked &&
-            (pathname === module.href ||
-              (module.href !== "/dashboard" && pathname.startsWith(module.href)));
+
+          // Determine active state: exact match, or startsWith BUT only if no
+          // other module has a more-specific (longer) href that also matches.
+          let isActive = false;
+          if (module.unlocked) {
+            if (pathname === module.href) {
+              isActive = true;
+            } else if (
+              module.href !== "/dashboard" &&
+              pathname.startsWith(module.href)
+            ) {
+              // Check if a more specific sibling module owns this path
+              const hasMoreSpecific = modules.some(
+                (other) =>
+                  other.key !== module.key &&
+                  other.href.length > module.href.length &&
+                  pathname.startsWith(other.href)
+              );
+              isActive = !hasMoreSpecific;
+            }
+          }
 
           return (
             <Link

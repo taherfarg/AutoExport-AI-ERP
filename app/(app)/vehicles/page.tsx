@@ -1,3 +1,10 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Vehicle Inventory | AutoSphere ERP",
+  description: "Manage showroom stock, vehicle costs, pricing, and branch assignments.",
+};
+
 import Link from "next/link";
 import { Plus, Search } from "lucide-react";
 import { KpiCard } from "@/components/dashboard/kpi-card";

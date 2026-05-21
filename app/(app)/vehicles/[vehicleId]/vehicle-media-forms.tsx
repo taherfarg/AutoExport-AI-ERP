@@ -77,7 +77,6 @@ export function VehiclePhotoUploadForm({ vehicleId }: VehicleMediaFormProps) {
     <form
       ref={formRef}
       onSubmit={handleSubmit}
-      encType="multipart/form-data"
       className="grid gap-3 rounded-md border p-4 md:grid-cols-[1fr_1fr_auto]"
     >
       <input type="hidden" name="vehicleId" value={vehicleId} />
@@ -138,7 +137,6 @@ export function VehicleDocumentUploadForm({ vehicleId }: VehicleMediaFormProps) 
     <form
       ref={formRef}
       onSubmit={handleSubmit}
-      encType="multipart/form-data"
       className="grid gap-3 rounded-md border p-4 md:grid-cols-3"
     >
       <input type="hidden" name="vehicleId" value={vehicleId} />

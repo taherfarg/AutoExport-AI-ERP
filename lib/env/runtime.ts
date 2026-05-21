@@ -15,11 +15,18 @@ const optionalBooleanString = z.preprocess(
   z.enum(["true", "false"]).optional(),
 );
 
-const runtimeEnvSchema = z.object({
+// Public env schema (client-safe)
+export const publicEnvSchema = z.object({
   NEXT_PUBLIC_SUPABASE_URL: z.string().trim().url(),
   NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: z.string().trim().min(1),
+  NEXT_PUBLIC_APP_URL: z.string().trim().url().optional(),
+  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: optionalNonEmptyString,
+});
+
+// Server env schema (secure)
+export const runtimeEnvSchema = publicEnvSchema.extend({
   SUPABASE_SERVICE_ROLE_KEY: z.string().trim().min(1),
-  NEXT_PUBLIC_APP_URL: z.string().trim().url(),
+  NEXT_PUBLIC_APP_URL: z.string().trim().url(), // Required on server
   AI_PROVIDER: z.enum(["local", "openai", "gemini"]).optional(),
   GEMINI_API_KEY: optionalNonEmptyString,
   GEMINI_MODEL: optionalNonEmptyString,
@@ -29,13 +36,24 @@ const runtimeEnvSchema = z.object({
   OPENAI_BASE_URL: optionalUrl,
   STRIPE_SECRET_KEY: optionalNonEmptyString,
   STRIPE_WEBHOOK_SECRET: optionalNonEmptyString,
-  NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY: optionalNonEmptyString,
   STRIPE_LIVE_BILLING_ENABLED: optionalBooleanString,
 });
 
 export type RuntimeEnv = z.infer<typeof runtimeEnvSchema>;
+export type PublicEnv = z.infer<typeof publicEnvSchema>;
 
 export type RuntimeEnvSource = Record<string, string | undefined>;
+
+export function validatePublicEnv(env: RuntimeEnvSource = process.env): PublicEnv {
+  const parsed = publicEnvSchema.safeParse(env);
+
+  if (!parsed.success) {
+    const missing = parsed.error.issues.map((issue) => issue.path.join(".")).join(", ");
+    throw new Error(`Missing required public environment variables: ${missing}`);
+  }
+
+  return parsed.data;
+}
 
 export function validateRuntimeEnv(env: RuntimeEnvSource = process.env): RuntimeEnv {
   const parsed = runtimeEnvSchema.safeParse(env);
@@ -49,7 +67,7 @@ export function validateRuntimeEnv(env: RuntimeEnvSource = process.env): Runtime
 }
 
 export function getPublicSupabaseEnv(env: RuntimeEnvSource = process.env) {
-  const parsed = validateRuntimeEnv(env);
+  const parsed = validatePublicEnv(env);
 
   return {
     supabaseUrl: parsed.NEXT_PUBLIC_SUPABASE_URL,

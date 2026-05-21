@@ -1,3 +1,10 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Sales CRM | AutoSphere ERP",
+  description: "Manage leads, source tracking, assignments, follow-ups, and active pipeline work.",
+};
+
 import Link from "next/link";
 import { Plus, Search } from "lucide-react";
 import { LeadStatusBadge } from "@/components/crm/lead-status-badge";

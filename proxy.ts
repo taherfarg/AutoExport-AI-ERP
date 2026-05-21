@@ -25,10 +25,54 @@ export async function proxy(request: NextRequest) {
     },
   );
 
-  await supabase.auth.getUser();
+  // Refresh session - important for Server Components
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const pathname = request.nextUrl.pathname;
+
+  // Public paths that don't require authentication
+  const isPublicPath =
+    pathname === "/" ||
+    pathname === "/login" ||
+    pathname === "/signup" ||
+    pathname.startsWith("/api/billing/webhook") ||
+    pathname.startsWith("/_next") ||
+    pathname.startsWith("/favicon") ||
+    pathname.match(/\.(svg|png|jpg|jpeg|gif|webp|ico)$/);
+
+  // CSRF origin check for non-GET mutation requests
+  if (request.method !== "GET" && request.method !== "HEAD") {
+    const origin = request.headers.get("origin");
+    const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+    if (origin && appUrl) {
+      const allowedOrigin = new URL(appUrl).origin;
+      if (origin !== allowedOrigin && origin !== "http://localhost:3000" && origin !== "http://localhost:3001") {
+        return NextResponse.json({ error: "CSRF origin mismatch" }, { status: 403 });
+      }
+    }
+  }
+
+  // Redirect unauthenticated users to login
+  if (!user && !isPublicPath) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/login";
+    return NextResponse.redirect(url);
+  }
+
+  // Redirect authenticated users away from auth pages
+  if (user && (pathname === "/login" || pathname === "/signup")) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/dashboard";
+    return NextResponse.redirect(url);
+  }
+
   return response;
 }
 
 export const config = {
-  matcher: ["/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)"],
+  matcher: [
+    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+  ],
 };

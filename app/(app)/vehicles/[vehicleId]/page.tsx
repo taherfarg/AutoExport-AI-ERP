@@ -4,6 +4,7 @@ import { ArrowLeft, Archive, BrainCircuit, FileText, Gauge, ImageIcon, MoveRight
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { VehicleStatusBadge } from "@/components/vehicles/status-badge";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   Card,
   CardContent,
@@ -177,13 +178,20 @@ export default async function VehicleDetailPage({ params, searchParams }: Vehicl
             </form>
           ) : null}
           {permissions.canDelete ? (
-            <form action={archiveVehicle}>
-              <input type="hidden" name="vehicleId" value={vehicle.id} />
-              <Button type="submit" variant="destructive">
+            <ConfirmDialog
+              title="Archive Vehicle"
+              description="Are you sure you want to archive this vehicle? This will remove it from active inventory."
+              confirmLabel="Archive"
+              cancelLabel="Cancel"
+              variant="destructive"
+              action={archiveVehicle}
+              hiddenFields={{ vehicleId: vehicle.id }}
+            >
+              <Button type="button" variant="destructive">
                 <Archive className="h-4 w-4" />
                 Archive
               </Button>
-            </form>
+            </ConfirmDialog>
           ) : null}
         </div>
       </div>

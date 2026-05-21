@@ -237,7 +237,7 @@ export default async function DocumentsPage() {
                 <CardDescription>Store a private file and link it to a vehicle or customer.</CardDescription>
               </CardHeader>
               <CardContent>
-                <form action={uploadDocumentFromForm} encType="multipart/form-data" className="grid gap-3">
+                <form action={uploadDocumentFromForm} className="grid gap-3">
                   <input type="hidden" name="companyId" value={workspace.companyId} />
                   <div className="grid gap-2">
                     <Label htmlFor="branchId">Branch</Label>
@@ -397,7 +397,7 @@ export default async function DocumentsPage() {
                 <CardDescription>Attach the signed PDF and signature image to a request.</CardDescription>
               </CardHeader>
               <CardContent>
-                <form action={markSignedFromForm} encType="multipart/form-data" className="grid gap-3">
+                <form action={markSignedFromForm} className="grid gap-3">
                   <div className="grid gap-2">
                     <Label htmlFor="signatureRequestId">Request</Label>
                     <select id="signatureRequestId" name="signatureRequestId" defaultValue={firstSignatureRequest.id} className="h-9 rounded-md border bg-white px-3 text-sm">

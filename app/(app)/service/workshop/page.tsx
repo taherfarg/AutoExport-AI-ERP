@@ -1,3 +1,10 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Service Workshop | AutoSphere ERP",
+  description: "Repair orders, job cards, labor, inspections, warranty claims, and service appointments.",
+};
+
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { FinanceStatusBadge } from "@/components/finance/finance-status-badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";

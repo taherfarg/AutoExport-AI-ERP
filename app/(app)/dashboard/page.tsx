@@ -1,3 +1,10 @@
+import type { Metadata } from "next";
+
+export const metadata: Metadata = {
+  title: "Dashboard | AutoSphere ERP",
+  description: "Command center overview of your dealership operations, KPIs, and recent activity.",
+};
+
 import { getCurrentWorkspace } from "@/lib/auth/current-workspace";
 import { formatMoney } from "@/lib/vehicles/format";
 import {
