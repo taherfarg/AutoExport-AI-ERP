@@ -35,13 +35,13 @@ export function KpiCard({
       {/* Subtle gradient accent line */}
       <div className="absolute inset-x-0 top-0 h-0.5 bg-gradient-to-r from-orange-400 via-orange-500 to-blue-500 opacity-0 group-hover:opacity-100 transition-opacity" />
 
-      <CardContent className="p-5">
+      <CardContent className="p-4 sm:p-5">
         <div className="flex items-start justify-between">
           <div className="space-y-2 min-w-0 flex-1">
             <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
               {title}
             </p>
-            <p className="text-2xl font-bold tracking-tight text-foreground">
+            <p className="break-words text-2xl font-bold tracking-tight text-foreground">
               {value}
             </p>
           </div>

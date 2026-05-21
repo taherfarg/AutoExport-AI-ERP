@@ -15,7 +15,6 @@ export function AppSidebar({ enabledModuleKeys }: AppSidebarProps) {
 
   return (
     <aside className="hidden w-72 flex-shrink-0 flex-col border-r border-white/5 bg-[hsl(222,47%,8%)] text-white lg:flex">
-      {/* Brand header */}
       <div className="px-6 py-5 border-b border-white/5">
         <div className="flex items-center gap-3">
           <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-orange-400 to-orange-600 shadow-lg shadow-orange-500/20">
@@ -34,7 +33,6 @@ export function AppSidebar({ enabledModuleKeys }: AppSidebarProps) {
         </div>
       </div>
 
-      {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-4 px-3 space-y-0.5">
         {modules.map((module) => {
           const Icon = module.icon;
@@ -76,7 +74,6 @@ export function AppSidebar({ enabledModuleKeys }: AppSidebarProps) {
         })}
       </nav>
 
-      {/* Sidebar footer */}
       <div className="border-t border-white/5 px-4 py-3">
         <div className="flex items-center gap-2 rounded-lg bg-white/5 px-3 py-2">
           <div className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
@@ -84,5 +81,38 @@ export function AppSidebar({ enabledModuleKeys }: AppSidebarProps) {
         </div>
       </div>
     </aside>
+  );
+}
+
+export function AppMobileNav({ enabledModuleKeys }: AppSidebarProps) {
+  const pathname = usePathname();
+  const modules = getModulesWithAccess(enabledModuleKeys)
+    .filter((module) => module.unlocked)
+    .filter((module) => ["/dashboard", "/vehicles", "/crm/leads", "/reports", "/settings/company"].includes(module.href));
+
+  return (
+    <nav className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 px-3 py-2 shadow-sm backdrop-blur lg:hidden">
+      <div className="grid grid-cols-5 gap-1">
+        {modules.slice(0, 5).map((module) => {
+          const Icon = module.icon;
+          const isActive =
+            pathname === module.href ||
+            (module.href !== "/dashboard" && pathname.startsWith(module.href));
+
+          return (
+            <Link
+              key={module.key}
+              href={module.href}
+              className={`flex min-w-0 flex-col items-center gap-1 rounded-xl px-1.5 py-2 text-[10px] font-medium ${
+                isActive ? "bg-orange-50 text-orange-600" : "text-slate-500"
+              }`}
+            >
+              <Icon className="h-4 w-4 shrink-0" />
+              <span className="max-w-full truncate">{module.label.replace("Vehicle ", "")}</span>
+            </Link>
+          );
+        })}
+      </div>
+    </nav>
   );
 }

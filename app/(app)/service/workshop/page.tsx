@@ -55,16 +55,16 @@ export default async function ServiceWorkshopPage() {
         <KpiCard title="Warranty balance" value={formatMoney(service.summary.warrantyBalance, currencyCode)} hint="Approved unpaid claims" />
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-        <div className="space-y-6">
+      <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
+        <div className="min-w-0 space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>Service orders</CardTitle>
               <CardDescription>Vehicle and customer repair order history.</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="overflow-hidden rounded-md border">
-                <table className="w-full text-sm">
+              <div className="hidden overflow-x-auto rounded-md border md:block">
+                <table className="min-w-[760px] w-full text-sm">
                   <thead className="bg-slate-100 text-left text-slate-600">
                     <tr>
                       <th className="px-4 py-3">Order</th>
@@ -90,10 +90,40 @@ export default async function ServiceWorkshopPage() {
                   </tbody>
                 </table>
               </div>
+              <div className="space-y-3 md:hidden">
+                {service.serviceOrders.map((order) => (
+                  <div key={order.id} className="rounded-lg border bg-white p-3 text-sm">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate font-medium text-slate-950">{order.order_number}</p>
+                        <p className="mt-1 line-clamp-2 text-xs text-slate-500">{order.title}</p>
+                      </div>
+                      <FinanceStatusBadge status={order.status} />
+                    </div>
+                    <dl className="mt-3 grid gap-2 text-xs text-slate-600">
+                      <div className="flex justify-between gap-3">
+                        <dt>Vehicle</dt>
+                        <dd className="truncate text-right font-medium text-slate-800">{order.vehicles?.stock_number ?? "No vehicle"}</dd>
+                      </div>
+                      <div className="flex justify-between gap-3">
+                        <dt>Customer</dt>
+                        <dd className="truncate text-right font-medium text-slate-800">{order.customers?.name ?? "Walk-in"}</dd>
+                      </div>
+                      <div className="flex justify-between gap-3">
+                        <dt>Total</dt>
+                        <dd className="font-medium text-slate-950">{formatMoney(order.total_amount, order.currency_code)}</dd>
+                      </div>
+                    </dl>
+                  </div>
+                ))}
+                {service.serviceOrders.length === 0 ? (
+                  <p className="rounded-lg border border-dashed p-4 text-sm text-slate-500">No service orders yet.</p>
+                ) : null}
+              </div>
             </CardContent>
           </Card>
 
-          <div className="grid gap-6 xl:grid-cols-2">
+          <div className="grid min-w-0 gap-6 xl:grid-cols-2">
             <Card>
               <CardHeader>
                 <CardTitle>Job cards</CardTitle>
@@ -103,7 +133,7 @@ export default async function ServiceWorkshopPage() {
                 {service.serviceJobs.slice(0, 8).map((job) => (
                   <div key={job.id} className="rounded-md border p-3 text-sm">
                     <div className="flex items-start justify-between gap-3">
-                      <div>
+                      <div className="min-w-0">
                         <p className="font-medium text-slate-950">{job.job_number}</p>
                         <p className="text-xs text-slate-500">{job.title} · {job.technicians?.display_name ?? "Unassigned"}</p>
                       </div>
@@ -125,7 +155,7 @@ export default async function ServiceWorkshopPage() {
                 {service.technicians.slice(0, 8).map((technician) => (
                   <div key={technician.id} className="rounded-md border p-3 text-sm">
                     <div className="flex items-start justify-between gap-3">
-                      <div>
+                      <div className="min-w-0">
                         <p className="font-medium text-slate-950">{technician.display_name}</p>
                         <p className="text-xs text-slate-500">{technician.specialization ?? "General"} · {technician.branches?.name ?? "Company"}</p>
                       </div>
@@ -138,7 +168,7 @@ export default async function ServiceWorkshopPage() {
             </Card>
           </div>
 
-          <div className="grid gap-6 xl:grid-cols-2">
+          <div className="grid min-w-0 gap-6 xl:grid-cols-2">
             <Card>
               <CardHeader>
                 <CardTitle>Inspection results</CardTitle>
@@ -148,7 +178,7 @@ export default async function ServiceWorkshopPage() {
                 {service.inspectionResults.slice(0, 6).map((result) => (
                   <div key={result.id} className="rounded-md border p-3 text-sm">
                     <div className="flex items-start justify-between gap-3">
-                      <div>
+                      <div className="min-w-0">
                         <p className="font-medium text-slate-950">{result.result_number}</p>
                         <p className="text-xs text-slate-500">{result.service_orders?.order_number ?? "Service order"} · {result.technicians?.display_name ?? "Technician"}</p>
                       </div>
@@ -170,7 +200,7 @@ export default async function ServiceWorkshopPage() {
                 {service.warrantyClaims.slice(0, 6).map((claim) => (
                   <div key={claim.id} className="rounded-md border p-3 text-sm">
                     <div className="flex items-start justify-between gap-3">
-                      <div>
+                      <div className="min-w-0">
                         <p className="font-medium text-slate-950">{claim.claim_number}</p>
                         <p className="text-xs text-slate-500">{claim.provider_name} · {claim.service_orders?.order_number ?? "Service"}</p>
                       </div>
@@ -189,7 +219,7 @@ export default async function ServiceWorkshopPage() {
               <CardTitle>Appointments and labor ledger</CardTitle>
               <CardDescription>Upcoming workshop visits and recorded labor lines.</CardDescription>
             </CardHeader>
-            <CardContent className="grid gap-4 md:grid-cols-2">
+            <CardContent className="grid min-w-0 gap-4 md:grid-cols-2">
               <div className="space-y-3">
                 {service.appointments.slice(0, 5).map((appointment) => (
                   <div key={appointment.id} className="rounded-md border p-3 text-sm">
@@ -212,7 +242,7 @@ export default async function ServiceWorkshopPage() {
           </Card>
         </div>
 
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-6">
           {permissions.canManageService ? (
             <>
               <Card>

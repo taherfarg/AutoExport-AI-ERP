@@ -50,6 +50,11 @@ function labelize(value: string) {
   return value.split("_").map((part) => part.charAt(0).toUpperCase() + part.slice(1)).join(" ");
 }
 
+const selectClassName = "h-9 w-full min-w-0 rounded-md border bg-white px-3 text-sm text-slate-900";
+const formClassName = "grid min-w-0 gap-3";
+const responsiveGrid2 = "grid min-w-0 gap-3 md:grid-cols-2";
+const responsiveGrid3 = "grid min-w-0 gap-3 md:grid-cols-3";
+
 function useServiceSubmit(action: (formData: FormData) => Promise<{ error?: string; success?: string } | undefined>, fallbackSuccess: string) {
   const router = useRouter();
   const pathname = usePathname();
@@ -84,19 +89,19 @@ export function TechnicianForm({ companyId, branches, currencyCode }: { companyI
   const { formRef, message, isPending, handleSubmit } = useServiceSubmit(createTechnician, "Technician created.");
 
   return (
-    <form ref={formRef} onSubmit={handleSubmit} className="grid gap-3">
+    <form ref={formRef} onSubmit={handleSubmit} className={formClassName}>
       <Message message={message} />
       <input type="hidden" name="companyId" value={companyId} />
-      <select name="branchId" defaultValue={branches[0]?.id ?? ""} className="h-9 rounded-md border bg-white px-3 text-sm" aria-label="Technician branch">
+      <select name="branchId" defaultValue={branches[0]?.id ?? ""} className={selectClassName} aria-label="Technician branch">
         <option value="">Company level</option>
         {branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}
       </select>
       <Input id="displayName" name="displayName" defaultValue="Senior Technician" aria-label="Technician name" required />
       <Input id="specialization" name="specialization" defaultValue="Diagnostics and repair" aria-label="Technician specialization" />
-      <div className="grid gap-3 md:grid-cols-3">
+      <div className={responsiveGrid3}>
         <Input id="hourlyRate" name="hourlyRate" type="number" min="0" defaultValue="180" aria-label="Technician hourly rate" />
         <Input name="currencyCode" defaultValue={currencyCode} maxLength={3} aria-label="Technician currency" />
-        <select name="status" defaultValue="active" className="h-9 rounded-md border bg-white px-3 text-sm" aria-label="Technician status">
+        <select name="status" defaultValue="active" className={selectClassName} aria-label="Technician status">
           {technicianStatuses.map((status) => <option key={status} value={status}>{labelize(status)}</option>)}
         </select>
       </div>
@@ -113,18 +118,18 @@ export function ServiceAppointmentForm({ companyId, branches, vehicles, customer
   const vehicle = vehicles[0];
 
   return (
-    <form ref={formRef} onSubmit={handleSubmit} className="grid gap-3">
+    <form ref={formRef} onSubmit={handleSubmit} className={formClassName}>
       <Message message={message} />
       <input type="hidden" name="companyId" value={companyId} />
-      <select name="branchId" defaultValue={vehicle?.branch_id ?? branches[0]?.id ?? ""} className="h-9 rounded-md border bg-white px-3 text-sm" aria-label="Appointment branch">
+      <select name="branchId" defaultValue={vehicle?.branch_id ?? branches[0]?.id ?? ""} className={selectClassName} aria-label="Appointment branch">
         {branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}
       </select>
       <Input id="appointmentTitle" name="title" defaultValue="Vehicle health check appointment" aria-label="Appointment title" required />
-      <select name="vehicleId" defaultValue={vehicle?.id ?? ""} className="h-9 rounded-md border bg-white px-3 text-sm" aria-label="Appointment vehicle">
+      <select name="vehicleId" defaultValue={vehicle?.id ?? ""} className={selectClassName} aria-label="Appointment vehicle">
         <option value="">No vehicle</option>
         {vehicles.map((item) => <option key={item.id} value={item.id}>{item.stock_number} - {item.brand} {item.model}</option>)}
       </select>
-      <select name="customerId" defaultValue={customers[0]?.id ?? ""} className="h-9 rounded-md border bg-white px-3 text-sm" aria-label="Appointment customer">
+      <select name="customerId" defaultValue={customers[0]?.id ?? ""} className={selectClassName} aria-label="Appointment customer">
         <option value="">No customer</option>
         {customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name}</option>)}
       </select>
@@ -142,27 +147,27 @@ export function ServiceOrderForm({ companyId, branches, vehicles, customers, cur
   const vehicle = vehicles[0];
 
   return (
-    <form ref={formRef} onSubmit={handleSubmit} className="grid gap-3">
+    <form ref={formRef} onSubmit={handleSubmit} className={formClassName}>
       <Message message={message} />
       <input type="hidden" name="companyId" value={companyId} />
-      <select name="branchId" defaultValue={vehicle?.branch_id ?? branches[0]?.id ?? ""} className="h-9 rounded-md border bg-white px-3 text-sm" aria-label="Service order branch">
+      <select name="branchId" defaultValue={vehicle?.branch_id ?? branches[0]?.id ?? ""} className={selectClassName} aria-label="Service order branch">
         {branches.map((branch) => <option key={branch.id} value={branch.id}>{branch.name}</option>)}
       </select>
       <Input id="serviceTitle" name="title" defaultValue="Brake vibration diagnosis" aria-label="Service order title" required />
       <Input id="complaint" name="complaint" defaultValue="Customer reports brake vibration at speed" aria-label="Customer complaint" />
-      <div className="grid gap-3 md:grid-cols-2">
-        <select name="vehicleId" defaultValue={vehicle?.id ?? ""} className="h-9 rounded-md border bg-white px-3 text-sm" aria-label="Service vehicle">
+      <div className={responsiveGrid2}>
+        <select name="vehicleId" defaultValue={vehicle?.id ?? ""} className={selectClassName} aria-label="Service vehicle">
           <option value="">No vehicle</option>
           {vehicles.map((item) => <option key={item.id} value={item.id}>{item.stock_number} - {item.brand} {item.model}</option>)}
         </select>
-        <select name="customerId" defaultValue={customers[0]?.id ?? ""} className="h-9 rounded-md border bg-white px-3 text-sm" aria-label="Service customer">
+        <select name="customerId" defaultValue={customers[0]?.id ?? ""} className={selectClassName} aria-label="Service customer">
           <option value="">No customer</option>
           {customers.map((customer) => <option key={customer.id} value={customer.id}>{customer.name}</option>)}
         </select>
       </div>
-      <div className="grid gap-3 md:grid-cols-3">
+      <div className={responsiveGrid3}>
         <Input name="odometer" type="number" min="0" defaultValue="25000" aria-label="Odometer" />
-        <select name="priority" defaultValue="normal" className="h-9 rounded-md border bg-white px-3 text-sm" aria-label="Service priority">
+        <select name="priority" defaultValue="normal" className={selectClassName} aria-label="Service priority">
           {servicePriorities.map((priority) => <option key={priority} value={priority}>{labelize(priority)}</option>)}
         </select>
         <Input name="currencyCode" defaultValue={currencyCode} maxLength={3} aria-label="Service currency" />
@@ -180,23 +185,23 @@ export function ServiceJobForm({ companyId, orders, technicians }: { companyId: 
   const order = orders[0];
 
   return (
-    <form ref={formRef} onSubmit={handleSubmit} className="grid gap-3">
+    <form ref={formRef} onSubmit={handleSubmit} className={formClassName}>
       <Message message={message} />
       <input type="hidden" name="companyId" value={companyId} />
       <input type="hidden" name="branchId" value={order?.branch_id ?? ""} />
-      <select name="serviceOrderId" defaultValue={order?.id ?? ""} className="h-9 rounded-md border bg-white px-3 text-sm" aria-label="Job service order">
+      <select name="serviceOrderId" defaultValue={order?.id ?? ""} className={selectClassName} aria-label="Job service order">
         {orders.map((item) => <option key={item.id} value={item.id}>{item.order_number} - {item.title}</option>)}
       </select>
-      <select name="technicianId" defaultValue={technicians[0]?.id ?? ""} className="h-9 rounded-md border bg-white px-3 text-sm" aria-label="Job technician">
+      <select name="technicianId" defaultValue={technicians[0]?.id ?? ""} className={selectClassName} aria-label="Job technician">
         <option value="">Unassigned</option>
         {technicians.map((technician) => <option key={technician.id} value={technician.id}>{technician.display_name}</option>)}
       </select>
       <Input id="jobTitle" name="title" defaultValue="Brake diagnosis" aria-label="Job title" required />
-      <div className="grid gap-3 md:grid-cols-3">
-        <select name="laborType" defaultValue="diagnosis" className="h-9 rounded-md border bg-white px-3 text-sm" aria-label="Job labor type">
+      <div className={responsiveGrid3}>
+        <select name="laborType" defaultValue="diagnosis" className={selectClassName} aria-label="Job labor type">
           {serviceLaborTypes.map((type) => <option key={type} value={type}>{labelize(type)}</option>)}
         </select>
-        <select name="status" defaultValue={serviceJobStatuses[1]} className="h-9 rounded-md border bg-white px-3 text-sm" aria-label="Job status">
+        <select name="status" defaultValue={serviceJobStatuses[1]} className={selectClassName} aria-label="Job status">
           {serviceJobStatuses.map((status) => <option key={status} value={status}>{labelize(status)}</option>)}
         </select>
         <Input name="estimatedHours" type="number" step="0.1" min="0" defaultValue="1.5" aria-label="Estimated hours" />
@@ -214,24 +219,24 @@ export function LaborLineForm({ companyId, orders, jobs, technicians }: { compan
   const order = orders[0];
 
   return (
-    <form ref={formRef} onSubmit={handleSubmit} className="grid gap-3">
+    <form ref={formRef} onSubmit={handleSubmit} className={formClassName}>
       <Message message={message} />
       <input type="hidden" name="companyId" value={companyId} />
       <input type="hidden" name="branchId" value={order?.branch_id ?? ""} />
-      <select name="serviceOrderId" defaultValue={order?.id ?? ""} className="h-9 rounded-md border bg-white px-3 text-sm" aria-label="Labor service order">
+      <select name="serviceOrderId" defaultValue={order?.id ?? ""} className={selectClassName} aria-label="Labor service order">
         {orders.map((item) => <option key={item.id} value={item.id}>{item.order_number}</option>)}
       </select>
-      <select name="serviceJobId" defaultValue={jobs[0]?.id ?? ""} className="h-9 rounded-md border bg-white px-3 text-sm" aria-label="Labor service job">
+      <select name="serviceJobId" defaultValue={jobs[0]?.id ?? ""} className={selectClassName} aria-label="Labor service job">
         <option value="">No job</option>
         {jobs.map((job) => <option key={job.id} value={job.id}>{job.job_number} - {job.title}</option>)}
       </select>
-      <select name="technicianId" defaultValue={technicians[0]?.id ?? ""} className="h-9 rounded-md border bg-white px-3 text-sm" aria-label="Labor technician">
+      <select name="technicianId" defaultValue={technicians[0]?.id ?? ""} className={selectClassName} aria-label="Labor technician">
         <option value="">No technician</option>
         {technicians.map((technician) => <option key={technician.id} value={technician.id}>{technician.display_name}</option>)}
       </select>
       <Input id="laborDescription" name="description" defaultValue="Initial brake diagnosis labor" aria-label="Labor description" required />
-      <div className="grid gap-3 md:grid-cols-3">
-        <select name="laborType" defaultValue="diagnosis" className="h-9 rounded-md border bg-white px-3 text-sm" aria-label="Labor type">
+      <div className={responsiveGrid3}>
+        <select name="laborType" defaultValue="diagnosis" className={selectClassName} aria-label="Labor type">
           {serviceLaborTypes.map((type) => <option key={type} value={type}>{labelize(type)}</option>)}
         </select>
         <Input name="hours" type="number" step="0.1" min="0" defaultValue="2" aria-label="Labor hours" />
@@ -249,22 +254,22 @@ export function InspectionResultForm({ companyId, orders, technicians, checklist
   const order = orders[0];
 
   return (
-    <form ref={formRef} onSubmit={handleSubmit} className="grid gap-3">
+    <form ref={formRef} onSubmit={handleSubmit} className={formClassName}>
       <Message message={message} />
       <input type="hidden" name="companyId" value={companyId} />
       <input type="hidden" name="branchId" value={order?.branch_id ?? ""} />
       <input type="hidden" name="serviceOrderId" value={order?.id ?? ""} />
       <input type="hidden" name="vehicleId" value={order?.vehicle_id ?? ""} />
-      <select name="checklistId" defaultValue={checklists[0]?.id ?? ""} className="h-9 rounded-md border bg-white px-3 text-sm" aria-label="Inspection checklist">
+      <select name="checklistId" defaultValue={checklists[0]?.id ?? ""} className={selectClassName} aria-label="Inspection checklist">
         <option value="">No checklist</option>
         {checklists.map((checklist) => <option key={checklist.id} value={checklist.id}>{checklist.name}</option>)}
       </select>
-      <select name="technicianId" defaultValue={technicians[0]?.id ?? ""} className="h-9 rounded-md border bg-white px-3 text-sm" aria-label="Inspection technician">
+      <select name="technicianId" defaultValue={technicians[0]?.id ?? ""} className={selectClassName} aria-label="Inspection technician">
         <option value="">No technician</option>
         {technicians.map((technician) => <option key={technician.id} value={technician.id}>{technician.display_name}</option>)}
       </select>
-      <div className="grid gap-3 md:grid-cols-2">
-        <select name="overallStatus" defaultValue="attention" className="h-9 rounded-md border bg-white px-3 text-sm" aria-label="Inspection status">
+      <div className={responsiveGrid2}>
+        <select name="overallStatus" defaultValue="attention" className={selectClassName} aria-label="Inspection status">
           {inspectionResultStatuses.map((status) => <option key={status} value={status}>{labelize(status)}</option>)}
         </select>
         <Input name="scorePercent" type="number" min="0" max="100" defaultValue="82" aria-label="Inspection score" />
@@ -283,7 +288,7 @@ export function WarrantyClaimForm({ companyId, orders }: { companyId: string; or
   const order = orders[0];
 
   return (
-    <form ref={formRef} onSubmit={handleSubmit} className="grid gap-3">
+    <form ref={formRef} onSubmit={handleSubmit} className={formClassName}>
       <Message message={message} />
       <input type="hidden" name="companyId" value={companyId} />
       <input type="hidden" name="branchId" value={order?.branch_id ?? ""} />
@@ -291,12 +296,12 @@ export function WarrantyClaimForm({ companyId, orders }: { companyId: string; or
       <input type="hidden" name="vehicleId" value={order?.vehicle_id ?? ""} />
       <input type="hidden" name="customerId" value={order?.customer_id ?? ""} />
       <Input id="providerName" name="providerName" defaultValue="Factory Warranty" aria-label="Warranty provider" required />
-      <div className="grid gap-3 md:grid-cols-3">
+      <div className={responsiveGrid3}>
         <Input name="claimAmount" type="number" min="0" defaultValue="3000" aria-label="Claim amount" />
         <Input name="approvedAmount" type="number" min="0" defaultValue="2500" aria-label="Approved amount" />
         <Input name="paidAmount" type="number" min="0" defaultValue="1000" aria-label="Paid amount" />
         <Input name="currencyCode" defaultValue={order?.currency_code ?? "AED"} maxLength={3} aria-label="Warranty currency" />
-        <select name="status" defaultValue="approved" className="h-9 rounded-md border bg-white px-3 text-sm" aria-label="Warranty status">
+        <select name="status" defaultValue="approved" className={selectClassName} aria-label="Warranty status">
           {warrantyClaimStatuses.map((status) => <option key={status} value={status}>{labelize(status)}</option>)}
         </select>
       </div>
