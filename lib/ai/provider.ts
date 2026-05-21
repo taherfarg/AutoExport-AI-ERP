@@ -29,6 +29,22 @@ type ProviderResult = {
   errorMessage?: string;
 };
 
+type OcrDocumentType = "vehicle_title" | "supplier_invoice";
+
+type DocumentImageInput = {
+  dataBase64: string;
+  mimeType: string;
+  fileName?: string;
+};
+
+type DocumentOcrResult = {
+  provider: AiProvider;
+  model: string;
+  rawText: string;
+  parsed: Record<string, unknown>;
+  responseText: string;
+};
+
 export type AiToolSelectionResult = {
   toolName: string;
   provider: AiProvider;
@@ -247,6 +263,124 @@ async function callGeminiGenerateContent({
   return textFromGeminiResponseBody(body) ?? "";
 }
 
+function numberOrNull(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) {
+    return value;
+  }
+
+  if (typeof value === "string") {
+    const parsed = Number(value.replace(/[^\d.-]/g, ""));
+    return Number.isFinite(parsed) ? parsed : null;
+  }
+
+  return null;
+}
+
+function stringOrNull(value: unknown): string | null {
+  return typeof value === "string" && value.trim().length > 0 ? value.trim() : null;
+}
+
+function normalizeProviderOcrPayload(documentType: OcrDocumentType, parsed: Record<string, unknown> | undefined) {
+  if (documentType === "vehicle_title") {
+    return {
+      vin: stringOrNull(parsed?.vin),
+      make: stringOrNull(parsed?.make ?? parsed?.brand),
+      model: stringOrNull(parsed?.model),
+      year: numberOrNull(parsed?.year),
+      color: stringOrNull(parsed?.color ?? parsed?.exteriorColor),
+      licensePlate: stringOrNull(parsed?.licensePlate ?? parsed?.plateNumber ?? parsed?.plate),
+      confidence: numberOrNull(parsed?.confidence),
+    };
+  }
+
+  return {
+    supplierName: stringOrNull(parsed?.supplierName ?? parsed?.supplier),
+    invoiceNumber: stringOrNull(parsed?.invoiceNumber),
+    amount: numberOrNull(parsed?.amount),
+    partNumber: stringOrNull(parsed?.partNumber),
+    partName: stringOrNull(parsed?.partName ?? parsed?.description),
+    quantity: numberOrNull(parsed?.quantity),
+    confidence: numberOrNull(parsed?.confidence),
+  };
+}
+
+function ocrInstructionsForDocument(documentType: OcrDocumentType) {
+  if (documentType === "vehicle_title") {
+    return [
+      "You are AutoSphere ERP's OCR extraction engine for automotive documents and photos.",
+      "Read the provided image or PDF carefully. It may be a vehicle title, registration card, VIN plate, chassis plate, or license plate photo.",
+      "Return only valid JSON with this exact shape:",
+      "{\"rawText\":\"all readable text\",\"vin\":null,\"make\":null,\"model\":null,\"year\":null,\"color\":null,\"licensePlate\":null,\"confidence\":0.0}",
+      "Use null for fields not visible. If the image is only a license plate, fill licensePlate and rawText, but do not invent VIN, make, model, year, or color.",
+    ].join("\n");
+  }
+
+  return [
+    "You are AutoSphere ERP's OCR extraction engine for automotive supplier invoices.",
+    "Read the provided image or PDF and extract supplier, invoice, part, quantity, and amount details.",
+    "Return only valid JSON with this exact shape:",
+    "{\"rawText\":\"all readable text\",\"supplierName\":null,\"invoiceNumber\":null,\"amount\":null,\"partNumber\":null,\"partName\":null,\"quantity\":null,\"confidence\":0.0}",
+    "Use null for fields not visible. Do not invent missing values.",
+  ].join("\n");
+}
+
+async function callGeminiDocumentOcr({
+  env,
+  fetcher,
+  documentType,
+  image,
+}: {
+  env: EnvLike;
+  fetcher: ProviderFetch;
+  documentType: OcrDocumentType;
+  image: DocumentImageInput;
+}) {
+  const apiKey = env.GEMINI_API_KEY?.trim();
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY is not configured.");
+  }
+
+  const model = modelFromEnv(env, "gemini").replace(/^models\//, "");
+  const endpoint = `${geminiBaseUrlFromEnv(env)}/models/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  const response = await fetcher(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      contents: [
+        {
+          role: "user",
+          parts: [
+            {
+              inline_data: {
+                mime_type: image.mimeType,
+                data: image.dataBase64,
+              },
+            },
+            {
+              text: ocrInstructionsForDocument(documentType),
+            },
+          ],
+        },
+      ],
+      generationConfig: {
+        maxOutputTokens: 900,
+        temperature: 0,
+        responseMimeType: "application/json",
+      },
+    }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Gemini OCR failed with ${response.status}: ${errorText.slice(0, 240)}`);
+  }
+
+  const body = await response.json() as unknown;
+  return textFromGeminiResponseBody(body) ?? "";
+}
+
 async function callLiveProvider({
   provider,
   env,
@@ -401,4 +535,40 @@ export async function refineAiAnswerWithProvider({
       errorMessage: error instanceof Error ? error.message : "AI provider response generation failed.",
     };
   }
+}
+
+export async function extractDocumentOcrWithProvider({
+  documentType,
+  image,
+  env = process.env,
+  fetcher = fetch,
+}: {
+  documentType: OcrDocumentType;
+  image: DocumentImageInput;
+  env?: EnvLike;
+  fetcher?: ProviderFetch;
+}): Promise<DocumentOcrResult> {
+  const provider = configuredProviderFromEnv(env);
+
+  if (provider !== "gemini") {
+    throw new Error("Gemini OCR is not configured. Add GEMINI_API_KEY and AI_PROVIDER=gemini to use image OCR.");
+  }
+
+  const model = modelFromEnv(env, provider);
+  const responseText = await callGeminiDocumentOcr({
+    env,
+    fetcher,
+    documentType,
+    image,
+  });
+  const parsed = parseJsonObject(responseText);
+  const rawText = stringOrNull(parsed?.rawText) ?? responseText.trim();
+
+  return {
+    provider,
+    model,
+    rawText,
+    parsed: normalizeProviderOcrPayload(documentType, parsed),
+    responseText,
+  };
 }

@@ -9,7 +9,7 @@ import {
   getAiToolRegistry,
 } from "@/lib/ai/tools";
 import { formatAiStatus, makeAiNumber } from "@/lib/ai/format";
-import { refineAiAnswerWithProvider, selectAiToolWithProvider } from "@/lib/ai/provider";
+import { extractDocumentOcrWithProvider, refineAiAnswerWithProvider, selectAiToolWithProvider } from "@/lib/ai/provider";
 import {
   aiApprovalDecisionSchema,
   askAiSchema,
@@ -237,5 +237,67 @@ describe("AI technical intelligence", () => {
     expect(result.answerPayload.directAnswer).toBe("3 leads need follow-up today.");
     expect(result.answerPayload.suggestedActions).toEqual(["Open follow-ups"]);
     expect(fetcher).toHaveBeenCalledTimes(2);
+  });
+
+  test("sends uploaded images to Gemini OCR using inline image data", async () => {
+    const fetcher = vi.fn(async (_input: string | URL, init?: RequestInit) => {
+      const body = JSON.parse(String(init?.body)) as {
+        contents: Array<{ parts: Array<{ inline_data?: { mime_type: string; data: string }; text?: string }> }>;
+      };
+
+      expect(body.contents[0].parts[0].inline_data).toEqual({
+        mime_type: "image/jpeg",
+        data: "base64-plate-image",
+      });
+      expect(body.contents[0].parts[1].text).toContain("license plate photo");
+
+      return new Response(JSON.stringify({
+        candidates: [
+          {
+            content: {
+              parts: [
+                {
+                  text: JSON.stringify({
+                    rawText: "DUBAI A 12345",
+                    vin: null,
+                    make: null,
+                    model: null,
+                    year: null,
+                    color: null,
+                    licensePlate: "DUBAI A 12345",
+                    confidence: 0.88,
+                  }),
+                },
+              ],
+            },
+          },
+        ],
+      }), { status: 200 });
+    });
+
+    const result = await extractDocumentOcrWithProvider({
+      documentType: "vehicle_title",
+      image: {
+        dataBase64: "base64-plate-image",
+        mimeType: "image/jpeg",
+        fileName: "plate.jpeg",
+      },
+      env: {
+        AI_PROVIDER: "gemini",
+        GEMINI_API_KEY: "gemini-secret",
+        GEMINI_MODEL: "gemini-test",
+      },
+      fetcher,
+    });
+
+    expect(result).toMatchObject({
+      provider: "gemini",
+      model: "gemini-test",
+      rawText: "DUBAI A 12345",
+      parsed: {
+        licensePlate: "DUBAI A 12345",
+        confidence: 0.88,
+      },
+    });
   });
 });

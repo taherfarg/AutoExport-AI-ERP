@@ -313,6 +313,7 @@ export function OcrDocumentIntake({
       formData.append("documentType", documentType);
 
       if (fileSelected) {
+        formData.append("documentFile", fileSelected);
         formData.append("filePath", `uploads/${fileSelected.name}`);
         formData.append("fileName", fileSelected.name);
         formData.append("fileType", fileSelected.type);
@@ -436,7 +437,7 @@ export function OcrDocumentIntake({
 
             <div className="grid gap-2">
               <Label htmlFor="customOcrText" className="flex items-center justify-between gap-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
-                <span>Simulated Raw OCR Text</span>
+                <span>Manual OCR Text Override</span>
                 <span className="text-[10px] font-medium normal-case tracking-normal text-slate-400">Optional override</span>
               </Label>
               <textarea
@@ -445,7 +446,7 @@ export function OcrDocumentIntake({
                 onChange={(e) => setCustomOcrText(e.target.value)}
                 placeholder={
                   documentType === "vehicle_title"
-                    ? "VIN: 1FTFW1EF5GFA99999\nYEAR: 2016\nMAKE: FORD\nMODEL: F-150 SUPERCREW\nCOLOR: BLACK"
+                    ? "Optional: paste readable text if the image is unclear.\nVIN: ...\nPLATE: ...\nMAKE: ...\nMODEL: ..."
                     : "INVOICE\nSUPPLIER: AutoParts Depot Ltd\nINVOICE #: INV-2026-0520\nPART NUMBER: BP-202X\nQTY: 25\nTOTAL AMOUNT DUE: AED 3,000.00"
                 }
                 rows={4}
@@ -516,6 +517,18 @@ export function OcrDocumentIntake({
                       Exterior Color
                     </Label>
                     <Input id="color" name="color" defaultValue={fieldValue(extractionResult.data.color)} className={smallInputClassName} />
+                  </div>
+                  <div className="grid gap-1.5">
+                    <Label htmlFor="licensePlate" className={labelClassName}>
+                      License Plate
+                    </Label>
+                    <Input
+                      id="licensePlate"
+                      name="licensePlate"
+                      defaultValue={fieldValue(extractionResult.data.licensePlate)}
+                      className={smallInputClassName}
+                      placeholder="Only if visible"
+                    />
                   </div>
                   <div className="grid gap-1.5">
                     <Label htmlFor="purchasePrice" className={labelClassName}>

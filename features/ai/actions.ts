@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getCurrentPermissionSet, getCurrentWorkspace } from "@/lib/auth/current-workspace";
 import { buildAiAnswerPayload, decideApprovalRequirement, routeAiIntent } from "@/lib/ai/assistant";
 import { makeAiNumber } from "@/lib/ai/format";
-import { refineAiAnswerWithProvider, selectAiToolWithProvider } from "@/lib/ai/provider";
+import { extractDocumentOcrWithProvider, refineAiAnswerWithProvider, selectAiToolWithProvider } from "@/lib/ai/provider";
 import { filterAiToolsByPermissions, findAiTool, getAiToolRegistry } from "@/lib/ai/tools";
 import { createListingDraftFromVehicle, createSocialCaptionDraft } from "@/lib/marketing/calculations";
 import { PERMISSIONS } from "@/lib/permissions/permissions";
@@ -42,6 +42,30 @@ function numberValue(value: unknown, fallback = 0) {
 
 function formOptional(value: FormDataEntryValue | null) {
   return typeof value === "string" && value.trim().length > 0 ? value.trim() : undefined;
+}
+
+function formFile(value: FormDataEntryValue | null) {
+  if (!value || typeof value === "string") {
+    return null;
+  }
+
+  return typeof value.arrayBuffer === "function" && typeof value.name === "string" ? value : null;
+}
+
+function safeFileName(fileName: string) {
+  return fileName.replace(/[^a-zA-Z0-9._-]+/g, "-").replace(/^-+|-+$/g, "") || "document";
+}
+
+function mergeOcrData(regexData: Record<string, unknown>, providerData?: Record<string, unknown>) {
+  const merged = { ...regexData };
+
+  for (const [key, value] of Object.entries(providerData ?? {})) {
+    if (value !== null && value !== undefined && value !== "") {
+      merged[key] = value;
+    }
+  }
+
+  return merged;
 }
 
 async function requireAiPermission() {
@@ -1054,15 +1078,27 @@ export async function triggerAutonomousScan(formData: FormData) {
 
 export async function triggerDocumentOcr(formData: FormData) {
   const { workspace } = await requireManageAiAutomationPermission();
-  const filePath = formData.get("filePath") as string || "uploads/mock_file.pdf";
-  const fileName = formData.get("fileName") as string || "mock_file.pdf";
-  const fileType = formData.get("fileType") as string || "application/pdf";
+  const uploadedFile = formFile(formData.get("documentFile"));
+  const uploadedFileName = uploadedFile ? safeFileName(uploadedFile.name) : "";
+  const fileName = uploadedFileName || (formData.get("fileName") as string) || "mock_file.pdf";
+  const fileType = uploadedFile?.type || (formData.get("fileType") as string) || "application/pdf";
+  const filePath = uploadedFileName
+    ? `uploads/ocr/${crypto.randomUUID()}-${uploadedFileName}`
+    : (formData.get("filePath") as string) || "uploads/mock_file.pdf";
   const documentType = formData.get("documentType") as "vehicle_title" | "supplier_invoice";
   const branchId = formOptional(formData.get("branchId")) || null;
   const providedRawText = formOptional(formData.get("rawText"));
 
   if (!documentType || !["vehicle_title", "supplier_invoice"].includes(documentType)) {
     return { error: "Invalid document type for OCR extraction." };
+  }
+
+  if (uploadedFile && uploadedFile.size > 5 * 1024 * 1024) {
+    return { error: "OCR file is too large. Upload an image or PDF up to 5 MB." };
+  }
+
+  if (uploadedFile && !["image/jpeg", "image/png", "image/webp", "application/pdf"].includes(fileType)) {
+    return { error: "OCR supports JPEG, PNG, WebP, or PDF files." };
   }
 
   const parsedCheck = documentExtractionSchema.safeParse({
@@ -1103,6 +1139,27 @@ export async function triggerDocumentOcr(formData: FormData) {
 
   try {
     let rawText = providedRawText;
+    let providerOcrData: Record<string, unknown> | undefined;
+
+    if (!rawText && uploadedFile) {
+      const fileBuffer = Buffer.from(await uploadedFile.arrayBuffer());
+      const providerResult = await extractDocumentOcrWithProvider({
+        documentType,
+        image: {
+          dataBase64: fileBuffer.toString("base64"),
+          mimeType: fileType,
+          fileName,
+        },
+      });
+
+      rawText = providerResult.rawText;
+      providerOcrData = providerResult.parsed;
+
+      if (!rawText && Object.values(providerOcrData).every((value) => value === null || value === undefined || value === "")) {
+        throw new Error("The OCR provider could not read text from this file. Try a clearer image or enter manual OCR text.");
+      }
+    }
+
     if (!rawText) {
       if (documentType === "vehicle_title") {
         rawText = `
@@ -1127,7 +1184,7 @@ export async function triggerDocumentOcr(formData: FormData) {
       }
     }
 
-    const extractedData = parseOcrFields(documentType, rawText);
+    const extractedData = mergeOcrData(parseOcrFields(documentType, rawText), providerOcrData);
 
     const { error: updateErr } = await supabase
       .from("ai_document_extractions")
