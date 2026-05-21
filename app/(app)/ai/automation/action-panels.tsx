@@ -481,60 +481,220 @@ export function OcrDocumentIntake({
           {extractionResult ? (
             <form onSubmit={handleCommit} className="space-y-4" id="ocrCommitForm">
               {extractionResult.documentType === "vehicle_title" ? (
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="grid gap-1.5">
-                    <Label htmlFor="vin" className={labelClassName}>
-                      Extracted VIN
-                    </Label>
-                    <Input id="vin" name="vin" defaultValue={fieldValue(extractionResult.data.vin)} className={smallInputClassName} />
+                <div className="space-y-5">
+                  <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                    OCR filled the fields it could read. Complete the required inventory and pricing fields before committing this vehicle.
                   </div>
-                  <div className="grid gap-1.5">
-                    <Label htmlFor="make" className={labelClassName}>
-                      Make / Brand
-                    </Label>
-                    <Input id="make" name="make" defaultValue={fieldValue(extractionResult.data.make)} className={smallInputClassName} />
-                  </div>
-                  <div className="grid gap-1.5">
-                    <Label htmlFor="model" className={labelClassName}>
-                      Model Name
-                    </Label>
-                    <Input id="model" name="model" defaultValue={fieldValue(extractionResult.data.model)} className={smallInputClassName} />
-                  </div>
-                  <div className="grid gap-1.5">
-                    <Label htmlFor="year" className={labelClassName}>
-                      Year
-                    </Label>
-                    <Input
-                      id="year"
-                      name="year"
-                      type="number"
-                      defaultValue={fieldValue(extractionResult.data.year, String(new Date().getFullYear()))}
-                      className={smallInputClassName}
-                    />
-                  </div>
-                  <div className="grid gap-1.5">
-                    <Label htmlFor="color" className={labelClassName}>
-                      Exterior Color
-                    </Label>
-                    <Input id="color" name="color" defaultValue={fieldValue(extractionResult.data.color)} className={smallInputClassName} />
-                  </div>
-                  <div className="grid gap-1.5">
-                    <Label htmlFor="licensePlate" className={labelClassName}>
-                      License Plate
-                    </Label>
-                    <Input
-                      id="licensePlate"
-                      name="licensePlate"
-                      defaultValue={fieldValue(extractionResult.data.licensePlate)}
-                      className={smallInputClassName}
-                      placeholder="Only if visible"
-                    />
-                  </div>
-                  <div className="grid gap-1.5">
-                    <Label htmlFor="purchasePrice" className={labelClassName}>
-                      Simulated Value (AED)
-                    </Label>
-                    <Input id="purchasePrice" name="purchasePrice" type="number" defaultValue={65000} className={smallInputClassName} />
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="stockNumber" className={labelClassName}>
+                        Stock Number *
+                      </Label>
+                      <Input
+                        id="stockNumber"
+                        name="stockNumber"
+                        defaultValue={`OCR-${extractionResult.id.slice(0, 8).toUpperCase()}`}
+                        className={smallInputClassName}
+                        required
+                      />
+                    </div>
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="status" className={labelClassName}>
+                        Vehicle Status *
+                      </Label>
+                      <select id="status" name="status" defaultValue="available" className={smallInputClassName} required>
+                        <option value="available">Available</option>
+                        <option value="under_preparation">Under preparation</option>
+                        <option value="ready_for_export">Ready for export</option>
+                        <option value="in_transit">In transit</option>
+                        <option value="under_customs_clearance">Under customs clearance</option>
+                      </select>
+                    </div>
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="vin" className={labelClassName}>
+                        Extracted VIN *
+                      </Label>
+                      <Input id="vin" name="vin" defaultValue={fieldValue(extractionResult.data.vin)} className={smallInputClassName} required />
+                    </div>
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="make" className={labelClassName}>
+                        Make / Brand *
+                      </Label>
+                      <Input id="make" name="make" defaultValue={fieldValue(extractionResult.data.make)} className={smallInputClassName} required />
+                    </div>
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="model" className={labelClassName}>
+                        Model Name *
+                      </Label>
+                      <Input id="model" name="model" defaultValue={fieldValue(extractionResult.data.model)} className={smallInputClassName} required />
+                    </div>
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="year" className={labelClassName}>
+                        Year *
+                      </Label>
+                      <Input
+                        id="year"
+                        name="year"
+                        type="number"
+                        min="1900"
+                        max="2100"
+                        defaultValue={fieldValue(extractionResult.data.year, String(new Date().getFullYear()))}
+                        className={smallInputClassName}
+                        required
+                      />
+                    </div>
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="trim" className={labelClassName}>
+                        Trim
+                      </Label>
+                      <Input id="trim" name="trim" className={smallInputClassName} placeholder="GR Sport, LX, SE..." />
+                    </div>
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="condition" className={labelClassName}>
+                        Condition *
+                      </Label>
+                      <select id="condition" name="condition" defaultValue="new" className={smallInputClassName} required>
+                        <option value="new">New</option>
+                        <option value="used">Used</option>
+                        <option value="certified_pre_owned">Certified pre-owned</option>
+                      </select>
+                    </div>
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="mileage" className={labelClassName}>
+                        Mileage *
+                      </Label>
+                      <Input id="mileage" name="mileage" type="number" min="0" defaultValue="0" className={smallInputClassName} required />
+                    </div>
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="color" className={labelClassName}>
+                        Exterior Color
+                      </Label>
+                      <Input id="color" name="color" defaultValue={fieldValue(extractionResult.data.color)} className={smallInputClassName} />
+                    </div>
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="interiorColor" className={labelClassName}>
+                        Interior Color
+                      </Label>
+                      <Input id="interiorColor" name="interiorColor" className={smallInputClassName} />
+                    </div>
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="engine" className={labelClassName}>
+                        Engine
+                      </Label>
+                      <Input id="engine" name="engine" className={smallInputClassName} placeholder="2.8L Diesel" />
+                    </div>
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="transmission" className={labelClassName}>
+                        Transmission
+                      </Label>
+                      <Input id="transmission" name="transmission" className={smallInputClassName} placeholder="Automatic" />
+                    </div>
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="drivetrain" className={labelClassName}>
+                        Drivetrain
+                      </Label>
+                      <Input id="drivetrain" name="drivetrain" className={smallInputClassName} placeholder="4WD" />
+                    </div>
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="fuelType" className={labelClassName}>
+                        Fuel Type
+                      </Label>
+                      <Input id="fuelType" name="fuelType" className={smallInputClassName} placeholder="Petrol / Diesel / Hybrid" />
+                    </div>
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="bodyType" className={labelClassName}>
+                        Body Type
+                      </Label>
+                      <Input id="bodyType" name="bodyType" className={smallInputClassName} placeholder="SUV, Pickup, Sedan" />
+                    </div>
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="seats" className={labelClassName}>
+                        Seats
+                      </Label>
+                      <Input id="seats" name="seats" type="number" min="1" className={smallInputClassName} />
+                    </div>
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="doors" className={labelClassName}>
+                        Doors
+                      </Label>
+                      <Input id="doors" name="doors" type="number" min="1" className={smallInputClassName} />
+                    </div>
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="licensePlate" className={labelClassName}>
+                        License Plate
+                      </Label>
+                      <Input id="licensePlate" name="licensePlate" defaultValue={fieldValue(extractionResult.data.licensePlate)} className={smallInputClassName} placeholder="Only if visible" />
+                    </div>
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="originCountryCode" className={labelClassName}>
+                        Origin Country *
+                      </Label>
+                      <Input id="originCountryCode" name="originCountryCode" defaultValue="AE" maxLength={2} className={smallInputClassName} required />
+                    </div>
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="currentCountryCode" className={labelClassName}>
+                        Current Country *
+                      </Label>
+                      <Input id="currentCountryCode" name="currentCountryCode" defaultValue="AE" maxLength={2} className={smallInputClassName} required />
+                    </div>
+                    <div className="grid gap-1.5 sm:col-span-2">
+                      <Label htmlFor="currentLocation" className={labelClassName}>
+                        Current Location
+                      </Label>
+                      <Input id="currentLocation" name="currentLocation" className={smallInputClassName} placeholder="Dubai showroom, Belgium stock yard..." />
+                    </div>
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="purchasePrice" className={labelClassName}>
+                        Purchase Price *
+                      </Label>
+                      <Input id="purchasePrice" name="purchasePrice" type="number" min="1" step="0.01" className={smallInputClassName} required />
+                    </div>
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="sellingPrice" className={labelClassName}>
+                        Selling Price *
+                      </Label>
+                      <Input id="sellingPrice" name="sellingPrice" type="number" min="1" step="0.01" className={smallInputClassName} required />
+                    </div>
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="shippingCost" className={labelClassName}>
+                        Shipping Cost
+                      </Label>
+                      <Input id="shippingCost" name="shippingCost" type="number" min="0" step="0.01" defaultValue="0" className={smallInputClassName} />
+                    </div>
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="customsCost" className={labelClassName}>
+                        Customs Cost
+                      </Label>
+                      <Input id="customsCost" name="customsCost" type="number" min="0" step="0.01" defaultValue="0" className={smallInputClassName} />
+                    </div>
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="preparationCost" className={labelClassName}>
+                        Preparation Cost
+                      </Label>
+                      <Input id="preparationCost" name="preparationCost" type="number" min="0" step="0.01" defaultValue="0" className={smallInputClassName} />
+                    </div>
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="marketingCost" className={labelClassName}>
+                        Marketing Cost
+                      </Label>
+                      <Input id="marketingCost" name="marketingCost" type="number" min="0" step="0.01" defaultValue="0" className={smallInputClassName} />
+                    </div>
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="otherExpenses" className={labelClassName}>
+                        Other Expenses
+                      </Label>
+                      <Input id="otherExpenses" name="otherExpenses" type="number" min="0" step="0.01" defaultValue="0" className={smallInputClassName} />
+                    </div>
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="currencyCode" className={labelClassName}>
+                        Currency *
+                      </Label>
+                      <Input id="currencyCode" name="currencyCode" defaultValue="AED" maxLength={3} className={smallInputClassName} required />
+                    </div>
+                    <label className="flex items-end gap-2 pb-1 text-sm font-medium text-slate-700">
+                      <input name="exportAvailable" type="checkbox" className="h-4 w-4 rounded border-slate-300" />
+                      Export available
+                    </label>
                   </div>
                 </div>
               ) : (

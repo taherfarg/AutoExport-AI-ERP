@@ -17,7 +17,7 @@ import {
   automationAgentSchema,
   documentExtractionSchema,
 } from "@/lib/validations/ai";
-import { parseOcrFields, compileProposalPayload } from "@/lib/ai/automation-helpers";
+import { compileProposalPayload, parseOcrFields, validateVehicleTitleCommitInput } from "@/lib/ai/automation-helpers";
 import { calculateVehiclePricing } from "@/lib/vehicles/pricing";
 
 type JsonRecord = Record<string, unknown>;
@@ -1248,32 +1248,62 @@ export async function commitDocumentOcr(formData: FormData) {
   const data = extraction.extracted_data as JsonRecord;
 
   if (documentType === "vehicle_title") {
-    const vin = stringValue(formData.get("vin"), stringValue(data.vin));
-    const make = stringValue(formData.get("make"), stringValue(data.make));
-    const model = stringValue(formData.get("model"), stringValue(data.model));
-    const year = numberValue(formData.get("year"), numberValue(data.year, new Date().getFullYear()));
-    const color = stringValue(formData.get("color"), stringValue(data.color));
-    const purchasePrice = Number(formData.get("purchasePrice")) || 0;
+    const reviewed = validateVehicleTitleCommitInput(
+      Object.fromEntries(formData.entries()),
+      {
+        vin: data.vin,
+        make: data.make,
+        model: data.model,
+        year: data.year,
+        color: data.color,
+        licensePlate: data.licensePlate,
+      },
+    );
 
-    if (!vin) {
-      return { error: "VIN is required to commit vehicle title." };
+    if (!reviewed.success) {
+      return { error: reviewed.error };
     }
+
+    const vehicleInput = reviewed.data;
 
     const { data: vehicle, error: vehicleErr } = await supabase
       .from("vehicles")
       .insert({
         company_id: workspace.companyId,
         branch_id: branchId,
-        vin,
-        brand: make || "Unknown",
-        model: model || "Unknown",
-        year,
-        exterior_color: color || "Unknown",
-        status: "available",
-        stock_number: "STK-" + Math.floor(100000 + Math.random() * 900000),
-        purchase_price: purchasePrice,
-        selling_price: purchasePrice ? Math.round(purchasePrice * 1.15) : 0,
-        currency_code: "AED",
+        stock_number: vehicleInput.stockNumber,
+        vin: vehicleInput.vin,
+        brand: vehicleInput.brand,
+        model: vehicleInput.model,
+        year: vehicleInput.year,
+        trim: vehicleInput.trim,
+        condition: vehicleInput.condition,
+        mileage: vehicleInput.mileage,
+        exterior_color: vehicleInput.exteriorColor,
+        interior_color: vehicleInput.interiorColor,
+        engine: vehicleInput.engine,
+        transmission: vehicleInput.transmission,
+        drivetrain: vehicleInput.drivetrain,
+        fuel_type: vehicleInput.fuelType,
+        body_type: vehicleInput.bodyType,
+        seats: vehicleInput.seats,
+        doors: vehicleInput.doors,
+        origin_country_code: vehicleInput.originCountryCode,
+        current_country_code: vehicleInput.currentCountryCode,
+        current_location: vehicleInput.currentLocation,
+        purchase_price: vehicleInput.purchasePrice,
+        shipping_cost: vehicleInput.shippingCost,
+        customs_cost: vehicleInput.customsCost,
+        preparation_cost: vehicleInput.preparationCost,
+        marketing_cost: vehicleInput.marketingCost,
+        other_expenses: vehicleInput.otherExpenses,
+        total_landed_cost: vehicleInput.totalLandedCost,
+        selling_price: vehicleInput.sellingPrice,
+        expected_profit: vehicleInput.expectedProfit,
+        profit_margin: vehicleInput.profitMargin,
+        currency_code: vehicleInput.currencyCode,
+        status: vehicleInput.status,
+        export_available: vehicleInput.exportAvailable,
         created_by: workspace.profileId,
         updated_by: workspace.profileId,
       })
@@ -1283,6 +1313,26 @@ export async function commitDocumentOcr(formData: FormData) {
     if (vehicleErr) {
       return { error: vehicleErr.message };
     }
+
+    await supabase.from("vehicle_costs").insert({
+      company_id: workspace.companyId,
+      vehicle_id: vehicle.id,
+      purchase_price: vehicleInput.purchasePrice,
+      shipping_cost: vehicleInput.shippingCost,
+      customs_cost: vehicleInput.customsCost,
+      repair_cost: vehicleInput.preparationCost,
+      marketing_cost: vehicleInput.marketingCost,
+      other_expenses: vehicleInput.otherExpenses,
+      total_landed_cost: vehicleInput.totalLandedCost,
+      selling_price: vehicleInput.sellingPrice,
+      gross_profit: vehicleInput.expectedProfit,
+      net_profit: vehicleInput.expectedProfit,
+      profit_margin: vehicleInput.profitMargin,
+      currency_code: vehicleInput.currencyCode,
+      notes: "Created from AI OCR vehicle intake review.",
+      created_by: workspace.profileId,
+      updated_by: workspace.profileId,
+    });
 
     await supabase
       .from("ai_document_extractions")
@@ -1301,7 +1351,7 @@ export async function commitDocumentOcr(formData: FormData) {
       action: "commit_ocr_vehicle_title",
       entityType: "vehicle",
       entityId: vehicle.id,
-      newValues: { vin, stockNumber: vehicle.stock_number },
+      newValues: { vin: vehicleInput.vin, stockNumber: vehicle.stock_number, totalLandedCost: vehicleInput.totalLandedCost, sellingPrice: vehicleInput.sellingPrice },
     });
 
     revalidatePath("/ai/automation");

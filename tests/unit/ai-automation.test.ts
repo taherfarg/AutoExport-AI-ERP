@@ -1,5 +1,5 @@
 import { describe, expect, test } from "vitest";
-import { parseOcrFields, compileProposalPayload } from "@/lib/ai/automation-helpers";
+import { parseOcrFields, compileProposalPayload, validateVehicleTitleCommitInput } from "@/lib/ai/automation-helpers";
 import {
   automationAgentSchema,
   documentExtractionSchema,
@@ -63,6 +63,78 @@ describe("Phase 20: Advanced AI Automation business heuristics & Zod validation"
         partNumber: "BP-202X",
         partName: "Heavy-Duty Front Brake Pads",
         quantity: 25,
+      });
+    });
+  });
+
+  describe("OCR Vehicle Commit Validation", () => {
+    test("requires complete human-reviewed commercial vehicle data before committing OCR extraction", () => {
+      const result = validateVehicleTitleCommitInput(
+        {
+          vin: "MROCB9CD0T3310678",
+          make: "Toyota",
+          model: "GUN122L-DTMLXV",
+          year: "2025",
+        },
+        {},
+      );
+
+      expect(result).toEqual({
+        success: false,
+        error: "Stock number is required before committing OCR vehicle intake.",
+      });
+    });
+
+    test("builds a complete inventory payload and pricing summary from reviewed OCR intake fields", () => {
+      const result = validateVehicleTitleCommitInput(
+        {
+          stockNumber: "OCR-TOYOTA-001",
+          vin: "MROCB9CD0T3310678",
+          make: "Toyota",
+          model: "Hilux",
+          year: "2025",
+          trim: "GR Sport",
+          condition: "new",
+          mileage: "120",
+          color: "White",
+          interiorColor: "Black",
+          engine: "2.8L Diesel",
+          transmission: "Automatic",
+          drivetrain: "4WD",
+          fuelType: "Diesel",
+          bodyType: "Pickup",
+          seats: "5",
+          doors: "4",
+          originCountryCode: "TH",
+          currentCountryCode: "AE",
+          currentLocation: "Dubai Stock Yard",
+          purchasePrice: "120000",
+          shippingCost: "4500",
+          customsCost: "2500",
+          preparationCost: "1500",
+          marketingCost: "800",
+          otherExpenses: "700",
+          sellingPrice: "149000",
+          currencyCode: "AED",
+          status: "available",
+          exportAvailable: "on",
+        },
+        {},
+      );
+
+      expect(result.success).toBe(true);
+      if (!result.success) return;
+      expect(result.data).toMatchObject({
+        stockNumber: "OCR-TOYOTA-001",
+        vin: "MROCB9CD0T3310678",
+        brand: "Toyota",
+        model: "Hilux",
+        year: 2025,
+        totalLandedCost: 130000,
+        sellingPrice: 149000,
+        expectedProfit: 19000,
+        profitMargin: 12.75,
+        exportAvailable: true,
       });
     });
   });
