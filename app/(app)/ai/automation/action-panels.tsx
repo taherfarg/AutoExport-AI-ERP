@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { 
   Bot, 
   Sparkles, 
@@ -44,6 +44,11 @@ function fieldValue(value: unknown, fallback = "") {
   return String(value);
 }
 
+function refreshRoute(router: ReturnType<typeof useRouter>, pathname: string) {
+  router.replace(`${pathname}?automation=${Date.now()}`, { scroll: false });
+  router.refresh();
+}
+
 // Helpers for formatted display
 function formatAgentName(type: string) {
   if (type === "crm_follow_up") return "CRM Lead Follow-Up Agent";
@@ -60,6 +65,7 @@ export function AgentSwitchboard({
   defaultBranchId?: string;
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [loadingAgentId, setLoadingAgentId] = useState<string | null>(null);
   const [scanningAgentType, setScanningAgentType] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
@@ -81,7 +87,7 @@ export function AgentSwitchboard({
         setErrorMsg(res.error);
       } else {
         setSuccessMsg(`Successfully toggled ${formatAgentName(agent.agent_type)}!`);
-        router.refresh();
+        refreshRoute(router, pathname);
       }
     } catch (e: unknown) {
       setErrorMsg(errorMessage(e, "An unexpected error occurred."));
@@ -104,7 +110,7 @@ export function AgentSwitchboard({
         setErrorMsg(res.error);
       } else {
         setSuccessMsg(`Autonomous scan finished! Generated proposal draft.`);
-        router.refresh();
+        refreshRoute(router, pathname);
       }
     } catch (e: unknown) {
       setErrorMsg(errorMessage(e, "Autonomous scan failed."));
@@ -604,6 +610,7 @@ export function ProposalsApprovalFeed({
   proposals: AiAutomationProposalRow[];
 }) {
   const router = useRouter();
+  const pathname = usePathname();
   const [resolvingId, setResolvingId] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -624,7 +631,7 @@ export function ProposalsApprovalFeed({
         setErrorMsg(res.error);
       } else {
         setSuccessMsg(`Proposal resolved perfectly! ${decision === "approved" ? "Executed autonomous pipeline." : "Dismissed proposal successfully."}`);
-        router.refresh();
+        refreshRoute(router, pathname);
       }
     } catch (e: unknown) {
       setErrorMsg(errorMessage(e, "Failed to resolve proposal."));

@@ -911,6 +911,10 @@ export async function triggerAutonomousScan(formData: FormData) {
         .limit(1)
         .single();
 
+      if (!lead) {
+        throw new Error("No active lead was found for the CRM follow-up agent.");
+      }
+
       const leadName = lead?.name ?? "John Doe";
       const vehicleInterest = lead ? `${lead.preferred_brand || ""} ${lead.preferred_model || ""}`.trim() : "BMW X5";
       
@@ -919,7 +923,7 @@ export async function triggerAutonomousScan(formData: FormData) {
       justification = `Lead has been idle with no follow-up task recorded for over 48 hours.`;
       
       proposedPayload = compileProposalPayload("lead_follow_up", {
-        leadId: lead?.id || "44444444-4444-4444-8444-444444444444",
+        leadId: lead.id,
         messageBody: `Hi ${leadName}, we have a couple of outstanding options matching your interest in ${vehicleInterest || "vehicles"}. Let us know when we can connect!`,
         messageChannel: "whatsapp",
       });
@@ -937,11 +941,11 @@ export async function triggerAutonomousScan(formData: FormData) {
       if (supplierId) {
         const { data: supplier } = await supabase
           .from("part_suppliers")
-          .select("name")
+          .select("supplier_name")
           .eq("id", supplierId)
           .single();
         if (supplier) {
-          supplierName = supplier.name;
+          supplierName = supplier.supplier_name;
         }
       }
 
@@ -973,6 +977,10 @@ export async function triggerAutonomousScan(formData: FormData) {
         .limit(1)
         .single();
 
+      if (!vehicle) {
+        throw new Error("No available vehicle was found for the marketing agent.");
+      }
+
       const brand = vehicle?.brand ?? "Toyota";
       const model = vehicle?.model ?? "Camry";
       const year = vehicle?.year ?? 2022;
@@ -984,7 +992,7 @@ export async function triggerAutonomousScan(formData: FormData) {
       justification = `Vehicle is marked as "available" but has no active social media or marketing posts.`;
 
       proposedPayload = compileProposalPayload("vehicle_marketing", {
-        vehicleId: vehicle?.id || null,
+        vehicleId: vehicle.id,
         vin: "1FTFW1EF5GFA99999",
         platforms: ["Facebook Marketplace", "Dubizzle", "Instagram"],
         headline: `Pre-Owned ${year} ${brand} ${model} in pristine condition!`,
