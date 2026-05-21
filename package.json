@@ -10,6 +10,7 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test",
+    "seed:demo": "node scripts/seed-demo-workspace.mjs",
     "qa:full": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/qa/full-test.ps1",
     "qa:full:keepdb": "powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/qa/full-test.ps1 -SkipDbReset"
   },
