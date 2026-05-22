@@ -63,6 +63,42 @@ test("protected app routes redirect unauthenticated visitors", async ({ page }) 
   }
 });
 
+test("starter workspaces redirect direct locked module routes to subscription guidance", async ({ page }) => {
+  const id = Date.now();
+  const email = `starter-lock-${id}@gmail.com`;
+  const password = "Password123!";
+  const slug = `starter-lock-${id}`;
+
+  const supabaseAdmin = createClient(
+    getEnvValue("NEXT_PUBLIC_SUPABASE_URL"),
+    getEnvValue("SUPABASE_SERVICE_ROLE_KEY"),
+    { auth: { autoRefreshToken: false, persistSession: false } },
+  );
+  const { error: adminCreateError } = await supabaseAdmin.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+  });
+  expect(adminCreateError).toBeNull();
+
+  await page.goto("/login");
+  await page.getByLabel("Email").fill(email);
+  await page.getByLabel("Password").fill(password);
+  await page.getByRole("button", { name: "Sign in" }).click();
+
+  await expect(page.getByText("Create dealership workspace")).toBeVisible();
+  await page.getByLabel("Company name").fill(`Starter Lock Motors ${id}`);
+  await page.getByLabel("Legal name").fill(`Starter Lock Motors ${id} LLC`);
+  await page.getByLabel("Workspace slug example: pollux-motors").fill(slug);
+  await page.getByRole("button", { name: "Create workspace" }).click();
+
+  await page.waitForURL("**/dashboard", { timeout: 15000 });
+  await page.goto("/finance/accounting");
+
+  await page.waitForURL("**/subscriptions?locked=accounting&returnTo=%2Ffinance%2Faccounting", { timeout: 15000 });
+  await expect(page.getByText("Accounting is not included in your current package.")).toBeVisible();
+});
+
 test("new workspace can add a branch, vehicle, and lead", async ({ page }) => {
   page.on("console", (msg) => console.log("BROWSER LOG:", msg.text()));
   page.on("pageerror", (err) => console.error("BROWSER PAGE ERROR:", err.message));

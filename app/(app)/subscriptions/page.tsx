@@ -1,9 +1,12 @@
 import { CreditCard, Lock, ShieldCheck, TrendingUp } from "lucide-react";
+import Link from "next/link";
 import { getBillingOverview } from "@/features/billing/queries";
 import { getCurrentPermissionSet, getCurrentWorkspace } from "@/lib/auth/current-workspace";
+import { MODULE_REGISTRY } from "@/lib/modules/module-registry";
 import { PERMISSIONS } from "@/lib/permissions/permissions";
 import { usageMetricLabels } from "@/lib/billing/usage";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import {
   Card,
   CardContent,
@@ -42,7 +45,21 @@ function statusBadge(status: string) {
   return "border-emerald-200 bg-emerald-50 text-emerald-700";
 }
 
-export default async function SubscriptionsPage() {
+type SubscriptionsPageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+function firstParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+export default async function SubscriptionsPage({ searchParams }: SubscriptionsPageProps) {
+  const params = await searchParams;
+  const lockedModuleKey = firstParam(params.locked);
+  const returnTo = firstParam(params.returnTo);
+  const lockedModule = lockedModuleKey
+    ? MODULE_REGISTRY.find((module) => module.key === lockedModuleKey)
+    : undefined;
   const workspace = await getCurrentWorkspace();
   const permissions = await getCurrentPermissionSet(workspace.companyId);
   const canManageBilling = permissions.has(PERMISSIONS.MANAGE_SUBSCRIPTIONS);
@@ -77,6 +94,27 @@ export default async function SubscriptionsPage() {
         </div>
         <Badge className={statusBadge(overview.subscription.status)}>{overview.subscription.status}</Badge>
       </div>
+
+      {lockedModule ? (
+        <Card className="border-orange-200 bg-orange-50/70">
+          <CardHeader className="space-y-3 md:flex md:flex-row md:items-start md:justify-between md:space-y-0">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-orange-950">
+                <Lock className="h-5 w-5 text-orange-600" />
+                {lockedModule.label} is not included in your current package.
+              </CardTitle>
+              <CardDescription className="mt-2 text-orange-900/80">
+                Upgrade the package or ask an administrator to change module access before opening this workspace area.
+              </CardDescription>
+            </div>
+            {returnTo ? (
+              <Button asChild variant="outline" className="border-orange-300 bg-white text-orange-900 hover:bg-orange-100">
+                <Link href={returnTo}>Try again after upgrade</Link>
+              </Button>
+            ) : null}
+          </CardHeader>
+        </Card>
+      ) : null}
 
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-2">

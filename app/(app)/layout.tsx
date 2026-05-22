@@ -1,8 +1,10 @@
+import { headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { AppMobileNav, AppSidebar } from "@/components/app-shell/app-sidebar";
 import { Topbar } from "@/components/app-shell/topbar";
 import { getEnabledModuleKeys } from "@/features/subscriptions/queries";
 import { getCurrentWorkspace } from "@/lib/auth/current-workspace";
+import { getModuleAccessForPath } from "@/lib/modules/entitlements";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 
 export default async function AuthenticatedLayout({
@@ -24,6 +26,16 @@ export default async function AuthenticatedLayout({
     .eq("id", workspace.companyId)
     .single();
   const enabledModuleKeys = await getEnabledModuleKeys(workspace.companyId);
+  const pathname = (await headers()).get("x-autosphere-pathname") ?? "";
+  const moduleAccess = pathname ? getModuleAccessForPath(pathname, enabledModuleKeys) : null;
+
+  if (moduleAccess && !moduleAccess.allowed) {
+    const params = new URLSearchParams({
+      locked: moduleAccess.moduleKey,
+      returnTo: pathname,
+    });
+    redirect(`/subscriptions?${params.toString()}`);
+  }
 
   return (
     <div className="flex min-h-screen overflow-x-hidden bg-slate-50">

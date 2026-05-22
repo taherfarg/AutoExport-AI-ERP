@@ -3,7 +3,10 @@ import { createServerClient } from "@supabase/ssr";
 import { getPublicSupabaseEnv } from "@/lib/env/runtime";
 
 export async function proxy(request: NextRequest) {
-  let response = NextResponse.next({ request });
+  const pathname = request.nextUrl.pathname;
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-autosphere-pathname", pathname);
+  let response = NextResponse.next({ request: { headers: requestHeaders } });
   const { supabaseUrl, publishableKey } = getPublicSupabaseEnv();
 
   const supabase = createServerClient(
@@ -16,7 +19,7 @@ export async function proxy(request: NextRequest) {
         },
         setAll(cookiesToSet) {
           cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
-          response = NextResponse.next({ request });
+          response = NextResponse.next({ request: { headers: requestHeaders } });
           cookiesToSet.forEach(({ name, value, options }) =>
             response.cookies.set(name, value, options),
           );
@@ -29,9 +32,6 @@ export async function proxy(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-
-  const pathname = request.nextUrl.pathname;
-
   // Public paths that don't require authentication
   const isPublicPath =
     pathname === "/" ||
