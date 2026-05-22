@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import { createClient } from "@supabase/supabase-js";
 import { existsSync, readFileSync } from "node:fs";
 
@@ -16,6 +16,47 @@ function getEnvValue(key: string) {
     .find((entry) => entry.startsWith(`${key}=`));
 
   return line?.slice(key.length + 1).trim().replace(/^["']|["']$/g, "") ?? "";
+}
+
+async function reloadAndExpectVisible(page: Page, locatorFactory: () => Locator) {
+  await page.reload();
+  await expect(locatorFactory()).toBeVisible({ timeout: 15000 });
+}
+
+async function activateEnterprisePackage(companySlug: string) {
+  const supabaseUrl = getEnvValue("NEXT_PUBLIC_SUPABASE_URL");
+  const serviceRoleKey = getEnvValue("SUPABASE_SERVICE_ROLE_KEY");
+  const headers = {
+    apikey: serviceRoleKey,
+    Authorization: `Bearer ${serviceRoleKey}`,
+    "Content-Type": "application/json",
+  };
+
+  const companyResponse = await fetch(
+    `${supabaseUrl}/rest/v1/companies?select=id&slug=eq.${encodeURIComponent(companySlug)}`,
+    { headers },
+  );
+  expect(companyResponse.ok).toBeTruthy();
+  const companies = (await companyResponse.json()) as Array<{ id: string }>;
+  expect(companies[0]?.id).toBeTruthy();
+
+  const packageResponse = await fetch(
+    `${supabaseUrl}/rest/v1/packages?select=id&package_key=eq.enterprise_dealer_group`,
+    { headers },
+  );
+  expect(packageResponse.ok).toBeTruthy();
+  const packages = (await packageResponse.json()) as Array<{ id: string }>;
+  expect(packages[0]?.id).toBeTruthy();
+
+  const subscriptionResponse = await fetch(
+    `${supabaseUrl}/rest/v1/subscriptions?company_id=eq.${companies[0]!.id}`,
+    {
+      method: "PATCH",
+      headers: { ...headers, Prefer: "return=minimal" },
+      body: JSON.stringify({ package_id: packages[0]!.id, status: "active" }),
+    },
+  );
+  expect(subscriptionResponse.ok).toBeTruthy();
 }
 
 test.describe.configure({ timeout: 300_000 });
@@ -147,6 +188,7 @@ test("new workspace can add a branch, vehicle, and lead", async ({ page }) => {
   await page.getByRole("button", { name: "Create workspace" }).click();
 
   await page.waitForURL("**/dashboard", { timeout: 15000 });
+  await activateEnterprisePackage(slug);
   await expect(page.getByRole("heading", { name: "Command Center" })).toBeVisible({ timeout: 15000 });
 
   await page.goto("/settings/branches");
@@ -184,36 +226,31 @@ test("new workspace can add a branch, vehicle, and lead", async ({ page }) => {
 
   await page.getByRole("button", { name: "Save document" }).click();
   await expect(page.getByText("Vehicle document saved.")).toBeVisible({ timeout: 15000 });
-  await page.reload();
-  await expect(page.getByText("1 of 3 required documents complete")).toBeVisible();
+  await reloadAndExpectVisible(page, () => page.getByText("1 of 3 required documents complete"));
 
   await page.locator("#decodedBrand").fill("Toyota");
   await page.locator("#decodedModel").fill("Hilux");
   await page.locator("#decodedYear").fill("2026");
   await page.getByRole("button", { name: "Save VIN decode" }).click();
   await expect(page.getByText("VIN intelligence saved.")).toBeVisible({ timeout: 15000 });
-  await page.reload();
-  await expect(page.getByText("VIN decoded", { exact: true })).toBeVisible();
+  await reloadAndExpectVisible(page, () => page.getByText("VIN decoded", { exact: true }));
 
   await page.locator("#marketAverage").fill("145000");
   await page.locator("#recommendedPrice").fill("146000");
   await page.getByRole("button", { name: "Save valuation" }).click();
   await expect(page.getByText("Market valuation saved.")).toBeVisible({ timeout: 15000 });
-  await page.reload();
-  await expect(page.getByText("Recommended market price AED 146,000")).toBeVisible();
+  await reloadAndExpectVisible(page, () => page.getByText("Recommended market price AED 146,000"));
 
   await page.locator("#sourceName").fill(`Dubizzle ${id}`);
   await page.locator("#competitorPrice").fill("144000");
   await page.getByRole("button", { name: "Save competitor price" }).click();
   await expect(page.getByText("Competitor price saved.")).toBeVisible({ timeout: 15000 });
-  await page.reload();
-  await expect(page.getByText(`Dubizzle ${id}`)).toBeVisible();
+  await reloadAndExpectVisible(page, () => page.getByText(`Dubizzle ${id}`));
 
   await page.locator("#historyRiskSummary").selectOption("low");
   await page.getByRole("button", { name: "Save history report" }).click();
   await expect(page.getByText("Vehicle history report saved.")).toBeVisible({ timeout: 15000 });
-  await page.reload();
-  await expect(page.getByText("History risk: low")).toBeVisible();
+  await reloadAndExpectVisible(page, () => page.getByText("History risk: low"));
 
   await page.goto("/vehicles/pricing");
   await expect(page.getByText("Market intelligence").first()).toBeVisible();
@@ -379,26 +416,24 @@ test("new workspace can add a branch, vehicle, and lead", async ({ page }) => {
 
   await page.goto("/finance/accounting");
   await expect(page.getByRole("heading", { name: "Full Accounting" })).toBeVisible();
+  await expect(page.getByText("Accounting close workflow")).toBeVisible();
   await expect(page.getByRole("cell", { name: /Vehicle Inventory/ }).first()).toBeVisible();
 
   await page.locator("#memo").fill(`Opening inventory accounting entry ${id}`);
   await page.locator("#journalAmount").fill("25000");
   await page.getByRole("button", { name: "Create journal entry" }).click();
   await expect(page.getByText("Journal entry created.")).toBeVisible({ timeout: 15000 });
-  await page.reload();
-  await expect(page.getByText(`Opening inventory accounting entry ${id}`)).toBeVisible();
+  await reloadAndExpectVisible(page, () => page.getByText(`Opening inventory accounting entry ${id}`));
 
   await page.getByRole("button", { name: "Post journal entry" }).first().click();
   await expect(page.getByText("Journal entry posted.")).toBeVisible({ timeout: 15000 });
-  await page.reload();
-  await expect(page.getByText("Posted").first()).toBeVisible();
+  await reloadAndExpectVisible(page, () => page.getByText("Posted").first());
 
   await page.locator("#accountCode").fill(`61${String(id).slice(-3)}`);
   await page.locator("#accountName").fill(`Workshop Supplies Expense ${id}`);
   await page.getByRole("button", { name: "Create GL account" }).click();
   await expect(page.getByText("GL account created.")).toBeVisible({ timeout: 15000 });
-  await page.reload();
-  await expect(page.getByRole("cell", { name: `Workshop Supplies Expense ${id}` })).toBeVisible();
+  await reloadAndExpectVisible(page, () => page.getByRole("cell", { name: `Workshop Supplies Expense ${id}` }));
 
   await page.locator("#taxName").fill(`Reduced VAT ${id}`);
   await page.getByRole("button", { name: "Create tax rate" }).click();
@@ -418,70 +453,62 @@ test("new workspace can add a branch, vehicle, and lead", async ({ page }) => {
 
   await page.goto("/service/workshop");
   await expect(page.getByRole("heading", { name: "Service Workshop" })).toBeVisible();
+  await expect(page.getByText("Workshop flow")).toBeVisible();
 
   await page.locator("#displayName").fill(`Senior Technician ${id}`);
   await page.getByRole("button", { name: "Create technician" }).click();
   await expect(page.getByText("Technician created.")).toBeVisible({ timeout: 15000 });
-  await page.reload();
-  await expect(page.getByText(`Senior Technician ${id}`).first()).toBeVisible();
+  await reloadAndExpectVisible(page, () => page.getByText(`Senior Technician ${id}`).first());
 
   await page.locator("#appointmentTitle").fill(`Service appointment ${id}`);
   await page.getByRole("button", { name: "Create appointment" }).click();
   await expect(page.getByText("Service appointment created.")).toBeVisible({ timeout: 15000 });
-  await page.reload();
-  await expect(page.getByText(`Service appointment ${id}`).first()).toBeVisible();
+  await reloadAndExpectVisible(page, () => page.getByText(`Service appointment ${id}`).first());
 
   await page.locator("#serviceTitle").fill(`Brake service order ${id}`);
   await page.locator("#complaint").fill(`Brake vibration complaint ${id}`);
   await page.getByRole("button", { name: "Create service order" }).click();
   await expect(page.getByText("Service order created.")).toBeVisible({ timeout: 15000 });
-  await page.reload();
-  await expect(page.getByText(`Brake service order ${id}`).first()).toBeVisible();
+  await reloadAndExpectVisible(page, () => page.getByText(`Brake service order ${id}`).first());
 
   await page.locator("#jobTitle").fill(`Brake diagnosis job ${id}`);
   await page.getByRole("button", { name: "Create service job" }).click();
   await expect(page.getByText("Service job created.")).toBeVisible({ timeout: 15000 });
-  await page.reload();
-  await expect(page.getByText(`Brake diagnosis job ${id}`).first()).toBeVisible();
+  await reloadAndExpectVisible(page, () => page.getByText(`Brake diagnosis job ${id}`).first());
 
   await page.locator("#laborDescription").fill(`Initial brake diagnosis labor ${id}`);
   await page.getByRole("button", { name: "Create labor line" }).click();
   await expect(page.getByText("Labor line created.")).toBeVisible({ timeout: 15000 });
-  await page.reload();
-  await expect(page.getByText(`Initial brake diagnosis labor ${id}`).first()).toBeVisible();
+  await reloadAndExpectVisible(page, () => page.getByText(`Initial brake diagnosis labor ${id}`).first());
 
   await page.getByRole("button", { name: "Create inspection result" }).click();
   await expect(page.getByText("Inspection result created.")).toBeVisible({ timeout: 15000 });
-  await page.reload();
-  await expect(page.getByText(/^INSP-/)).toBeVisible();
+  await reloadAndExpectVisible(page, () => page.getByText(/^INSP-/));
 
   await page.locator("#providerName").fill(`Factory Warranty ${id}`);
   await page.getByRole("button", { name: "Create warranty claim" }).click();
   await expect(page.getByText("Warranty claim created.")).toBeVisible({ timeout: 15000 });
-  await page.reload();
-  await expect(page.getByText(`Factory Warranty ${id}`).first()).toBeVisible();
+  await reloadAndExpectVisible(page, () => page.getByText(`Factory Warranty ${id}`).first());
 
   await page.goto("/parts/inventory");
   await expect(page.getByRole("heading", { name: "Parts Inventory" })).toBeVisible();
+  await expect(page.getByText("Parts operations flow")).toBeVisible();
 
   const partNumber = `FILTER-${id}`;
   await page.getByLabel("Part number").fill(partNumber);
   await page.getByLabel("Part name").fill(`LX oil filter ${id}`);
   await page.getByRole("button", { name: "Create part" }).click();
   await expect(page.getByText("Part created.")).toBeVisible({ timeout: 15000 });
-  await page.reload();
-  await expect(page.getByText(partNumber).first()).toBeVisible();
+  await reloadAndExpectVisible(page, () => page.getByText(partNumber).first());
 
   await page.getByLabel("Supplier name").fill(`Parts Supplier ${id}`);
   await page.getByRole("button", { name: "Create supplier" }).click();
   await expect(page.getByText("Parts supplier created.")).toBeVisible({ timeout: 15000 });
-  await page.reload();
-  await expect(page.getByText(`Parts Supplier ${id}`).first()).toBeVisible();
+  await reloadAndExpectVisible(page, () => page.getByText(`Parts Supplier ${id}`).first());
 
   await page.getByRole("button", { name: "Create purchase order" }).click();
   await expect(page.getByText("Parts purchase order created.")).toBeVisible({ timeout: 15000 });
-  await page.reload();
-  await expect(page.locator("p").filter({ hasText: /^PPO-/ }).first()).toBeVisible();
+  await reloadAndExpectVisible(page, () => page.locator("p").filter({ hasText: /^PPO-/ }).first());
 
   await page.getByLabel("Quantity ordered").fill("5");
   await page.getByRole("button", { name: "Add PO item" }).click();
@@ -491,19 +518,16 @@ test("new workspace can add a branch, vehicle, and lead", async ({ page }) => {
   await page.getByLabel("Quantity received").fill("5");
   await page.getByRole("button", { name: "Post receipt" }).click();
   await expect(page.getByText("Parts receipt posted.")).toBeVisible({ timeout: 15000 });
-  await page.reload();
-  await expect(page.locator("p").filter({ hasText: /^PRC-/ }).first()).toBeVisible();
+  await reloadAndExpectVisible(page, () => page.locator("p").filter({ hasText: /^PRC-/ }).first());
 
   await page.getByRole("button", { name: "Create transfer" }).click();
   await expect(page.getByText("Parts transfer created.")).toBeVisible({ timeout: 15000 });
-  await page.reload();
-  await expect(page.locator("p").filter({ hasText: /^PTR-/ }).first()).toBeVisible();
+  await reloadAndExpectVisible(page, () => page.locator("p").filter({ hasText: /^PTR-/ }).first());
 
   await page.getByLabel("Service part description").fill(`Service oil filter ${id}`);
   await page.getByRole("button", { name: "Add service part" }).click();
   await expect(page.getByText("Service part line created.")).toBeVisible({ timeout: 15000 });
-  await page.reload();
-  await expect(page.getByText(`Service oil filter ${id}`).first()).toBeVisible();
+  await reloadAndExpectVisible(page, () => page.getByText(`Service oil filter ${id}`).first());
 
   await page.goto("/export/orders");
   await expect(page.getByRole("heading", { name: "Import & Export Operations" })).toBeVisible();
@@ -773,7 +797,7 @@ test("new workspace can add a branch, vehicle, and lead", async ({ page }) => {
   await page.getByRole("button", { name: "Refresh usage" }).click();
   await expect(page.getByText(/Usage counters refreshed|Usage refreshed with/i)).toBeVisible();
 
-  await page.getByRole("button", { name: /Upgrade to Enterprise/ }).click();
+  await page.getByRole("button", { name: /Renew or manage checkout|Upgrade to Enterprise/ }).click();
   await expect(page.getByText(/checkout session created/i)).toBeVisible();
 
   await page.getByRole("button", { name: "Open billing portal" }).click();

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { Wrench } from "lucide-react";
 
 export const metadata: Metadata = {
   title: "Service Workshop | AutoSphere ERP",
@@ -6,6 +7,7 @@ export const metadata: Metadata = {
 };
 
 import { KpiCard } from "@/components/dashboard/kpi-card";
+import { WorkflowProgressCard } from "@/components/dashboard/workflow-progress-card";
 import { FinanceStatusBadge } from "@/components/finance/finance-status-badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getBranches } from "@/features/branches/queries";
@@ -13,6 +15,7 @@ import { getServicePermissions, getServiceWorkshopData } from "@/features/servic
 import { getCurrentWorkspace } from "@/lib/auth/current-workspace";
 import { formatServiceStatus } from "@/lib/service/format";
 import { formatMoney } from "@/lib/vehicles/format";
+import { workflowStatusFromMetric } from "@/lib/workflows/progress";
 import {
   InspectionResultForm,
   LaborLineForm,
@@ -61,6 +64,38 @@ export default async function ServiceWorkshopPage() {
         <KpiCard title="Labor total" value={formatMoney(service.summary.laborTotal, currencyCode)} hint="Recorded labor value" />
         <KpiCard title="Warranty balance" value={formatMoney(service.summary.warrantyBalance, currencyCode)} hint="Approved unpaid claims" />
       </div>
+
+      <WorkflowProgressCard
+        title="Workshop flow"
+        description="A manager view of repair order pressure, job execution, quality checks, and warranty recovery."
+        icon={Wrench}
+        steps={[
+          {
+            label: "Open orders",
+            value: String(service.summary.openOrders),
+            hint: "Repair orders still moving through the workshop.",
+            status: workflowStatusFromMetric(service.summary.openOrders),
+          },
+          {
+            label: "Active jobs",
+            value: String(service.summary.activeJobs),
+            hint: "Technician work that is assigned or in progress.",
+            status: workflowStatusFromMetric(service.summary.activeJobs),
+          },
+          {
+            label: "Inspections",
+            value: String(service.inspectionResults.length),
+            hint: "Health checks and quality-control results saved.",
+            status: workflowStatusFromMetric(service.inspectionResults.length),
+          },
+          {
+            label: "Warranty balance",
+            value: formatMoney(service.summary.warrantyBalance, currencyCode),
+            hint: "Approved unpaid warranty recovery to follow.",
+            status: workflowStatusFromMetric(Number(service.summary.warrantyBalance), { zeroState: "complete", positiveState: "attention" }),
+          },
+        ]}
+      />
 
       <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
         <div className="min-w-0 space-y-6">
@@ -142,7 +177,7 @@ export default async function ServiceWorkshopPage() {
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="font-medium text-slate-950">{job.job_number}</p>
-                        <p className="text-xs text-slate-500">{job.title} · {job.technicians?.display_name ?? "Unassigned"}</p>
+                        <p className="text-xs text-slate-500">{job.title} - {job.technicians?.display_name ?? "Unassigned"}</p>
                       </div>
                       <FinanceStatusBadge status={job.status} />
                     </div>
@@ -164,7 +199,7 @@ export default async function ServiceWorkshopPage() {
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="font-medium text-slate-950">{technician.display_name}</p>
-                        <p className="text-xs text-slate-500">{technician.specialization ?? "General"} · {technician.branches?.name ?? "Company"}</p>
+                        <p className="text-xs text-slate-500">{technician.specialization ?? "General"} - {technician.branches?.name ?? "Company"}</p>
                       </div>
                       <FinanceStatusBadge status={technician.status} />
                     </div>
@@ -187,7 +222,7 @@ export default async function ServiceWorkshopPage() {
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="font-medium text-slate-950">{result.result_number}</p>
-                        <p className="text-xs text-slate-500">{result.service_orders?.order_number ?? "Service order"} · {result.technicians?.display_name ?? "Technician"}</p>
+                        <p className="text-xs text-slate-500">{result.service_orders?.order_number ?? "Service order"} - {result.technicians?.display_name ?? "Technician"}</p>
                       </div>
                       <FinanceStatusBadge status={result.overall_status} />
                     </div>
@@ -209,7 +244,7 @@ export default async function ServiceWorkshopPage() {
                     <div className="flex items-start justify-between gap-3">
                       <div className="min-w-0">
                         <p className="font-medium text-slate-950">{claim.claim_number}</p>
-                        <p className="text-xs text-slate-500">{claim.provider_name} · {claim.service_orders?.order_number ?? "Service"}</p>
+                        <p className="text-xs text-slate-500">{claim.provider_name} - {claim.service_orders?.order_number ?? "Service"}</p>
                       </div>
                       <FinanceStatusBadge status={claim.status} />
                     </div>

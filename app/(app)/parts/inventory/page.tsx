@@ -1,4 +1,7 @@
+import type { Metadata } from "next";
+import { PackageSearch } from "lucide-react";
 import { KpiCard } from "@/components/dashboard/kpi-card";
+import { WorkflowProgressCard } from "@/components/dashboard/workflow-progress-card";
 import { FinanceStatusBadge } from "@/components/finance/finance-status-badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { getBranches } from "@/features/branches/queries";
@@ -6,6 +9,7 @@ import { getPartsInventoryData, getPartsPermissions } from "@/features/parts/que
 import { getCurrentWorkspace } from "@/lib/auth/current-workspace";
 import { formatPartStatus } from "@/lib/parts/format";
 import { formatMoney } from "@/lib/vehicles/format";
+import { workflowStatusFromMetric } from "@/lib/workflows/progress";
 import {
   PartForm,
   PartPurchaseOrderForm,
@@ -15,6 +19,11 @@ import {
   PartTransferForm,
   ServicePartLineForm,
 } from "./parts-action-forms";
+
+export const metadata: Metadata = {
+  title: "Parts Inventory | AutoSphere ERP",
+  description: "Catalog, stock, suppliers, purchasing, receiving, transfers, service consumption, and reorder alerts.",
+};
 
 export default async function PartsInventoryPage() {
   const workspace = await getCurrentWorkspace();
@@ -52,16 +61,48 @@ export default async function PartsInventoryPage() {
         <KpiCard title="Reorder alerts" value={String(parts.summary.openReorderAlerts)} hint="Open reorder signals" />
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-        <div className="space-y-6">
+      <WorkflowProgressCard
+        title="Parts operations flow"
+        description="A stock-control view for catalog readiness, branch availability, purchasing exposure, and reorder risk."
+        icon={PackageSearch}
+        steps={[
+          {
+            label: "Catalog",
+            value: String(parts.summary.catalogParts),
+            hint: "SKUs available to sales, service, and purchasing.",
+            status: workflowStatusFromMetric(parts.summary.catalogParts),
+          },
+          {
+            label: "Low stock",
+            value: String(parts.summary.lowStock),
+            hint: "Branch rows that need replenishment decisions.",
+            status: workflowStatusFromMetric(parts.summary.lowStock, { zeroState: "complete", positiveState: "attention" }),
+          },
+          {
+            label: "Open PO value",
+            value: formatMoney(parts.summary.openPurchaseValue, currencyCode),
+            hint: "Supplier orders not fully received yet.",
+            status: workflowStatusFromMetric(Number(parts.summary.openPurchaseValue)),
+          },
+          {
+            label: "Reorder alerts",
+            value: String(parts.summary.openReorderAlerts),
+            hint: "Open reorder signals from stock thresholds.",
+            status: workflowStatusFromMetric(parts.summary.openReorderAlerts, { zeroState: "complete", positiveState: "attention" }),
+          },
+        ]}
+      />
+
+      <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)]">
+        <div className="min-w-0 space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>Parts catalog</CardTitle>
               <CardDescription>Company-level parts, costs, pricing, and reorder rules.</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="overflow-hidden rounded-md border">
-                <table className="w-full text-sm">
+              <div className="overflow-x-auto rounded-md border">
+                <table className="w-full min-w-[760px] text-sm">
                   <thead className="bg-slate-100 text-left text-slate-600">
                     <tr>
                       <th className="px-4 py-3">Part</th>
@@ -90,7 +131,7 @@ export default async function PartsInventoryPage() {
             </CardContent>
           </Card>
 
-          <div className="grid gap-6 xl:grid-cols-2">
+          <div className="grid min-w-0 gap-6 xl:grid-cols-2">
             <Card>
               <CardHeader>
                 <CardTitle>Branch stock</CardTitle>
@@ -170,7 +211,7 @@ export default async function PartsInventoryPage() {
             </CardContent>
           </Card>
 
-          <div className="grid gap-6 xl:grid-cols-2">
+          <div className="grid min-w-0 gap-6 xl:grid-cols-2">
             <Card>
               <CardHeader>
                 <CardTitle>Service parts usage</CardTitle>
@@ -211,7 +252,7 @@ export default async function PartsInventoryPage() {
           </div>
         </div>
 
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-6">
           {permissions.canManageParts ? (
             <>
               <Card>

@@ -6,8 +6,9 @@ export const metadata: Metadata = {
 };
 
 import Link from "next/link";
-import { ArrowLeft, BookOpenCheck, FileDown, Landmark } from "lucide-react";
+import { ArrowLeft, BookOpenCheck, FileDown, Landmark, Scale } from "lucide-react";
 import { KpiCard } from "@/components/dashboard/kpi-card";
+import { WorkflowProgressCard } from "@/components/dashboard/workflow-progress-card";
 import { FinanceStatusBadge } from "@/components/finance/finance-status-badge";
 import {
   Card,
@@ -22,6 +23,7 @@ import { getSupplierDashboardData } from "@/features/suppliers/queries";
 import { getCurrentWorkspace } from "@/lib/auth/current-workspace";
 import { formatAccountingStatus } from "@/lib/accounting/format";
 import { formatMoney } from "@/lib/vehicles/format";
+import { workflowStatusFromMetric } from "@/lib/workflows/progress";
 import {
   AccountingExportForm,
   BankReconciliationForm,
@@ -53,6 +55,7 @@ export default async function AccountingPage() {
   const currencyCode = accounting.accounts[0]?.currency_code ?? branches[0]?.currency_code ?? "AED";
   const draftJournals = accounting.journalEntries.filter((entry) => entry.status === "draft");
   const postedJournals = accounting.journalEntries.filter((entry) => entry.status === "posted");
+  const trialBalanceDifference = Math.abs(Number(accounting.trialBalance.difference));
   const periodStart = dateIn(-30);
   const periodEnd = today();
 
@@ -98,16 +101,48 @@ export default async function AccountingPage() {
         <KpiCard title="Supplier risk" value={String(supplierData.summary.highRiskSuppliers)} hint="High-risk vendor accounts" />
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
-        <div className="space-y-6">
+      <WorkflowProgressCard
+        title="Accounting close workflow"
+        description="A production close view for journal posting, trial balance control, tax snapshots, and supplier AP risk."
+        icon={Scale}
+        steps={[
+          {
+            label: "Draft journals",
+            value: String(draftJournals.length),
+            hint: "Post balanced journals before closing the period.",
+            status: workflowStatusFromMetric(draftJournals.length, { zeroState: "complete", positiveState: "attention" }),
+          },
+          {
+            label: "Trial balance",
+            value: formatMoney(trialBalanceDifference, currencyCode),
+            hint: "Difference should be zero before exporting accounts.",
+            status: workflowStatusFromMetric(trialBalanceDifference, { zeroState: "complete", positiveState: "attention" }),
+          },
+          {
+            label: "Tax snapshots",
+            value: String(accounting.taxReports.length),
+            hint: "Saved VAT/tax reports available for review.",
+            status: workflowStatusFromMetric(accounting.taxReports.length),
+          },
+          {
+            label: "Supplier AP risk",
+            value: String(supplierData.summary.highRiskSuppliers),
+            hint: "High-risk supplier balances that need review.",
+            status: workflowStatusFromMetric(supplierData.summary.highRiskSuppliers, { zeroState: "complete", positiveState: "attention" }),
+          },
+        ]}
+      />
+
+      <div className="grid min-w-0 gap-6 xl:grid-cols-[minmax(0,1.1fr)_minmax(320px,0.9fr)]">
+        <div className="min-w-0 space-y-6">
           <Card>
             <CardHeader>
               <CardTitle>Chart of accounts</CardTitle>
               <CardDescription>Company-scoped GL accounts seeded for dealership accounting.</CardDescription>
             </CardHeader>
             <CardContent>
-              <div className="overflow-hidden rounded-md border">
-                <table className="w-full text-sm">
+              <div className="overflow-x-auto rounded-md border">
+                <table className="w-full min-w-[760px] text-sm">
                   <thead className="bg-slate-100 text-left text-slate-600">
                     <tr>
                       <th className="px-4 py-3">Code</th>
@@ -152,7 +187,7 @@ export default async function AccountingPage() {
                         <div>
                           <p className="font-medium text-slate-950">{entry.entry_number}</p>
                           <p className="text-sm text-slate-500">{entry.memo}</p>
-                          <p className="mt-1 text-xs text-slate-500">{entry.branches?.name ?? "Company level"} · {entry.entry_date}</p>
+                          <p className="mt-1 text-xs text-slate-500">{entry.branches?.name ?? "Company level"} - {entry.entry_date}</p>
                         </div>
                         <div className="flex flex-col items-start gap-2 md:items-end">
                           <FinanceStatusBadge status={entry.status} />
@@ -194,7 +229,7 @@ export default async function AccountingPage() {
                     <div className="flex justify-between gap-3">
                       <div>
                         <p className="font-medium text-slate-950">{report.report_number}</p>
-                        <p className="text-xs text-slate-500">{report.country_code} · {report.period_start} to {report.period_end}</p>
+                        <p className="text-xs text-slate-500">{report.country_code} - {report.period_start} to {report.period_end}</p>
                       </div>
                       <FinanceStatusBadge status={report.status} />
                     </div>
@@ -238,7 +273,7 @@ export default async function AccountingPage() {
                 {accounting.bankTransactions.slice(0, 5).map((transaction) => (
                   <div key={transaction.id} className="rounded-md border p-3 text-sm">
                     <p className="font-medium text-slate-950">{transaction.transaction_number}</p>
-                    <p className="text-xs text-slate-500">{formatAccountingStatus(transaction.transaction_type)} · {transaction.description}</p>
+                    <p className="text-xs text-slate-500">{formatAccountingStatus(transaction.transaction_type)} - {transaction.description}</p>
                     <p className="mt-2 text-right font-medium">{formatMoney(transaction.amount, transaction.currency_code)}</p>
                   </div>
                 ))}
@@ -249,7 +284,7 @@ export default async function AccountingPage() {
                     <div className="flex items-start justify-between gap-3">
                       <div>
                         <p className="font-medium text-slate-950">{item.export_number}</p>
-                        <p className="text-xs text-slate-500">{formatAccountingStatus(item.export_format)} · {item.period_start} to {item.period_end}</p>
+                        <p className="text-xs text-slate-500">{formatAccountingStatus(item.export_format)} - {item.period_start} to {item.period_end}</p>
                       </div>
                       <FinanceStatusBadge status={item.status} />
                     </div>
@@ -296,7 +331,7 @@ export default async function AccountingPage() {
           </Card>
         </div>
 
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-6">
           {permissions.canManageAccounting ? (
             <>
               <Card>
