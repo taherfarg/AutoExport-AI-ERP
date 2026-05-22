@@ -74,8 +74,8 @@ export default async function SuppliersPage() {
         <KpiCard title="High risk" value={String(supplierData.summary.highRiskSuppliers)} hint="Suppliers needing action" />
       </div>
 
-      <div className="grid gap-6 xl:grid-cols-[1.25fr_0.75fr]">
-        <div className="space-y-6">
+      <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_minmax(380px,0.48fr)]">
+        <div className="min-w-0 space-y-6">
           <Card>
             <CardHeader>
               <CardTitle className="flex items-center gap-2">
@@ -187,7 +187,7 @@ export default async function SuppliersPage() {
           </Card>
         </div>
 
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-6">
           {permissions.canManageSuppliers ? (
             <>
               <Card>

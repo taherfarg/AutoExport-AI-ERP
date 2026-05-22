@@ -14,6 +14,11 @@ type BranchOption = { id: string; name: string; currency_code?: string };
 type SupplierOption = { id: string; supplier_name: string; payment_terms_days: number; currency_code: string };
 type SupplierMessage = { type: "success" | "error"; text: string };
 
+const fieldGroupClass = "grid min-w-0 gap-1.5";
+const labelClass = "text-xs font-semibold uppercase tracking-wide text-slate-500";
+const inputClass = "h-11 min-w-0 rounded-lg bg-white text-sm";
+const selectClass = "h-11 w-full min-w-0 rounded-lg border border-input bg-white px-3 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring";
+
 function Message({ message }: { message?: SupplierMessage }) {
   if (!message) return null;
   return (
@@ -66,76 +71,76 @@ export function SupplierForm({ companyId, currencyCode }: { companyId: string; c
   const { formRef, message, isPending, handleSubmit } = useSupplierSubmit(createSupplier, "Supplier created.");
 
   return (
-    <form ref={formRef} onSubmit={handleSubmit} className="grid gap-3">
+    <form ref={formRef} onSubmit={handleSubmit} className="grid gap-4">
       <Message message={message} />
       <input type="hidden" name="companyId" value={companyId} />
-      <div className="grid gap-3 md:grid-cols-2">
-        <div className="grid gap-2">
-          <Label htmlFor="supplierName">Supplier name</Label>
-          <Input id="supplierName" name="supplierName" defaultValue="Gulf Prime Suppliers" required />
+      <div className="grid gap-3 2xl:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)]">
+        <div className={fieldGroupClass}>
+          <Label htmlFor="supplierName" className={labelClass}>Supplier name</Label>
+          <Input id="supplierName" name="supplierName" defaultValue="Gulf Prime Suppliers" className={inputClass} required />
         </div>
-        <div className="grid gap-2">
-          <Label htmlFor="category">Category</Label>
-          <select id="category" name="category" defaultValue="general_vendor" className="h-9 rounded-md border bg-white px-3 text-sm">
+        <div className={fieldGroupClass}>
+          <Label htmlFor="category" className={labelClass}>Category</Label>
+          <select id="category" name="category" defaultValue="general_vendor" className={selectClass}>
             {supplierCategories.map((category) => (
               <option key={category} value={category}>{formatSupplierCategory(category)}</option>
             ))}
           </select>
         </div>
       </div>
-      <div className="grid gap-3 md:grid-cols-3">
-        <div className="grid gap-2">
-          <Label htmlFor="countryCode">Country</Label>
-          <Input id="countryCode" name="countryCode" defaultValue="AE" maxLength={2} />
+      <div className="grid gap-3 2xl:grid-cols-3">
+        <div className={fieldGroupClass}>
+          <Label htmlFor="countryCode" className={labelClass}>Country</Label>
+          <Input id="countryCode" name="countryCode" defaultValue="AE" className={inputClass} maxLength={2} />
         </div>
-        <div className="grid gap-2">
-          <Label htmlFor="currencyCode">Currency</Label>
-          <Input id="currencyCode" name="currencyCode" defaultValue={currencyCode} maxLength={3} />
+        <div className={fieldGroupClass}>
+          <Label htmlFor="currencyCode" className={labelClass}>Currency</Label>
+          <Input id="currencyCode" name="currencyCode" defaultValue={currencyCode} className={inputClass} maxLength={3} />
         </div>
-        <div className="grid gap-2">
-          <Label htmlFor="paymentTermsDays">Terms days</Label>
-          <Input id="paymentTermsDays" name="paymentTermsDays" type="number" min="0" max="365" defaultValue="30" />
-        </div>
-      </div>
-      <div className="grid gap-3 md:grid-cols-2">
-        <div className="grid gap-2">
-          <Label htmlFor="contactName">Contact</Label>
-          <Input id="contactName" name="contactName" defaultValue="Accounts Desk" />
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="email">Email</Label>
-          <Input id="email" name="email" type="email" placeholder="accounts@supplier.test" />
+        <div className={fieldGroupClass}>
+          <Label htmlFor="paymentTermsDays" className={labelClass}>Terms days</Label>
+          <Input id="paymentTermsDays" name="paymentTermsDays" type="number" min="0" max="365" defaultValue="30" className={inputClass} />
         </div>
       </div>
-      <div className="grid gap-3 md:grid-cols-2">
-        <div className="grid gap-2">
-          <Label htmlFor="phone">Phone</Label>
-          <Input id="phone" name="phone" placeholder="+971500000000" />
+      <div className="grid gap-3 2xl:grid-cols-2">
+        <div className={fieldGroupClass}>
+          <Label htmlFor="contactName" className={labelClass}>Contact</Label>
+          <Input id="contactName" name="contactName" defaultValue="Accounts Desk" className={inputClass} />
         </div>
-        <div className="grid gap-2">
-          <Label htmlFor="taxRegistrationNumber">VAT / tax number</Label>
-          <Input id="taxRegistrationNumber" name="taxRegistrationNumber" placeholder="100000000000003" />
-        </div>
-      </div>
-      <div className="grid gap-3 md:grid-cols-2">
-        <div className="grid gap-2">
-          <Label htmlFor="bankName">Bank</Label>
-          <Input id="bankName" name="bankName" placeholder="Emirates NBD" />
-        </div>
-        <div className="grid gap-2">
-          <Label htmlFor="iban">IBAN</Label>
-          <Input id="iban" name="iban" placeholder="AE..." />
+        <div className={fieldGroupClass}>
+          <Label htmlFor="email" className={labelClass}>Email</Label>
+          <Input id="email" name="email" type="email" placeholder="accounts@supplier.test" className={inputClass} />
         </div>
       </div>
-      <div className="grid gap-2">
-        <Label htmlFor="status">Status</Label>
-        <select id="status" name="status" defaultValue="active" className="h-9 rounded-md border bg-white px-3 text-sm">
+      <div className="grid gap-3 2xl:grid-cols-2">
+        <div className={fieldGroupClass}>
+          <Label htmlFor="phone" className={labelClass}>Phone</Label>
+          <Input id="phone" name="phone" placeholder="+971500000000" className={inputClass} />
+        </div>
+        <div className={fieldGroupClass}>
+          <Label htmlFor="taxRegistrationNumber" className={labelClass}>VAT / tax number</Label>
+          <Input id="taxRegistrationNumber" name="taxRegistrationNumber" placeholder="100000000000003" className={inputClass} />
+        </div>
+      </div>
+      <div className="grid gap-3 2xl:grid-cols-2">
+        <div className={fieldGroupClass}>
+          <Label htmlFor="bankName" className={labelClass}>Bank</Label>
+          <Input id="bankName" name="bankName" placeholder="Emirates NBD" className={inputClass} />
+        </div>
+        <div className={fieldGroupClass}>
+          <Label htmlFor="iban" className={labelClass}>IBAN</Label>
+          <Input id="iban" name="iban" placeholder="AE..." className={inputClass} />
+        </div>
+      </div>
+      <div className={fieldGroupClass}>
+        <Label htmlFor="status" className={labelClass}>Status</Label>
+        <select id="status" name="status" defaultValue="active" className={selectClass}>
           {supplierStatuses.map((status) => (
             <option key={status} value={status}>{formatSupplierCategory(status)}</option>
           ))}
         </select>
       </div>
-      <Button type="submit" disabled={isPending}>
+      <Button type="submit" disabled={isPending} className="mt-1 h-11 rounded-lg bg-slate-950 shadow-sm hover:bg-slate-800">
         <Building2 className="h-4 w-4" />
         {isPending ? "Creating..." : "Create supplier"}
       </Button>
