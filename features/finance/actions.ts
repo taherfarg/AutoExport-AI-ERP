@@ -64,11 +64,27 @@ async function writeAuditLog({
   });
 }
 
+async function getSupplierName(supplierId: string | undefined, companyId: string) {
+  if (!supplierId) return undefined;
+  const supabase = createServiceRoleClient();
+  const { data, error } = await supabase
+    .from("suppliers")
+    .select("supplier_name")
+    .eq("id", supplierId)
+    .eq("company_id", companyId)
+    .is("deleted_at", null)
+    .single();
+
+  if (error || !data) return undefined;
+  return data.supplier_name as string;
+}
+
 export async function createExpense(formData: FormData) {
   const workspace = await requireFinancePermission(PERMISSIONS.MANAGE_FINANCE);
   const parsed = createExpenseSchema.safeParse({
     companyId: formData.get("companyId"),
     branchId: formData.get("branchId"),
+    supplierId: formOptional(formData.get("supplierId")),
     vehicleId: formOptional(formData.get("vehicleId")),
     category: formData.get("category"),
     description: formData.get("description"),
@@ -83,12 +99,14 @@ export async function createExpense(formData: FormData) {
     return { error: "Expense details are invalid." };
   }
 
+  const supplierName = (await getSupplierName(parsed.data.supplierId, workspace.companyId)) ?? parsed.data.supplierName;
   const supabase = createServiceRoleClient();
   const { data, error } = await supabase
     .from("expenses")
     .insert({
       company_id: workspace.companyId,
       branch_id: parsed.data.branchId,
+      supplier_id: parsed.data.supplierId,
       vehicle_id: parsed.data.vehicleId,
       expense_number: makeFinanceNumber("EXP"),
       category: parsed.data.category,
@@ -96,7 +114,7 @@ export async function createExpense(formData: FormData) {
       amount: parsed.data.amount,
       currency_code: parsed.data.currencyCode,
       expense_date: parsed.data.expenseDate,
-      supplier_name: parsed.data.supplierName,
+      supplier_name: supplierName,
       notes: parsed.data.notes,
       created_by: workspace.profileId,
       updated_by: workspace.profileId,
@@ -119,6 +137,8 @@ export async function createExpense(formData: FormData) {
   });
 
   revalidatePath("/finance");
+  revalidatePath("/finance/suppliers");
+  revalidatePath("/finance/accounting");
   return { success: "Expense recorded." };
 }
 
@@ -127,6 +147,7 @@ export async function createPayable(formData: FormData) {
   const parsed = createPayableSchema.safeParse({
     companyId: formData.get("companyId"),
     branchId: formData.get("branchId"),
+    supplierId: formOptional(formData.get("supplierId")),
     vehicleId: formOptional(formData.get("vehicleId")),
     supplierName: formData.get("supplierName"),
     description: formData.get("description"),
@@ -140,20 +161,27 @@ export async function createPayable(formData: FormData) {
     return { error: "Payable details are invalid." };
   }
 
+  const supplierName = (await getSupplierName(parsed.data.supplierId, workspace.companyId)) ?? parsed.data.supplierName;
+  if (!supplierName) return { error: "Supplier is required." };
+  const status = parsed.data.balanceDue <= 0 ? "paid" : parsed.data.paidAmount > 0 ? "partial" : "open";
+
   const supabase = createServiceRoleClient();
   const { data, error } = await supabase
     .from("payables")
     .insert({
       company_id: workspace.companyId,
       branch_id: parsed.data.branchId,
+      supplier_id: parsed.data.supplierId,
       vehicle_id: parsed.data.vehicleId,
       payable_number: makeFinanceNumber("AP"),
-      supplier_name: parsed.data.supplierName,
+      supplier_name: supplierName,
       description: parsed.data.description,
       amount: parsed.data.amount,
       paid_amount: parsed.data.paidAmount,
+      balance_due: parsed.data.balanceDue,
       currency_code: parsed.data.currencyCode,
       due_date: parsed.data.dueDate,
+      status,
       created_by: workspace.profileId,
       updated_by: workspace.profileId,
     })
@@ -171,10 +199,12 @@ export async function createPayable(formData: FormData) {
     action: "create_payable",
     entityType: "payable",
     entityId: data.id,
-    newValues: { amount: parsed.data.amount, supplierName: parsed.data.supplierName },
+    newValues: { amount: parsed.data.amount, supplierName, supplierId: parsed.data.supplierId },
   });
 
   revalidatePath("/finance");
+  revalidatePath("/finance/suppliers");
+  revalidatePath("/finance/accounting");
   return { success: "Payable created." };
 }
 

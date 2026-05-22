@@ -25,6 +25,7 @@ const currencyCode = z.string().trim().length(3).transform((value) => value.toUp
 export const createExpenseSchema = z.object({
   companyId: z.string().uuid(),
   branchId: z.string().uuid(),
+  supplierId: optionalUuid,
   vehicleId: optionalUuid,
   exportOrderId: optionalUuid,
   importOrderId: optionalUuid,
@@ -40,10 +41,11 @@ export const createExpenseSchema = z.object({
 export const createPayableSchema = z.object({
   companyId: z.string().uuid(),
   branchId: z.string().uuid(),
+  supplierId: optionalUuid,
   vehicleId: optionalUuid,
   exportOrderId: optionalUuid,
   importOrderId: optionalUuid,
-  supplierName: z.string().trim().min(2).max(160),
+  supplierName: z.string().trim().min(2).max(160).optional(),
   description: z.string().trim().min(2).max(240),
   amount: z.number().min(0),
   paidAmount: z.number().min(0).default(0),
@@ -52,6 +54,7 @@ export const createPayableSchema = z.object({
   dueDate: z.string().date().optional(),
 }).transform((value) => ({
   ...value,
+  supplierName: value.supplierName ?? "",
   balanceDue: Math.max(Math.round((value.amount - value.paidAmount) * 100) / 100, 0),
 }));
 

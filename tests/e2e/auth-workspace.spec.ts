@@ -46,6 +46,7 @@ test("protected app routes redirect unauthenticated visitors", async ({ page }) 
     "/sales/deals",
     "/documents",
     "/finance/accounting",
+    "/finance/suppliers",
     "/service/workshop",
     "/parts/inventory",
     "/ai",
@@ -321,6 +322,24 @@ test("new workspace can add a branch, vehicle, and lead", async ({ page }) => {
   await page.waitForTimeout(1000);
   await page.reload();
   await expect(page.getByText(/^COM-/)).toBeVisible();
+
+  await page.goto("/finance/suppliers");
+  await expect(page.getByRole("heading", { name: "Suppliers & Vendors" })).toBeVisible();
+  await page.locator("#supplierName").fill(`QA Shared Supplier ${id}`);
+  await page.locator("#category").selectOption("parts");
+  await page.locator("#email").fill(`supplier-${id}@example.test`);
+  await page.getByRole("button", { name: "Create supplier", exact: true }).click();
+  await expect(page.getByText("Supplier created.")).toBeVisible({ timeout: 15000 });
+  await page.reload();
+  await expect(page.getByText(`QA Shared Supplier ${id}`).first()).toBeVisible();
+
+  await page.locator("#supplierId").selectOption({ label: `QA Shared Supplier ${id}` });
+  await page.locator("#description").fill(`Linked supplier payable ${id}`);
+  await page.locator("#amount").fill("7500");
+  await page.getByRole("button", { name: "Create supplier payable" }).click();
+  await expect(page.getByText("Supplier payable created.")).toBeVisible({ timeout: 15000 });
+  await page.reload();
+  await expect(page.getByText(`Linked supplier payable ${id}`)).toBeVisible();
 
   await page.goto("/finance/accounting");
   await expect(page.getByRole("heading", { name: "Full Accounting" })).toBeVisible();

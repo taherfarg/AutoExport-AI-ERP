@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/card";
 import { getBranches } from "@/features/branches/queries";
 import { getAccountingDashboardData, getAccountingPermissions } from "@/features/accounting/queries";
+import { getSupplierDashboardData } from "@/features/suppliers/queries";
 import { getCurrentWorkspace } from "@/lib/auth/current-workspace";
 import { formatAccountingStatus } from "@/lib/accounting/format";
 import { formatMoney } from "@/lib/vehicles/format";
@@ -42,10 +43,11 @@ function dateIn(days: number) {
 
 export default async function AccountingPage() {
   const workspace = await getCurrentWorkspace();
-  const [accounting, branches, permissions] = await Promise.all([
+  const [accounting, branches, permissions, supplierData] = await Promise.all([
     getAccountingDashboardData(workspace.companyId),
     getBranches(workspace.companyId),
     getAccountingPermissions(workspace.companyId),
+    getSupplierDashboardData(workspace.companyId),
   ]);
 
   const currencyCode = accounting.accounts[0]?.currency_code ?? branches[0]?.currency_code ?? "AED";
@@ -87,6 +89,13 @@ export default async function AccountingPage() {
         <KpiCard title="Debit total" value={formatMoney(accounting.trialBalance.debitTotal, currencyCode)} hint="Visible journal lines" />
         <KpiCard title="Credit total" value={formatMoney(accounting.trialBalance.creditTotal, currencyCode)} hint="Visible journal lines" />
         <KpiCard title="Difference" value={formatMoney(accounting.trialBalance.difference, currencyCode)} hint="Trial balance check" />
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+        <KpiCard title="Supplier AP" value={formatMoney(supplierData.summary.openBalance, currencyCode)} hint="Linked vendor balances" />
+        <KpiCard title="AP 61+ days" value={formatMoney(supplierData.summary.aging.days61Plus, currencyCode)} hint="Aging risk bucket" />
+        <KpiCard title="Open supplier POs" value={formatMoney(supplierData.summary.openPurchaseOrderValue, currencyCode)} hint="Parts purchasing exposure" />
+        <KpiCard title="Supplier risk" value={String(supplierData.summary.highRiskSuppliers)} hint="High-risk vendor accounts" />
       </div>
 
       <div className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
@@ -246,6 +255,42 @@ export default async function AccountingPage() {
                     </div>
                   </div>
                 ))}
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>Supplier accounting review</CardTitle>
+              <CardDescription>AP aging and supplier balances linked from the shared supplier master.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="overflow-x-auto rounded-md border">
+                <table className="w-full min-w-[720px] text-sm">
+                  <thead className="bg-slate-100 text-left text-slate-600">
+                    <tr>
+                      <th className="px-4 py-3">Supplier</th>
+                      <th className="px-4 py-3">Category</th>
+                      <th className="px-4 py-3 text-right">Open AP</th>
+                      <th className="px-4 py-3 text-right">61+ days</th>
+                      <th className="px-4 py-3 text-right">Open PO</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {supplierData.suppliers.slice(0, 8).map((supplier) => (
+                      <tr key={supplier.id} className="border-t">
+                        <td className="px-4 py-3">
+                          <p className="font-medium text-slate-950">{supplier.supplier_name}</p>
+                          <p className="text-xs text-slate-500">{supplier.supplier_code ?? "No code"}</p>
+                        </td>
+                        <td className="px-4 py-3">{supplier.category.replaceAll("_", " ")}</td>
+                        <td className="px-4 py-3 text-right font-medium">{formatMoney(supplier.financials.openBalance, supplier.currency_code)}</td>
+                        <td className="px-4 py-3 text-right">{formatMoney(supplier.aging.days61Plus, supplier.currency_code)}</td>
+                        <td className="px-4 py-3 text-right">{formatMoney(supplier.financials.openPurchaseOrderValue, supplier.currency_code)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
               </div>
             </CardContent>
           </Card>

@@ -12,6 +12,10 @@ type AppSidebarProps = {
 export function AppSidebar({ enabledModuleKeys }: AppSidebarProps) {
   const modules = getModulesWithAccess(enabledModuleKeys);
   const pathname = usePathname();
+  const activeHref = modules
+    .filter((module) => module.unlocked)
+    .filter((module) => pathname === module.href || (module.href !== "/dashboard" && pathname.startsWith(module.href)))
+    .sort((a, b) => b.href.length - a.href.length)[0]?.href;
 
   return (
     <aside className="hidden w-72 flex-shrink-0 flex-col border-r border-white/5 bg-[hsl(222,47%,8%)] text-white lg:flex">
@@ -38,26 +42,7 @@ export function AppSidebar({ enabledModuleKeys }: AppSidebarProps) {
           const Icon = module.icon;
           const href = module.unlocked ? module.href : "/subscriptions";
 
-          // Determine active state: exact match, or startsWith BUT only if no
-          // other module has a more-specific (longer) href that also matches.
-          let isActive = false;
-          if (module.unlocked) {
-            if (pathname === module.href) {
-              isActive = true;
-            } else if (
-              module.href !== "/dashboard" &&
-              pathname.startsWith(module.href)
-            ) {
-              // Check if a more specific sibling module owns this path
-              const hasMoreSpecific = modules.some(
-                (other) =>
-                  other.key !== module.key &&
-                  other.href.length > module.href.length &&
-                  pathname.startsWith(other.href)
-              );
-              isActive = !hasMoreSpecific;
-            }
-          }
+          const isActive = module.unlocked && module.href === activeHref;
 
           return (
             <Link
@@ -106,15 +91,16 @@ export function AppMobileNav({ enabledModuleKeys }: AppSidebarProps) {
   const modules = getModulesWithAccess(enabledModuleKeys)
     .filter((module) => module.unlocked)
     .filter((module) => ["/dashboard", "/vehicles", "/crm/leads", "/reports", "/settings/company"].includes(module.href));
+  const activeHref = modules
+    .filter((module) => pathname === module.href || (module.href !== "/dashboard" && pathname.startsWith(module.href)))
+    .sort((a, b) => b.href.length - a.href.length)[0]?.href;
 
   return (
     <nav className="sticky top-0 z-20 border-b border-slate-200 bg-white/95 px-3 py-2 shadow-sm backdrop-blur lg:hidden">
       <div className="grid grid-cols-5 gap-1">
         {modules.slice(0, 5).map((module) => {
           const Icon = module.icon;
-          const isActive =
-            pathname === module.href ||
-            (module.href !== "/dashboard" && pathname.startsWith(module.href));
+          const isActive = module.href === activeHref;
 
           return (
             <Link

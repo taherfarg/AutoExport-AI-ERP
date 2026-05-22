@@ -27,6 +27,7 @@ export type FinanceInvoiceRow = {
 
 export type FinanceExpenseRow = {
   id: string;
+  supplier_id: string | null;
   branch_id: string;
   vehicle_id: string | null;
   category: string;
@@ -57,6 +58,7 @@ export type FinanceReceivableRow = {
 
 export type FinancePayableRow = {
   id: string;
+  supplier_id: string | null;
   payable_number: string;
   supplier_name: string;
   description: string;
@@ -120,7 +122,7 @@ export async function getFinanceDashboardData(companyId: string) {
       .order("created_at", { ascending: false }),
     supabase
       .from("expenses")
-      .select("id, branch_id, vehicle_id, category, expense_number, description, amount, currency_code, expense_date, supplier_name, status, branches(name, code), vehicles(stock_number, brand, model, year)")
+      .select("id, supplier_id, branch_id, vehicle_id, category, expense_number, description, amount, currency_code, expense_date, supplier_name, status, branches(name, code), vehicles(stock_number, brand, model, year)")
       .eq("company_id", companyId)
       .is("deleted_at", null)
       .order("expense_date", { ascending: false }),
@@ -132,7 +134,7 @@ export async function getFinanceDashboardData(companyId: string) {
       .order("created_at", { ascending: false }),
     supabase
       .from("payables")
-      .select("id, payable_number, supplier_name, description, amount, paid_amount, balance_due, currency_code, due_date, status, vehicles(stock_number, brand, model, year)")
+      .select("id, supplier_id, payable_number, supplier_name, description, amount, paid_amount, balance_due, currency_code, due_date, status, vehicles(stock_number, brand, model, year)")
       .eq("company_id", companyId)
       .is("deleted_at", null)
       .order("created_at", { ascending: false }),

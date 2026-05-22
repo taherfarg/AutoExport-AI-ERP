@@ -9,6 +9,7 @@ import { filterAiToolsByPermissions, findAiTool, getAiToolRegistry } from "@/lib
 import { createListingDraftFromVehicle, createSocialCaptionDraft } from "@/lib/marketing/calculations";
 import { PERMISSIONS } from "@/lib/permissions/permissions";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
+import { makeSupplierCode } from "@/lib/suppliers/format";
 import {
   aiApprovalDecisionSchema,
   askAiSchema,
@@ -38,6 +39,75 @@ function stringValue(value: unknown, fallback = "") {
 function numberValue(value: unknown, fallback = 0) {
   const parsed = Number(value);
   return Number.isFinite(parsed) ? parsed : fallback;
+}
+
+async function ensurePartsSupplier({
+  companyId,
+  profileId,
+  supplierName,
+}: {
+  companyId: string;
+  profileId: string;
+  supplierName: string;
+}) {
+  const supabase = createServiceRoleClient();
+  const { data: existingPartSupplier } = await supabase
+    .from("part_suppliers")
+    .select("id")
+    .eq("company_id", companyId)
+    .eq("supplier_name", supplierName)
+    .limit(1)
+    .single();
+
+  if (existingPartSupplier?.id) return existingPartSupplier;
+
+  let { data: supplierMaster } = await supabase
+    .from("suppliers")
+    .select("id")
+    .eq("company_id", companyId)
+    .eq("supplier_name", supplierName)
+    .limit(1)
+    .single();
+
+  if (!supplierMaster) {
+    const { data: newSupplierMaster, error: masterError } = await supabase
+      .from("suppliers")
+      .insert({
+        company_id: companyId,
+        supplier_code: makeSupplierCode(supplierName),
+        supplier_name: supplierName,
+        category: "parts",
+        status: "active",
+        created_by: profileId,
+        updated_by: profileId,
+      })
+      .select("id")
+      .single();
+
+    if (masterError || !newSupplierMaster) {
+      throw new Error(masterError?.message ?? "Failed to create supplier master.");
+    }
+    supplierMaster = newSupplierMaster;
+  }
+
+  const { data: newPartSupplier, error: partSupplierError } = await supabase
+    .from("part_suppliers")
+    .insert({
+      id: supplierMaster.id,
+      company_id: companyId,
+      supplier_name: supplierName,
+      status: "active",
+      created_by: profileId,
+      updated_by: profileId,
+    })
+    .select("id")
+    .single();
+
+  if (partSupplierError || !newPartSupplier) {
+    throw new Error(partSupplierError?.message ?? "Failed to create parts supplier.");
+  }
+
+  return newPartSupplier;
 }
 
 function formOptional(value: FormDataEntryValue | null) {
@@ -1368,30 +1438,15 @@ export async function commitDocumentOcr(formData: FormData) {
     const partName = stringValue(formData.get("partName"), stringValue(data.partName, "Heavy-Duty Front Brake Pads"));
     const quantity = numberValue(formData.get("quantity"), numberValue(data.quantity, 1));
 
-    let { data: supplier } = await supabase
-      .from("part_suppliers")
-      .select("id")
-      .eq("company_id", workspace.companyId)
-      .eq("supplier_name", supplierName)
-      .limit(1)
-      .single();
-
-    if (!supplier) {
-      const { data: newSupplier, error: supErr } = await supabase
-        .from("part_suppliers")
-        .insert({
-          company_id: workspace.companyId,
-          supplier_name: supplierName,
-          status: "active",
-          created_by: workspace.profileId,
-          updated_by: workspace.profileId,
-        })
-        .select("id")
-        .single();
-      if (supErr || !newSupplier) {
-        return { error: supErr?.message ?? "Failed to create supplier." };
-      }
-      supplier = newSupplier;
+    let supplier;
+    try {
+      supplier = await ensurePartsSupplier({
+        companyId: workspace.companyId,
+        profileId: workspace.profileId,
+        supplierName,
+      });
+    } catch (error) {
+      return { error: caughtMessage(error, "Failed to create supplier.") };
     }
 
     let activeBranchId = branchId;
@@ -1598,31 +1653,11 @@ export async function resolveAiProposal(formData: FormData) {
       const quantity = numberValue(proposedPayload.quantity, 10);
       const estimatedUnitCost = numberValue(proposedPayload.estimatedUnitCost);
 
-      let { data: supplier } = await supabase
-        .from("part_suppliers")
-        .select("id")
-        .eq("company_id", workspace.companyId)
-        .eq("supplier_name", supplierName)
-        .limit(1)
-        .single();
-
-      if (!supplier) {
-        const { data: newSupplier, error: supErr } = await supabase
-          .from("part_suppliers")
-          .insert({
-            company_id: workspace.companyId,
-            supplier_name: supplierName,
-            status: "active",
-            created_by: workspace.profileId,
-            updated_by: workspace.profileId,
-          })
-          .select("id")
-          .single();
-        if (supErr || !newSupplier) {
-          throw new Error(supErr?.message ?? "Failed to create parts supplier.");
-        }
-        supplier = newSupplier;
-      }
+      const supplier = await ensurePartsSupplier({
+        companyId: workspace.companyId,
+        profileId: workspace.profileId,
+        supplierName,
+      });
 
       const { data: po, error: poErr } = await supabase
         .from("part_purchase_orders")

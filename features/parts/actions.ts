@@ -5,6 +5,7 @@ import { getCurrentPermissionSet, getCurrentWorkspace } from "@/lib/auth/current
 import { makePartsNumber } from "@/lib/parts/format";
 import { PERMISSIONS } from "@/lib/permissions/permissions";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
+import { makeSupplierCode } from "@/lib/suppliers/format";
 import {
   createPartPurchaseOrderItemSchema,
   createPartPurchaseOrderSchema,
@@ -93,7 +94,41 @@ export async function createPartSupplier(formData: FormData): Promise<PartsActio
   if (!parsed.success || parsed.data.companyId !== workspace.companyId) return { error: "Supplier details are invalid." };
 
   const supabase = createServiceRoleClient();
+  let supplierId: string | null = null;
+  const { data: existingSupplier } = await supabase
+    .from("suppliers")
+    .select("id")
+    .eq("company_id", workspace.companyId)
+    .eq("supplier_name", parsed.data.supplierName)
+    .maybeSingle();
+
+  if (existingSupplier?.id) {
+    supplierId = existingSupplier.id as string;
+  } else {
+    const { data: supplier, error: supplierError } = await supabase
+      .from("suppliers")
+      .insert({
+        company_id: workspace.companyId,
+        supplier_code: makeSupplierCode(parsed.data.supplierName),
+        supplier_name: parsed.data.supplierName,
+        category: "parts",
+        status: parsed.data.status === "archived" ? "archived" : parsed.data.status === "inactive" ? "inactive" : "active",
+        country_code: parsed.data.countryCode,
+        contact_name: parsed.data.contactName,
+        email: parsed.data.email,
+        phone: parsed.data.phone,
+        created_by: workspace.profileId,
+        updated_by: workspace.profileId,
+      })
+      .select("id")
+      .single();
+
+    if (supplierError || !supplier) return { error: supplierError?.message ?? "Supplier master could not be created." };
+    supplierId = supplier.id;
+  }
+
   const { data, error } = await supabase.from("part_suppliers").insert({
+    id: supplierId,
     company_id: workspace.companyId,
     supplier_name: parsed.data.supplierName,
     country_code: parsed.data.countryCode,

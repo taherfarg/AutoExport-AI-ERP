@@ -47,6 +47,7 @@ export const PERMISSIONS = {
   VIEW_ACCOUNTING: "view_accounting",
   MANAGE_ACCOUNTING: "manage_accounting",
   EXPORT_ACCOUNTING: "export_accounting",
+  MANAGE_SUPPLIERS: "manage_suppliers",
   VIEW_SERVICE: "view_service",
   MANAGE_SERVICE: "manage_service",
   ASSIGN_SERVICE_JOBS: "assign_service_jobs",

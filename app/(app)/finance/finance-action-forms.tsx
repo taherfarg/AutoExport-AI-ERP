@@ -18,6 +18,7 @@ type BranchOption = { id: string; name: string };
 type VehicleOption = { id: string; stock_number: string; brand: string; model: string; selling_price?: number };
 type InvoiceOption = { id: string; branch_id: string; vehicle_id?: string | null; total: number };
 type UserOption = { id: string; full_name: string; email: string };
+type SupplierOption = { id: string; supplier_name: string; currency_code?: string; payment_terms_days?: number };
 type FinanceMessage = { type: "success" | "error"; text: string };
 
 function Message({ message }: { message?: FinanceMessage }) {
@@ -73,6 +74,7 @@ export function FinanceExpenseForm({
   defaultVehicleId,
   currencyCode,
   today,
+  suppliers,
 }: {
   branches: BranchOption[];
   vehicles: VehicleOption[];
@@ -81,6 +83,7 @@ export function FinanceExpenseForm({
   defaultVehicleId?: string;
   currencyCode: string;
   today: string;
+  suppliers: SupplierOption[];
 }) {
   const { formRef, message, isPending, handleSubmit } = useFinanceSubmit(createExpense, "Expense recorded.");
 
@@ -129,7 +132,13 @@ export function FinanceExpenseForm({
       </div>
       <div className="grid gap-2">
         <Label htmlFor="supplierName">Supplier</Label>
-        <Input id="supplierName" name="supplierName" />
+        <select id="supplierId" name="supplierId" defaultValue="" className="h-9 rounded-md border bg-white px-3 text-sm">
+          <option value="">Manual supplier name</option>
+          {suppliers.map((supplier) => (
+            <option key={supplier.id} value={supplier.id}>{supplier.supplier_name}</option>
+          ))}
+        </select>
+        <Input id="supplierName" name="supplierName" placeholder="Use only when supplier is not in master" />
       </div>
       <Button type="submit" disabled={isPending}>
         <Plus className="h-4 w-4" />
@@ -145,12 +154,14 @@ export function FinancePayableForm({
   defaultVehicleId,
   currencyCode,
   dueDate,
+  suppliers,
 }: {
   companyId: string;
   defaultBranchId: string;
   defaultVehicleId?: string;
   currencyCode: string;
   dueDate: string;
+  suppliers: SupplierOption[];
 }) {
   const { formRef, message, isPending, handleSubmit } = useFinanceSubmit(createPayable, "Payable created.");
 
@@ -162,7 +173,13 @@ export function FinancePayableForm({
       <input type="hidden" name="vehicleId" value={defaultVehicleId ?? ""} />
       <div className="grid gap-2">
         <Label htmlFor="payableSupplierName">Supplier</Label>
-        <Input id="payableSupplierName" name="supplierName" defaultValue="Repair Supplier" required />
+        <select id="payableSupplierId" name="supplierId" defaultValue="" className="h-9 rounded-md border bg-white px-3 text-sm">
+          <option value="">Manual supplier name</option>
+          {suppliers.map((supplier) => (
+            <option key={supplier.id} value={supplier.id}>{supplier.supplier_name}</option>
+          ))}
+        </select>
+        <Input id="payableSupplierName" name="supplierName" defaultValue={suppliers.length === 0 ? "Repair Supplier" : ""} placeholder="Use only when supplier is not in master" />
       </div>
       <div className="grid gap-2">
         <Label htmlFor="payableDescription">Description</Label>

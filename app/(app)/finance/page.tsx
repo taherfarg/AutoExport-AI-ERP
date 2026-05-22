@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/card";
 import { getBranches } from "@/features/branches/queries";
 import { getFinanceDashboardData, getFinancePermissions } from "@/features/finance/queries";
+import { getSupplierDashboardData } from "@/features/suppliers/queries";
 import { getCompanyUsers } from "@/features/users/queries";
 import { getCurrentWorkspace } from "@/lib/auth/current-workspace";
 import { formatFinanceStatus } from "@/lib/finance/format";
@@ -35,11 +36,12 @@ function dateIn(days: number) {
 
 export default async function FinancePage() {
   const workspace = await getCurrentWorkspace();
-  const [finance, branches, users, permissions] = await Promise.all([
+  const [finance, branches, users, permissions, supplierData] = await Promise.all([
     getFinanceDashboardData(workspace.companyId),
     getBranches(workspace.companyId),
     getCompanyUsers(workspace.companyId),
     getFinancePermissions(workspace.companyId),
+    getSupplierDashboardData(workspace.companyId),
   ]);
 
   const defaultBranchId = branches[0]?.id;
@@ -59,10 +61,15 @@ export default async function FinancePage() {
             Vehicle trading finance: receivables, payables, expenses, profit, and salesperson commission.
           </p>
         </div>
-        <Link href="/finance/accounting" className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50">
-          <Landmark className="h-4 w-4" />
-          Open accounting
-        </Link>
+        <div className="flex flex-wrap gap-2">
+          <Link href="/finance/suppliers" className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50">
+            Suppliers
+          </Link>
+          <Link href="/finance/accounting" className="inline-flex h-9 items-center justify-center gap-2 rounded-md border border-slate-200 bg-white px-3 text-sm font-medium text-slate-700 shadow-sm transition hover:bg-slate-50">
+            <Landmark className="h-4 w-4" />
+            Open accounting
+          </Link>
+        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-7">
@@ -220,6 +227,7 @@ export default async function FinancePage() {
                   defaultVehicleId={defaultVehicle?.id}
                   currencyCode={currencyCode}
                   today={today()}
+                  suppliers={supplierData.suppliers}
                 />
               </CardContent>
             </Card>
@@ -238,6 +246,7 @@ export default async function FinancePage() {
                   defaultVehicleId={defaultVehicle?.id}
                   currencyCode={currencyCode}
                   dueDate={dateIn(14)}
+                  suppliers={supplierData.suppliers}
                 />
               </CardContent>
             </Card>

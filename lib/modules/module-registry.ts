@@ -34,6 +34,7 @@ export const MODULE_REGISTRY = [
   { key: "documents", label: "Documents", href: "/documents", icon: FileText },
   { key: "finance", label: "Finance Lite", href: "/finance", icon: WalletCards },
   { key: "accounting", gateKey: "finance", label: "Accounting", href: "/finance/accounting", icon: Landmark },
+  { key: "suppliers", gateKey: "finance", label: "Suppliers", href: "/finance/suppliers", icon: Handshake },
   { key: "service", label: "Service Workshop", href: "/service/workshop", icon: Wrench },
   { key: "parts", label: "Parts Inventory", href: "/parts/inventory", icon: Package },
   { key: "marketing", label: "Marketing", href: "/marketing/listings", icon: Megaphone },
