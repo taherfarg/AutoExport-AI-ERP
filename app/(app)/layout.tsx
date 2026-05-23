@@ -43,7 +43,7 @@ export default async function AuthenticatedLayout({
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar companyName={company?.name ?? "Workspace"} userEmail={workspace.email} />
         <AppMobileNav enabledModuleKeys={enabledModuleKeys} />
-        <main className="w-full min-w-0 flex-1 px-4 py-5 sm:p-6">{children}</main>
+        <main className="w-full min-w-0 flex-1 px-4 pb-28 pt-5 sm:p-6 lg:pb-6">{children}</main>
       </div>
     </div>
   );

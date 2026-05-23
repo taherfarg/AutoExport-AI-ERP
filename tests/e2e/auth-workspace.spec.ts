@@ -331,14 +331,10 @@ test("new workspace can add a branch, vehicle, and lead", async ({ page }) => {
   await expect(page.getByText("deposit")).toBeVisible();
 
   await page.getByRole("button", { name: "Create invoice" }).click();
-  await page.waitForTimeout(1000);
-  await page.reload();
-  await expect(page.getByRole("button", { name: "Record payment" })).toBeVisible();
+  await reloadAndExpectVisible(page, () => page.getByRole("button", { name: "Record payment" }));
 
   await page.getByRole("button", { name: "Record payment" }).click();
-  await page.waitForTimeout(1000);
-  await page.reload();
-  await expect(page.getByText(/^PAY-/)).toBeVisible();
+  await reloadAndExpectVisible(page, () => page.getByText(/^PAY-/));
 
   await page.goto("/sales/invoices");
   await expect(page.getByRole("heading", { name: "Sales Invoices" })).toBeVisible();
@@ -378,23 +374,17 @@ test("new workspace can add a branch, vehicle, and lead", async ({ page }) => {
   await page.locator("#amount").fill("2500");
   await page.locator("#supplierName").fill(`Detailing Supplier ${id}`);
   await page.getByRole("button", { name: "Record expense" }).click();
-  await page.waitForTimeout(1000);
-  await page.reload();
-  await expect(page.getByText(`Preparation expense ${id}`)).toBeVisible();
+  await reloadAndExpectVisible(page, () => page.getByText(`Preparation expense ${id}`));
 
   await page.locator("#payableSupplierName").fill(`Repair Supplier ${id}`);
   await page.locator("#payableDescription").fill(`Repair payable ${id}`);
   await page.locator("#payableAmount").fill("5000");
   await page.getByRole("button", { name: "Create payable" }).click();
-  await page.waitForTimeout(1000);
-  await page.reload();
-  await expect(page.getByText(`Repair Supplier ${id}`)).toBeVisible();
+  await reloadAndExpectVisible(page, () => page.getByText(`Repair Supplier ${id}`));
 
   await page.locator("#commissionRate").fill("2.5");
   await page.getByRole("button", { name: "Create commission" }).click();
-  await page.waitForTimeout(1000);
-  await page.reload();
-  await expect(page.getByText(/^COM-/)).toBeVisible();
+  await reloadAndExpectVisible(page, () => page.getByText(/^COM-/));
 
   await page.goto("/finance/suppliers");
   await expect(page.getByRole("heading", { name: "Suppliers & Vendors" })).toBeVisible();
@@ -536,7 +526,7 @@ test("new workspace can add a branch, vehicle, and lead", async ({ page }) => {
   await page.locator("#containerNumber").fill(`CONT-${id}`);
   await page.locator("#blNumber").fill(`BL-${id}`);
   await page.getByRole("button", { name: "Create order" }).click();
-  await page.waitForTimeout(1000);
+  await page.waitForURL(/\/export\/orders\/[^/]+$/, { timeout: 15000 }).catch(() => undefined);
   if (!/\/export\/orders\/[^/]+$/.test(new URL(page.url()).pathname)) {
     await page.reload();
     const exportOrderLink = page.locator("tr").filter({ hasText: stockNumber }).getByRole("link").first();
@@ -549,36 +539,26 @@ test("new workspace can add a branch, vehicle, and lead", async ({ page }) => {
   await expect(page.getByText(`BK-${id}`)).toBeVisible();
 
   await page.getByRole("button", { name: "Add event" }).click();
-  await page.waitForTimeout(1000);
-  await page.reload();
-  await expect(page.getByText("Jebel Ali")).toBeVisible();
+  await reloadAndExpectVisible(page, () => page.getByText("Jebel Ali"));
 
   await page.locator("#customsStatus").selectOption("submitted");
   await page.locator("#declarationNumber").fill(`DECL-${id}`);
   await page.getByRole("button", { name: "Save customs" }).click();
-  await page.waitForTimeout(1000);
-  await page.reload();
-  await expect(page.getByText(`DECL-${id}`)).toBeVisible();
+  await reloadAndExpectVisible(page, () => page.getByText(`DECL-${id}`));
 
   await page.locator('select[name="status"]').first().selectOption("verified");
   await page.getByRole("button", { name: "Save" }).first().click();
-  await page.waitForTimeout(1000);
-  await page.reload();
-  await expect(page.getByText("1/9 required docs ready")).toBeVisible();
+  await reloadAndExpectVisible(page, () => page.getByText("1/9 required docs ready"));
 
   await page.locator("#amount").fill("8500");
   await page.locator("#supplierName").fill(`GulfLine ${id}`);
   await page.getByRole("button", { name: "Add cost" }).click();
-  await page.waitForTimeout(1000);
-  await page.reload();
-  await expect(page.getByText(`GulfLine ${id}`)).toBeVisible();
+  await reloadAndExpectVisible(page, () => page.getByText(`GulfLine ${id}`));
 
   await page.goto("/export/orders");
   await page.locator("#supplierName").fill(`Belgium Import ${id}`);
   await page.getByRole("button", { name: "Create import order" }).click();
-  await page.waitForTimeout(1000);
-  await page.reload();
-  await expect(page.getByText(`Belgium Import ${id}`)).toBeVisible();
+  await reloadAndExpectVisible(page, () => page.getByText(`Belgium Import ${id}`));
 
   await page.goto("/documents");
   await expect(page.getByRole("heading", { name: "Documents & Digital Signature" })).toBeVisible();
@@ -589,24 +569,18 @@ test("new workspace can add a branch, vehicle, and lead", async ({ page }) => {
     buffer: pdfBuffer,
   });
   await page.getByRole("button", { name: "Upload document" }).click();
-  await page.waitForTimeout(1000);
-  await page.reload();
-  await expect(page.getByText(documentTitle).first()).toBeVisible();
+  await reloadAndExpectVisible(page, () => page.getByText(documentTitle).first());
 
   await page.locator("#documentId").selectOption({ label: documentTitle });
   await page.locator("#verificationNotes").fill(`Verified archive document ${id}`);
   await page.getByRole("button", { name: "Verify document" }).click();
-  await page.waitForTimeout(1000);
-  await page.reload();
-  await expect(page.getByText(`Verified archive document ${id}`)).toBeVisible();
+  await reloadAndExpectVisible(page, () => page.getByText(`Verified archive document ${id}`));
 
   await page.locator("#signatureTitle").fill(signatureTitle);
   await page.locator("#sentToName").fill(`Signer ${id}`);
   await page.locator("#sentToEmail").fill(`signer-${id}@example.com`);
   await page.getByRole("button", { name: "Create signature request" }).click();
-  await page.waitForTimeout(1000);
-  await page.reload();
-  await expect(page.getByText(`Signer ${id}`).first()).toBeVisible();
+  await reloadAndExpectVisible(page, () => page.getByText(`Signer ${id}`).first());
 
   await page.locator("#signedByName").fill(`Signer ${id}`);
   await page.locator("#signatureImage").setInputFiles({
@@ -620,68 +594,48 @@ test("new workspace can add a branch, vehicle, and lead", async ({ page }) => {
     buffer: pdfBuffer,
   });
   await page.getByRole("button", { name: "Mark signed" }).click();
-  await page.waitForTimeout(1000);
-  await page.reload();
-  await expect(page.getByText(/^SDOC-/)).toBeVisible();
+  await reloadAndExpectVisible(page, () => page.getByText(/^SDOC-/));
 
   await page.goto("/marketing/listings");
   await expect(page.getByRole("heading", { name: "Marketing & Listings" })).toBeVisible();
   await page.locator("#listingTitle").fill(marketingListingTitle);
   await page.getByRole("button", { name: "Create listing" }).click();
-  await page.waitForTimeout(1000);
-  await page.reload();
-  await expect(page.locator("tr").filter({ hasText: marketingListingTitle })).toBeVisible();
+  await reloadAndExpectVisible(page, () => page.locator("tr").filter({ hasText: marketingListingTitle }));
 
   await page.locator("#overridePrice").fill("148500");
   await page.getByRole("button", { name: "Save price override" }).click();
-  await page.waitForTimeout(1000);
-  await page.reload();
-  await expect(page.getByText("Marketplace campaign price")).toBeVisible();
+  await reloadAndExpectVisible(page, () => page.getByText("Marketplace campaign price"));
 
   await page.locator("#syncOperation").selectOption("publish");
   await page.getByRole("button", { name: "Queue sync job" }).click();
-  await page.waitForTimeout(1000);
-  await page.reload();
-  await expect(page.getByText("Queued").first()).toBeVisible();
+  await reloadAndExpectVisible(page, () => page.getByText("Queued").first());
 
   await page.locator("#syncMessage").fill(`Provider accepted listing ${id}`);
   await page.getByRole("button", { name: "Add sync log" }).click();
-  await page.waitForTimeout(1000);
-  await page.reload();
-  await expect(page.getByText(`Provider accepted listing ${id}`)).toBeVisible();
+  await reloadAndExpectVisible(page, () => page.getByText(`Provider accepted listing ${id}`));
 
   await page.locator("#marketplaceLeadName").fill(`Marketplace Buyer ${id}`);
   await page.locator("#marketplaceLeadPhone").fill("+971511111111");
   await page.getByRole("button", { name: "Capture marketplace lead" }).click();
-  await page.waitForTimeout(1000);
-  await page.reload();
-  await expect(page.getByText(`Marketplace Buyer ${id}`)).toBeVisible();
+  await reloadAndExpectVisible(page, () => page.getByText(`Marketplace Buyer ${id}`));
 
   await page.locator("#caption").fill(`Instagram launch caption ${id}`);
   await page.getByRole("button", { name: "Create social draft" }).click();
-  await page.waitForTimeout(1000);
-  await page.reload();
-  await expect(page.getByText(`Instagram launch caption ${id}`)).toBeVisible();
+  await reloadAndExpectVisible(page, () => page.getByText(`Instagram launch caption ${id}`));
 
   await page.locator("#campaignName").fill(campaignName);
   await page.getByRole("button", { name: "Create campaign" }).click();
-  await page.waitForTimeout(1000);
-  await page.reload();
-  await expect(page.getByText(campaignName)).toBeVisible();
+  await reloadAndExpectVisible(page, () => page.getByText(campaignName));
 
   await page.locator("#calendarTitle").fill(calendarTitle);
   await page.getByRole("button", { name: "Add calendar item" }).click();
-  await page.waitForTimeout(1000);
-  await page.reload();
-  await expect(page.getByText(calendarTitle)).toBeVisible();
+  await reloadAndExpectVisible(page, () => page.getByText(calendarTitle));
 
   await page.locator("#sourceKey").fill(`instagram_${id}`);
   await page.locator("#sourceName").fill(`Instagram ${id}`);
   await page.locator("#monthlyLeads").fill("24");
   await page.getByRole("button", { name: "Save source metrics" }).click();
-  await page.waitForTimeout(1000);
-  await page.reload();
-  await expect(page.getByText(`Instagram ${id}`)).toBeVisible();
+  await reloadAndExpectVisible(page, () => page.getByText(`Instagram ${id}`));
 
   await page.goto("/ai");
   await expect(page.getByRole("heading", { name: "AI Technical Intelligence" })).toBeVisible();
@@ -693,22 +647,16 @@ test("new workspace can add a branch, vehicle, and lead", async ({ page }) => {
   await page.getByRole("button", { name: "Ask AI" }).click();
   await expect(page.getByRole("button", { name: "Approve" }).first()).toBeVisible({ timeout: 30000 });
   await page.getByRole("button", { name: "Approve" }).first().click();
-  await page.waitForTimeout(1000);
-  await page.reload();
-  await expect(page.getByText("Approved").first()).toBeVisible();
+  await reloadAndExpectVisible(page, () => page.getByText("Approved").first());
 
   await page.locator("#reportPrompt").fill(`Generate inventory report draft ${id}.`);
   await page.getByRole("button", { name: "Create report request" }).click();
-  await page.waitForTimeout(1000);
-  await page.reload();
-  await expect(page.getByText(/^AIR-/)).toBeVisible();
+  await reloadAndExpectVisible(page, () => page.getByText(/^AIR-/));
 
   await page.locator("#documentId").selectOption({ label: documentTitle });
   await page.locator("#documentType").fill("vehicle_title");
   await page.getByRole("button", { name: "Queue extraction" }).click();
-  await page.waitForTimeout(1000);
-  await page.reload();
-  await expect(page.getByText(/^AIX-/)).toBeVisible();
+  await reloadAndExpectVisible(page, () => page.getByText(/^AIX-/));
 
   // Phase 20: Advanced AI Automation
   await page.goto("/ai/automation");
