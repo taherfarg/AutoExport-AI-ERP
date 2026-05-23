@@ -1,6 +1,7 @@
 "use server";
 
 import { requireUser } from "@/lib/auth/require-user";
+import { DEFAULT_COMPANY_ROLE_TEMPLATES } from "@/lib/auth/business-roles";
 import { ensureProfileForUser } from "@/lib/auth/profiles";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 import { createCompanySchema } from "@/lib/validations/company";
@@ -57,7 +58,7 @@ export async function createCompany(formData: FormData) {
 
   const { data: permissions, error: permissionsError } = await supabase
     .from("permissions")
-    .select("id");
+    .select("id, permission_key");
 
   if (permissionsError || !permissions?.length) {
     return { error: "Permissions are not configured." };
@@ -89,6 +90,53 @@ export async function createCompany(formData: FormData) {
       permission_id: permission.id,
     })),
   );
+
+  const { data: defaultRoles, error: defaultRolesError } = await supabase
+    .from("roles")
+    .insert(
+      DEFAULT_COMPANY_ROLE_TEMPLATES.map((role) => ({
+        company_id: company.id,
+        name: role.name,
+        role_key: role.roleKey,
+        description: role.description,
+        scope: "company",
+        is_system_role: true,
+        created_by: profile.id,
+        updated_by: profile.id,
+      })),
+    )
+    .select("id, role_key");
+
+  if (defaultRolesError || !defaultRoles) {
+    return { error: defaultRolesError?.message ?? "Default company roles could not be created." };
+  }
+
+  const permissionIdByKey = new Map(permissions.map((permission) => [permission.permission_key, permission.id]));
+  const roleIdByKey = new Map(defaultRoles.map((role) => [role.role_key, role.id]));
+  const defaultRolePermissions = DEFAULT_COMPANY_ROLE_TEMPLATES.flatMap((role) => {
+    const roleId = roleIdByKey.get(role.roleKey);
+    if (!roleId) {
+      return [];
+    }
+
+    return role.permissionKeys.flatMap((permissionKey) => {
+      const permissionId = permissionIdByKey.get(permissionKey);
+      return permissionId
+        ? [{
+          company_id: company.id,
+          role_id: roleId,
+          permission_id: permissionId,
+        }]
+        : [];
+    });
+  });
+
+  if (defaultRolePermissions.length > 0) {
+    const { error: defaultRolePermissionsError } = await supabase.from("role_permissions").insert(defaultRolePermissions);
+    if (defaultRolePermissionsError) {
+      return { error: defaultRolePermissionsError.message };
+    }
+  }
 
   await supabase.from("company_memberships").insert({
     company_id: company.id,

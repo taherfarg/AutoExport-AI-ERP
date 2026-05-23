@@ -1,4 +1,5 @@
 import type { User } from "@supabase/supabase-js";
+import { getBusinessRoleOption } from "@/lib/auth/business-roles";
 import { createServiceRoleClient } from "@/lib/supabase/service-role";
 
 export type AppProfile = {
@@ -14,6 +15,10 @@ function getProfileName(user: User) {
   }
 
   return user.email?.split("@")[0] || "Workspace user";
+}
+
+function getProfileBusinessRole(user: User) {
+  return getBusinessRoleOption(user.user_metadata?.business_role).key;
 }
 
 export async function ensureProfileForUser(user: User): Promise<AppProfile> {
@@ -45,6 +50,7 @@ export async function ensureProfileForUser(user: User): Promise<AppProfile> {
       auth_user_id: user.id,
       full_name: getProfileName(user),
       email,
+      business_role: getProfileBusinessRole(user),
       status: "active",
     })
     .select("id, email")

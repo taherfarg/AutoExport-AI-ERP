@@ -328,12 +328,14 @@ test("new workspace can add a branch, vehicle, and lead", async ({ page }) => {
   await expect(page.getByText(leadName, { exact: true }).first()).toBeVisible();
 
   await page.getByRole("button", { name: "Create reservation" }).click();
-  await expect(page.getByText("deposit")).toBeVisible();
+  await expect(page.getByText("Reservation created.")).toBeVisible({ timeout: 15000 });
 
   await page.getByRole("button", { name: "Create invoice" }).click();
+  await expect(page.getByText("Invoice created.")).toBeVisible({ timeout: 15000 });
   await reloadAndExpectVisible(page, () => page.getByRole("button", { name: "Record payment" }));
 
   await page.getByRole("button", { name: "Record payment" }).click();
+  await expect(page.getByText("Payment recorded.")).toBeVisible({ timeout: 15000 });
   await reloadAndExpectVisible(page, () => page.getByText(/^PAY-/));
 
   await page.goto("/sales/invoices");
@@ -374,16 +376,19 @@ test("new workspace can add a branch, vehicle, and lead", async ({ page }) => {
   await page.locator("#amount").fill("2500");
   await page.locator("#supplierName").fill(`Detailing Supplier ${id}`);
   await page.getByRole("button", { name: "Record expense" }).click();
+  await expect(page.getByText("Expense recorded.")).toBeVisible({ timeout: 15000 });
   await reloadAndExpectVisible(page, () => page.getByText(`Preparation expense ${id}`));
 
   await page.locator("#payableSupplierName").fill(`Repair Supplier ${id}`);
   await page.locator("#payableDescription").fill(`Repair payable ${id}`);
   await page.locator("#payableAmount").fill("5000");
   await page.getByRole("button", { name: "Create payable" }).click();
+  await expect(page.getByText("Payable created.")).toBeVisible({ timeout: 15000 });
   await reloadAndExpectVisible(page, () => page.getByText(`Repair Supplier ${id}`));
 
   await page.locator("#commissionRate").fill("2.5");
   await page.getByRole("button", { name: "Create commission" }).click();
+  await expect(page.getByText("Commission created.")).toBeVisible({ timeout: 15000 });
   await reloadAndExpectVisible(page, () => page.getByText(/^COM-/));
 
   await page.goto("/finance/suppliers");
@@ -569,17 +574,20 @@ test("new workspace can add a branch, vehicle, and lead", async ({ page }) => {
     buffer: pdfBuffer,
   });
   await page.getByRole("button", { name: "Upload document" }).click();
+  await expect(page.getByText("Document uploaded.")).toBeVisible({ timeout: 15000 });
   await reloadAndExpectVisible(page, () => page.getByText(documentTitle).first());
 
   await page.locator("#documentId").selectOption({ label: documentTitle });
   await page.locator("#verificationNotes").fill(`Verified archive document ${id}`);
   await page.getByRole("button", { name: "Verify document" }).click();
+  await expect(page.getByText("Document verified.")).toBeVisible({ timeout: 15000 });
   await reloadAndExpectVisible(page, () => page.getByText(`Verified archive document ${id}`));
 
   await page.locator("#signatureTitle").fill(signatureTitle);
   await page.locator("#sentToName").fill(`Signer ${id}`);
   await page.locator("#sentToEmail").fill(`signer-${id}@example.com`);
   await page.getByRole("button", { name: "Create signature request" }).click();
+  await expect(page.getByText("Signature request created.")).toBeVisible({ timeout: 15000 });
   await reloadAndExpectVisible(page, () => page.getByText(`Signer ${id}`).first());
 
   await page.locator("#signedByName").fill(`Signer ${id}`);
@@ -594,47 +602,57 @@ test("new workspace can add a branch, vehicle, and lead", async ({ page }) => {
     buffer: pdfBuffer,
   });
   await page.getByRole("button", { name: "Mark signed" }).click();
+  await expect(page.getByText("Signed document archived.")).toBeVisible({ timeout: 15000 });
   await reloadAndExpectVisible(page, () => page.getByText(/^SDOC-/));
 
   await page.goto("/marketing/listings");
   await expect(page.getByRole("heading", { name: "Marketing & Listings" })).toBeVisible();
   await page.locator("#listingTitle").fill(marketingListingTitle);
   await page.getByRole("button", { name: "Create listing" }).click();
+  await expect(page.getByText("Marketing listing created.")).toBeVisible({ timeout: 15000 });
   await reloadAndExpectVisible(page, () => page.locator("tr").filter({ hasText: marketingListingTitle }));
 
   await page.locator("#overridePrice").fill("148500");
   await page.getByRole("button", { name: "Save price override" }).click();
+  await expect(page.getByText("Listing price override saved.")).toBeVisible({ timeout: 15000 });
   await reloadAndExpectVisible(page, () => page.getByText("Marketplace campaign price"));
 
   await page.locator("#syncOperation").selectOption("publish");
   await page.getByRole("button", { name: "Queue sync job" }).click();
+  await expect(page.getByText("Listing sync job queued.")).toBeVisible({ timeout: 15000 });
   await reloadAndExpectVisible(page, () => page.getByText("Queued").first());
 
   await page.locator("#syncMessage").fill(`Provider accepted listing ${id}`);
   await page.getByRole("button", { name: "Add sync log" }).click();
+  await expect(page.getByText("Listing sync log saved.")).toBeVisible({ timeout: 15000 });
   await reloadAndExpectVisible(page, () => page.getByText(`Provider accepted listing ${id}`));
 
   await page.locator("#marketplaceLeadName").fill(`Marketplace Buyer ${id}`);
   await page.locator("#marketplaceLeadPhone").fill("+971511111111");
   await page.getByRole("button", { name: "Capture marketplace lead" }).click();
+  await expect(page.getByText("Marketplace lead captured.")).toBeVisible({ timeout: 15000 });
   await reloadAndExpectVisible(page, () => page.getByText(`Marketplace Buyer ${id}`));
 
   await page.locator("#caption").fill(`Instagram launch caption ${id}`);
   await page.getByRole("button", { name: "Create social draft" }).click();
+  await expect(page.getByText("Social draft created.")).toBeVisible({ timeout: 15000 });
   await reloadAndExpectVisible(page, () => page.getByText(`Instagram launch caption ${id}`));
 
   await page.locator("#campaignName").fill(campaignName);
   await page.getByRole("button", { name: "Create campaign" }).click();
+  await expect(page.getByText("Campaign created.")).toBeVisible({ timeout: 15000 });
   await reloadAndExpectVisible(page, () => page.getByText(campaignName));
 
   await page.locator("#calendarTitle").fill(calendarTitle);
   await page.getByRole("button", { name: "Add calendar item" }).click();
+  await expect(page.getByText("Calendar item created.")).toBeVisible({ timeout: 15000 });
   await reloadAndExpectVisible(page, () => page.getByText(calendarTitle));
 
   await page.locator("#sourceKey").fill(`instagram_${id}`);
   await page.locator("#sourceName").fill(`Instagram ${id}`);
   await page.locator("#monthlyLeads").fill("24");
   await page.getByRole("button", { name: "Save source metrics" }).click();
+  await expect(page.getByText("Lead source metrics saved.")).toBeVisible({ timeout: 15000 });
   await reloadAndExpectVisible(page, () => page.getByText(`Instagram ${id}`));
 
   await page.goto("/ai");
@@ -647,15 +665,18 @@ test("new workspace can add a branch, vehicle, and lead", async ({ page }) => {
   await page.getByRole("button", { name: "Ask AI" }).click();
   await expect(page.getByRole("button", { name: "Approve" }).first()).toBeVisible({ timeout: 30000 });
   await page.getByRole("button", { name: "Approve" }).first().click();
+  await expect(page.getByText("AI action approved.")).toBeVisible({ timeout: 15000 });
   await reloadAndExpectVisible(page, () => page.getByText("Approved").first());
 
   await page.locator("#reportPrompt").fill(`Generate inventory report draft ${id}.`);
   await page.getByRole("button", { name: "Create report request" }).click();
+  await expect(page.getByText("AI report request created.")).toBeVisible({ timeout: 15000 });
   await reloadAndExpectVisible(page, () => page.getByText(/^AIR-/));
 
   await page.locator("#documentId").selectOption({ label: documentTitle });
   await page.locator("#documentType").fill("vehicle_title");
   await page.getByRole("button", { name: "Queue extraction" }).click();
+  await expect(page.getByText("AI extraction queued.")).toBeVisible({ timeout: 15000 });
   await reloadAndExpectVisible(page, () => page.getByText(/^AIX-/));
 
   // Phase 20: Advanced AI Automation

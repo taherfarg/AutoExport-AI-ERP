@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { CalendarDays, Globe2, Megaphone, Plus, RefreshCw, Share2, Target } from "lucide-react";
 import { KpiCard } from "@/components/dashboard/kpi-card";
 import { MarketingStatusBadge } from "@/components/marketing/marketing-status-badge";
@@ -40,7 +41,30 @@ function formatDate(value: string | null) {
   return new Intl.DateTimeFormat("en", { dateStyle: "medium" }).format(new Date(value));
 }
 
-export default async function MarketingListingsPage() {
+function firstParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function marketingMessageUrl(params: Record<string, string>) {
+  const searchParams = new URLSearchParams(params);
+  return `/marketing/listings?${searchParams.toString()}`;
+}
+
+function redirectMarketingResult(result: { error?: string; success?: string } | void, fallbackSuccess: string): never {
+  if (result?.error) {
+    redirect(marketingMessageUrl({ error: result.error }));
+  }
+  redirect(marketingMessageUrl({ success: result?.success ?? fallbackSuccess }));
+}
+
+type MarketingListingsPageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export default async function MarketingListingsPage({ searchParams }: MarketingListingsPageProps) {
+  const pageParams = await searchParams;
+  const actionError = firstParam(pageParams.error);
+  const actionSuccess = firstParam(pageParams.success);
   const workspace = await getCurrentWorkspace();
   const [data, branches, permissions] = await Promise.all([
     getMarketingDashboardData(workspace.companyId),
@@ -60,65 +84,86 @@ export default async function MarketingListingsPage() {
   async function createListingFromForm(formData: FormData) {
     "use server";
 
-    await createMarketingListing(formData);
+    const result = await createMarketingListing(formData);
+    redirectMarketingResult(result, "Marketing listing created.");
   }
 
   async function createSocialPostFromForm(formData: FormData) {
     "use server";
 
-    await createSocialPost(formData);
+    const result = await createSocialPost(formData);
+    redirectMarketingResult(result, "Social draft created.");
   }
 
   async function createCampaignFromForm(formData: FormData) {
     "use server";
 
-    await createCampaign(formData);
+    const result = await createCampaign(formData);
+    redirectMarketingResult(result, "Campaign created.");
   }
 
   async function createCalendarFromForm(formData: FormData) {
     "use server";
 
-    await createContentCalendarEntry(formData);
+    const result = await createContentCalendarEntry(formData);
+    redirectMarketingResult(result, "Calendar item created.");
   }
 
   async function saveLeadSourceFromForm(formData: FormData) {
     "use server";
 
-    await upsertLeadSourceMetrics(formData);
+    const result = await upsertLeadSourceMetrics(formData);
+    redirectMarketingResult(result, "Lead source metrics saved.");
   }
 
   async function createMarketplaceChannelFromForm(formData: FormData) {
     "use server";
 
-    await createMarketplaceChannel(formData);
+    const result = await createMarketplaceChannel(formData);
+    redirectMarketingResult(result, "Marketplace channel saved.");
   }
 
   async function savePriceOverrideFromForm(formData: FormData) {
     "use server";
 
-    await upsertListingPriceOverride(formData);
+    const result = await upsertListingPriceOverride(formData);
+    redirectMarketingResult(result, "Listing price override saved.");
   }
 
   async function queueSyncJobFromForm(formData: FormData) {
     "use server";
 
-    await queueListingSyncJob(formData);
+    const result = await queueListingSyncJob(formData);
+    redirectMarketingResult(result, "Listing sync job queued.");
   }
 
   async function createSyncLogFromForm(formData: FormData) {
     "use server";
 
-    await createListingSyncLog(formData);
+    const result = await createListingSyncLog(formData);
+    redirectMarketingResult(result, "Listing sync log saved.");
   }
 
   async function captureMarketplaceLeadFromForm(formData: FormData) {
     "use server";
 
-    await captureMarketplaceLead(formData);
+    const result = await captureMarketplaceLead(formData);
+    redirectMarketingResult(result, "Marketplace lead captured.");
   }
 
   return (
     <div className="space-y-6">
+      {actionError ? (
+        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {actionError}
+        </div>
+      ) : null}
+      {actionSuccess ? (
+        <div className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+          {actionSuccess}
+        </div>
+      ) : null}
+
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
           <h2 className="text-2xl font-semibold text-slate-950">Marketing & Listings</h2>

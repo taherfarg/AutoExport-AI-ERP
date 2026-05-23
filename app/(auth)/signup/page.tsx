@@ -11,6 +11,7 @@ export default function SignupPage() {
           description="Start a secure dealership workspace."
           action={signUp}
           submitLabel="Create account"
+          mode="signup"
         />
         <p className="text-center text-sm text-slate-300">
           Already registered?{" "}

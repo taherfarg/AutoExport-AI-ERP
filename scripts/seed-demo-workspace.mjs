@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 
 const TARGET_EMAIL = process.env.DEMO_USER_EMAIL ?? "taherfarg50@gmail.com";
+const TARGET_PASSWORD = process.env.DEMO_USER_PASSWORD ?? "12345678";
 const DEMO_PREFIX = "DEMO";
 
 function loadEnvFile(filePath) {
@@ -75,22 +76,140 @@ async function count(companyId, table) {
   return total ?? 0;
 }
 
-async function main() {
-  const { data: profile, error: profileError } = await supabase
-    .from("profiles")
-    .select("id, email, full_name")
-    .eq("email", TARGET_EMAIL)
-    .single();
-  if (profileError) throw new Error(`Could not find profile ${TARGET_EMAIL}: ${profileError.message}`);
+async function getAuthUserByEmail(email) {
+  for (let page = 1; page <= 20; page += 1) {
+    const { data, error } = await supabase.auth.admin.listUsers({ page, perPage: 1000 });
+    if (error) throw new Error(`Auth user lookup failed: ${error.message}`);
 
-  const { data: membership, error: membershipError } = await supabase
-    .from("company_memberships")
-    .select("company_id, companies(id, name, slug)")
-    .eq("profile_id", profile.id)
-    .eq("status", "active")
-    .limit(1)
+    const user = data.users.find((item) => item.email?.toLowerCase() === email.toLowerCase());
+    if (user) return user;
+    if (data.users.length < 1000) return null;
+  }
+
+  return null;
+}
+
+async function ensureDemoUserAndWorkspace() {
+  const metadata = {
+    full_name: "Taher Farg",
+    business_role: "company_owner",
+  };
+  const existingUser = await getAuthUserByEmail(TARGET_EMAIL);
+  const { data: authData, error: authError } = existingUser
+    ? await supabase.auth.admin.updateUserById(existingUser.id, {
+      password: TARGET_PASSWORD,
+      email_confirm: true,
+      user_metadata: metadata,
+    })
+    : await supabase.auth.admin.createUser({
+      email: TARGET_EMAIL,
+      password: TARGET_PASSWORD,
+      email_confirm: true,
+      user_metadata: metadata,
+    });
+
+  if (authError || !authData.user) {
+    throw new Error(`Demo auth user could not be prepared: ${authError?.message ?? "Missing user"}`);
+  }
+
+  const profile = await ensure(
+    "profiles",
+    { id: authData.user.id },
+    {
+      auth_user_id: authData.user.id,
+      full_name: metadata.full_name,
+      email: TARGET_EMAIL,
+      business_role: metadata.business_role,
+      status: "active",
+    },
+    "id, email, full_name",
+  );
+
+  const company = await ensure(
+    "companies",
+    { slug: "pollux-motors-it" },
+    {
+      name: "Pollux Motors IT",
+      legal_name: "Pollux Motors IT",
+      primary_country_code: "AE",
+      primary_currency_code: "AED",
+      default_language: "en",
+      timezone: "Asia/Dubai",
+      status: "trial",
+    },
+    "id, name, slug",
+  );
+
+  const ownerRole = await ensure(
+    "roles",
+    { company_id: company.id, role_key: "company_owner" },
+    {
+      name: "Company Owner",
+      description: "Full administrative access to the company workspace.",
+      scope: "company",
+      is_system_role: true,
+      created_by: profile.id,
+      updated_by: profile.id,
+    },
+    "id, company_id, role_key",
+  );
+
+  const { data: permissions, error: permissionsError } = await supabase.from("permissions").select("id");
+  if (permissionsError || !permissions?.length) {
+    throw new Error(`Permissions are not configured: ${permissionsError?.message ?? "No permissions"}`);
+  }
+
+  await upsert(
+    "role_permissions",
+    permissions.map((permission) => ({
+      company_id: company.id,
+      role_id: ownerRole.id,
+      permission_id: permission.id,
+    })),
+    "role_id,permission_id",
+    "id",
+  );
+
+  const membership = await ensure(
+    "company_memberships",
+    { company_id: company.id, profile_id: profile.id },
+    { status: "active", joined_at: new Date().toISOString() },
+    "id, company_id, status, companies(id, name, slug)",
+  );
+
+  await ensure(
+    "user_roles",
+    { company_id: company.id, profile_id: profile.id, role_id: ownerRole.id },
+    {},
+    "id",
+  );
+
+  const { data: enterprisePackage, error: packageError } = await supabase
+    .from("packages")
+    .select("id")
+    .eq("package_key", "enterprise_dealer_group")
     .single();
-  if (membershipError) throw new Error(`Could not find active workspace for ${TARGET_EMAIL}: ${membershipError.message}`);
+  if (packageError || !enterprisePackage) {
+    throw new Error(`Enterprise package is not configured: ${packageError?.message ?? "Missing package"}`);
+  }
+
+  await ensure(
+    "subscriptions",
+    { company_id: company.id },
+    {
+      package_id: enterprisePackage.id,
+      status: "active",
+      created_by: profile.id,
+      updated_by: profile.id,
+    },
+    "id",
+  );
+
+  return { profile, membership };
+}
+
+async function main() {
+  const { profile, membership } = await ensureDemoUserAndWorkspace();
 
   const companyId = membership.company_id;
   const actorId = profile.id;

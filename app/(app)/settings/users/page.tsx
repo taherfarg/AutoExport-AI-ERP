@@ -1,4 +1,5 @@
 import { getCompanyUsers } from "@/features/users/queries";
+import { getBusinessRoleOption } from "@/lib/auth/business-roles";
 import { getCurrentWorkspace } from "@/lib/auth/current-workspace";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -12,7 +13,8 @@ import {
 type CompanyUserRow = {
   id: string;
   status: string;
-  profiles: { full_name: string; email: string } | { full_name: string; email: string }[] | null;
+  profiles: { full_name: string; email: string; business_role: string } | { full_name: string; email: string; business_role: string }[] | null;
+  roles: { name: string; role_key: string }[];
 };
 
 export default async function UsersPage() {
@@ -31,12 +33,14 @@ export default async function UsersPage() {
           <CardDescription>{users.length} memberships returned through RLS</CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="overflow-hidden rounded-md border">
-            <table className="w-full text-sm">
+          <div className="overflow-x-auto rounded-md border">
+            <table className="w-full min-w-[760px] text-sm">
               <thead className="bg-slate-100 text-left text-slate-600">
                 <tr>
                   <th className="px-4 py-3">Name</th>
                   <th className="px-4 py-3">Email</th>
+                  <th className="px-4 py-3">Profile category</th>
+                  <th className="px-4 py-3">Assigned roles</th>
                   <th className="px-4 py-3">Status</th>
                 </tr>
               </thead>
@@ -50,6 +54,20 @@ export default async function UsersPage() {
                     <tr key={membership.id} className="border-t">
                       <td className="px-4 py-3 font-medium">{profile?.full_name}</td>
                       <td className="px-4 py-3">{profile?.email}</td>
+                      <td className="px-4 py-3">
+                        <Badge variant="outline">{getBusinessRoleOption(profile?.business_role).label}</Badge>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex flex-wrap gap-2">
+                          {membership.roles.length > 0 ? (
+                            membership.roles.map((role) => (
+                              <Badge key={role.role_key} variant="secondary">{role.name}</Badge>
+                            ))
+                          ) : (
+                            <span className="text-slate-500">No role assigned</span>
+                          )}
+                        </div>
+                      </td>
                       <td className="px-4 py-3">
                         <Badge variant="secondary">{membership.status}</Badge>
                       </td>

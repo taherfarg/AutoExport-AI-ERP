@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { FileCheck2, FileClock, FileText, PenLine, Plus, ShieldCheck } from "lucide-react";
 import { DocumentStatusBadge } from "@/components/documents/document-status-badge";
 import { KpiCard } from "@/components/dashboard/kpi-card";
@@ -33,7 +34,23 @@ function formatDate(value: string | null) {
   return new Intl.DateTimeFormat("en", { dateStyle: "medium" }).format(new Date(value));
 }
 
-export default async function DocumentsPage() {
+function firstParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function documentsMessageUrl(params: Record<string, string>) {
+  const searchParams = new URLSearchParams(params);
+  return `/documents?${searchParams.toString()}`;
+}
+
+type DocumentsPageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export default async function DocumentsPage({ searchParams }: DocumentsPageProps) {
+  const pageParams = await searchParams;
+  const actionError = firstParam(pageParams.error);
+  const actionSuccess = firstParam(pageParams.success);
   const workspace = await getCurrentWorkspace();
   const [data, branches, permissions] = await Promise.all([
     getDocumentDashboardData(workspace.companyId),
@@ -47,29 +64,56 @@ export default async function DocumentsPage() {
   async function uploadDocumentFromForm(formData: FormData) {
     "use server";
 
-    await createDocumentRecord(formData);
+    const result = await createDocumentRecord(formData);
+    if (result?.error) {
+      redirect(documentsMessageUrl({ error: result.error }));
+    }
+    redirect(documentsMessageUrl({ success: "Document uploaded." }));
   }
 
   async function verifyDocumentFromForm(formData: FormData) {
     "use server";
 
-    await verifyDocument(formData);
+    const result = await verifyDocument(formData);
+    if (result?.error) {
+      redirect(documentsMessageUrl({ error: result.error }));
+    }
+    redirect(documentsMessageUrl({ success: "Document verified." }));
   }
 
   async function createSignatureFromForm(formData: FormData) {
     "use server";
 
-    await createSignatureRequest(formData);
+    const result = await createSignatureRequest(formData);
+    if (result?.error) {
+      redirect(documentsMessageUrl({ error: result.error }));
+    }
+    redirect(documentsMessageUrl({ success: "Signature request created." }));
   }
 
   async function markSignedFromForm(formData: FormData) {
     "use server";
 
-    await markSignatureRequestSigned(formData);
+    const result = await markSignatureRequestSigned(formData);
+    if (result?.error) {
+      redirect(documentsMessageUrl({ error: result.error }));
+    }
+    redirect(documentsMessageUrl({ success: "Signed document archived." }));
   }
 
   return (
     <div className="space-y-6">
+      {actionError ? (
+        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {actionError}
+        </div>
+      ) : null}
+      {actionSuccess ? (
+        <div className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+          {actionSuccess}
+        </div>
+      ) : null}
+
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
           <h2 className="text-2xl font-semibold text-slate-950">Documents & Digital Signature</h2>

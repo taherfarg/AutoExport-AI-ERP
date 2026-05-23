@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { Bot, Check, FileSearch, MessageSquareText, ShieldCheck, X } from "lucide-react";
 import { AiStatusBadge } from "@/components/ai/ai-status-badge";
 import { KpiCard } from "@/components/dashboard/kpi-card";
@@ -24,7 +25,30 @@ function formatDate(value: string | null) {
   return new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short" }).format(new Date(value));
 }
 
-export default async function AiPage() {
+function firstParam(value: string | string[] | undefined) {
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function aiMessageUrl(params: Record<string, string>) {
+  const searchParams = new URLSearchParams(params);
+  return `/ai?${searchParams.toString()}`;
+}
+
+function redirectAiResult(result: { error?: string; success?: string } | void, fallbackSuccess: string): never {
+  if (result?.error) {
+    redirect(aiMessageUrl({ error: result.error }));
+  }
+  redirect(aiMessageUrl({ success: result?.success ?? fallbackSuccess }));
+}
+
+type AiPageProps = {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export default async function AiPage({ searchParams }: AiPageProps) {
+  const pageParams = await searchParams;
+  const actionError = firstParam(pageParams.error);
+  const actionSuccess = firstParam(pageParams.success);
   const workspace = await getCurrentWorkspace();
   const [data, branches, permissions] = await Promise.all([
     getAiDashboardData(workspace.companyId),
@@ -38,23 +62,38 @@ export default async function AiPage() {
   async function reportFromForm(formData: FormData) {
     "use server";
 
-    await createAiReportRequest(formData);
+    const result = await createAiReportRequest(formData);
+    redirectAiResult(result, "AI report request created.");
   }
 
   async function extractionFromForm(formData: FormData) {
     "use server";
 
-    await createAiExtractionRequest(formData);
+    const result = await createAiExtractionRequest(formData);
+    redirectAiResult(result, "AI extraction queued.");
   }
 
   async function approvalFromForm(formData: FormData) {
     "use server";
 
-    await decideAiApproval(formData);
+    const decision = formData.get("decision") === "rejected" ? "rejected" : "approved";
+    const result = await decideAiApproval(formData);
+    redirectAiResult(result, decision === "approved" ? "AI action approved." : "AI action rejected.");
   }
 
   return (
     <div className="space-y-6">
+      {actionError ? (
+        <div className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {actionError}
+        </div>
+      ) : null}
+      {actionSuccess ? (
+        <div className="rounded-md border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+          {actionSuccess}
+        </div>
+      ) : null}
+
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
         <div>
           <h2 className="text-2xl font-semibold text-slate-950">AI Technical Intelligence</h2>
