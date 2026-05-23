@@ -1,6 +1,6 @@
 begin;
 
-select plan(7);
+select plan(8);
 
 select ok(
   not exists (
@@ -116,6 +116,11 @@ union all
 select ids.company_a, ids.journal_a, credit_account.id, ids.branch_a, 'Owner equity', 0, 25000, 'AED', 2
 from accounting_probe_ids ids
 join public.gl_accounts credit_account on credit_account.company_id = ids.company_a and credit_account.system_key = 'owner_equity';
+
+select lives_ok(
+  $$ update public.journal_entry_lines set description = 'Vehicle inventory updated' where line_order = 1 $$,
+  'journal entry lines can be updated without an invalid updated_at trigger'
+);
 
 update public.journal_entries
 set status = 'posted'::public.journal_entry_status

@@ -1,0 +1,1 @@
+drop trigger if exists journal_entry_lines_set_updated_at on public.journal_entry_lines;
